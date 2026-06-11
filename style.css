@@ -49,6 +49,7 @@ body {
   align-items: center;
   justify-content: space-between;
   height: 80px;
+  flex-shrink: 0;
   background-color: var(--bg-panel);
   border-bottom: 1px solid var(--border);
   padding: 0 20px;
@@ -170,7 +171,8 @@ body {
 .main-layout {
   display: flex;
   flex: 1;
-  height: calc(100vh - 80px);
+  min-height: 0;
+  overflow: hidden;
   position: relative;
 }
 
@@ -181,6 +183,8 @@ body {
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
   z-index: 5;
   transition: transform 0.3s ease;
 }
@@ -1109,6 +1113,7 @@ body {
 /* Bottom Area: BOM List */
 .bottom-panel {
   height: 180px;
+  flex-shrink: 0;
   background-color: var(--bg-panel);
   border-top: 1px solid var(--border);
   display: flex;
