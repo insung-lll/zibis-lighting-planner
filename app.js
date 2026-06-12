@@ -7,7 +7,7 @@ const fixtureDatabase = [
     name: 'IoT 사이렌 스마트 원형 다운라이트 집중형 (2인치)',
     model: 'DH-Siren2-Spot',
     watt: 8,
-    lumen: 520,
+    lumen: 800,
     beam: 24,
     color: '#FF9500',
     icon: 'spot',
@@ -15,7 +15,8 @@ const fixtureDatabase = [
     cutoutMM: 55,
     inch: '2인치',
     price: 22000,
-    image: 'products/사이렌_집중.png'
+    image: 'products/사이렌_집중.png',
+    link: 'https://zibismart.co.kr/product/iot-사이렌-스마트-원형-다운라이트-2인치/317/'
   },
   {
     id: 'siren-ch2-diff',
@@ -24,7 +25,7 @@ const fixtureDatabase = [
     name: 'IoT 사이렌 스마트 원형 다운라이트 확산형 (2인치)',
     model: 'DH-Siren2-Diff',
     watt: 8,
-    lumen: 520,
+    lumen: 560,
     beam: 60,
     color: '#FFCC00',
     icon: 'diffused',
@@ -32,7 +33,8 @@ const fixtureDatabase = [
     cutoutMM: 55,
     inch: '2인치',
     price: 22000,
-    image: 'products/사이렌_확산.png'
+    image: 'products/사이렌_확산.png',
+    link: 'https://zibismart.co.kr/product/iot-사이렌-스마트-원형-다운라이트-2인치/317/'
   },
   {
     id: 'cutoff-smart-3in',
@@ -40,32 +42,35 @@ const fixtureDatabase = [
     subCategory: 'deep',
     name: 'IoT 컷오프 스마트 원형 다운라이트 (3인치)',
     model: 'DH-Cutoff3',
-    watt: 8,
-    lumen: 640,
+    watt: 12,
+    lumen: 960,
     beam: 36,
     color: '#FF9500',
     icon: 'spot',
     size: 30,
     cutoutMM: 75,
     inch: '3인치',
-    price: 22000
+    price: 22000,
+    image: 'products/다운라이트 움푹.png',
+    link: 'https://zibismart.co.kr/product/iot-컷오프-스마트-원형-다운라이트-2인치3인치/316/'
   },
   {
     id: 'cutoff-downlight-deep',
     category: 'downlight',
     subCategory: 'deep',
-    name: '컷오프 다운라이트 움푹',
+    name: 'IoT 컷오프 스마트 원형 다운라이트 2인치',
     model: 'DH-Cutoff-Deep',
     watt: 8,
-    lumen: 560,
+    lumen: 640,
     beam: 30,
     color: '#FF9500',
     icon: 'spot',
-    size: 28,
-    cutoutMM: 65,
-    inch: '2.5인치',
+    size: 24,
+    cutoutMM: 55,
+    inch: '2인치',
     price: 28000,
-    image: 'products/다운라이트 움푹.png'
+    image: 'products/다운라이트 움푹.png',
+    link: 'https://zibismart.co.kr/product/iot-컷오프-스마트-원형-다운라이트-2인치3인치/316/'
   },
   {
     id: 'mini-spot-1-5inch',
@@ -74,7 +79,7 @@ const fixtureDatabase = [
     name: '1.5인치 원형 초소형 매립등 (집중형)',
     model: 'DH-Mini15-Spot',
     watt: 3,
-    lumen: 210,
+    lumen: 640,
     beam: 20,
     color: '#FF6F00',
     icon: 'spot',
@@ -82,7 +87,8 @@ const fixtureDatabase = [
     cutoutMM: 38,
     inch: '1.5인치',
     price: 18000,
-    image: 'products/Layer11.png'
+    image: 'products/Layer11.png',
+    link: 'https://zibismart.co.kr/product/iot-스마트-초소형-원형-매립등-15인치/324/'
   },
   {
     id: 'pinpoint-spot',
@@ -98,7 +104,9 @@ const fixtureDatabase = [
     size: 26,
     cutoutMM: 60,
     inch: '2.5인치',
-    price: 38000
+    price: 38000,
+    image: 'products/mini_4 1.png',
+    link: 'https://zibismart.co.kr/product/iot-핀포인트-매립형-스팟조명/320/'
   },
   {
     id: 'downlight-spot-12w',
@@ -114,14 +122,16 @@ const fixtureDatabase = [
     size: 34,
     cutoutMM: 90,
     inch: '3.5인치',
-    price: 75000
+    price: 75000,
+    image: 'products/no20_8 1.png',
+    link: 'https://zibismart.co.kr/product/iot-매립-다운라이트-스팟-조명/322/'
   },
   {
     id: 'linebar-flexible-5m',
     category: 'linebar',
     name: 'IoT 플렉시블 라인 투명 실리콘 조명 10폭 5m',
     model: 'LB-Flex-Trans5M',
-    watt: 60,
+    watt: 50,
     lumen: 4800,
     beam: 120,
     color: '#22CC22',
@@ -129,14 +139,15 @@ const fixtureDatabase = [
     size: 40,
     length: 5000,
     widthMM: 10,
-    price: 20000
+    price: 20000,
+    link: 'https://zibismart.co.kr/product/iot-플렉시블-라인-투명-실리콘-조명-10폭-5m/318/'
   },
   {
     id: 'linebar-stylecut-5m',
     category: 'linebar',
     name: 'IoT 스타일컷 라인 실리콘 조명 10폭 5m',
     model: 'LB-Stylecut-Sil5M',
-    watt: 60,
+    watt: 50,
     lumen: 4800,
     beam: 120,
     color: '#34C759',
@@ -144,7 +155,8 @@ const fixtureDatabase = [
     size: 40,
     length: 5000,
     widthMM: 10,
-    price: 24000
+    price: 24000,
+    link: 'https://zibismart.co.kr/product/iot-스타일컷-라인-실리콘-조명-10폭-5m/319/'
   },
   {
     id: 'gridslot-6',
@@ -160,7 +172,9 @@ const fixtureDatabase = [
     heads: 6,
     lengthMM: 120,
     widthMM: 30,
-    price: 35000
+    price: 35000,
+    image: 'products/gridslot6 thumbnail.jpg',
+    link: 'https://zibismart.co.kr/product/iot-그리드슬롯6구/323/'
   },
   {
     id: 'gridslot-12',
@@ -176,7 +190,9 @@ const fixtureDatabase = [
     heads: 12,
     lengthMM: 228,
     widthMM: 30,
-    price: 45000
+    price: 45000,
+    image: 'products/gridslot thumbnail.jpg',
+    link: 'https://zibismart.co.kr/product/iot-그리드슬롯12구/315/'
   },
   {
     id: 'smarthome-curtain',
@@ -189,7 +205,8 @@ const fixtureDatabase = [
     color: '#00C7BE',
     icon: 'curtain',
     size: 24,
-    price: 164000
+    price: 164000,
+    link: 'https://zibismart.co.kr/product/iot-스마트-전동커튼/326/'
   },
   {
     id: 'smarthome-ceilingfan',
@@ -202,8 +219,9 @@ const fixtureDatabase = [
     color: '#30B0C7',
     icon: 'fan',
     size: 24,
-    price: 220000
-  },
+    price: 220000,
+    link: 'https://zibismart.co.kr/product/iot-스마트-실링팬-smart-air-46인치-52인치/325/'
+  }
 ];
 
 
@@ -457,6 +475,11 @@ function renderFixtureLibrary() {
           ${item.inch ? `<span>${item.inch}</span>` : ''}
           ${item.length ? `<span>${item.length/1000}m</span>` : ''}
         </div>
+        ${item.link ? `
+        <div class="fixture-link-wrapper" style="margin-top: 6px;">
+          <a href="${item.link}" target="_blank" onclick="event.stopPropagation();" style="color: #3d69b9; text-decoration: underline; font-size: 11px; font-weight: 500; cursor: pointer;">자세히보기</a>
+        </div>
+        ` : ''}
       </div>
     `;
     
