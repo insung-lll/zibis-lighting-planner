@@ -15,7 +15,7 @@ const fixtureDatabase = [
     cutoutMM: 55,
     inch: '2인치',
     price: 22000,
-    image: 'products/사이렌_집중.png',
+    image: 'products/siren_cob.png',
     link: 'https://zibismart.co.kr/product/iot-사이렌-스마트-원형-다운라이트-2인치/317/'
   },
   {
@@ -33,7 +33,7 @@ const fixtureDatabase = [
     cutoutMM: 55,
     inch: '2인치',
     price: 22000,
-    image: 'products/사이렌_확산.png',
+    image: 'products/siren_diff.png',
     link: 'https://zibismart.co.kr/product/iot-사이렌-스마트-원형-다운라이트-2인치/317/'
   },
   {
@@ -51,7 +51,7 @@ const fixtureDatabase = [
     cutoutMM: 75,
     inch: '3인치',
     price: 22000,
-    image: 'products/다운라이트 움푹.png',
+    image: 'products/cutoff.png',
     link: 'https://zibismart.co.kr/product/iot-컷오프-스마트-원형-다운라이트-2인치3인치/316/'
   },
   {
@@ -69,7 +69,7 @@ const fixtureDatabase = [
     cutoutMM: 55,
     inch: '2인치',
     price: 28000,
-    image: 'products/다운라이트 움푹.png',
+    image: 'products/cutoff.png',
     link: 'https://zibismart.co.kr/product/iot-컷오프-스마트-원형-다운라이트-2인치3인치/316/'
   },
   {
@@ -132,7 +132,7 @@ const fixtureDatabase = [
     name: 'IoT 플렉시블 라인 투명 실리콘 조명 10폭 5m',
     model: 'LB-Flex-Trans5M',
     watt: 50,
-    lumen: 4800,
+    lumen: 4750,
     beam: 120,
     color: '#22CC22',
     icon: 'line',
@@ -148,7 +148,7 @@ const fixtureDatabase = [
     name: 'IoT 스타일컷 라인 실리콘 조명 10폭 5m',
     model: 'LB-Stylecut-Sil5M',
     watt: 50,
-    lumen: 4800,
+    lumen: 4750,
     beam: 120,
     color: '#34C759',
     icon: 'line',
@@ -291,6 +291,7 @@ const state = {
   
   // Interaction previews
   ghostCursor: null,
+  snapGuides: [],
   placementRotation: 0,
   isDrawingLinebar: false,
   linebarStart: null,
@@ -355,6 +356,7 @@ const els = {
   canvasToolbar: document.getElementById('canvasToolbar'),
   zoomDisplay: document.getElementById('zoomDisplay'),
   scaleDisplay: document.getElementById('scaleDisplay'),
+  pyeongDisplay: document.getElementById('pyeongDisplay'),
   tabAddZone: document.getElementById('tabAddZone'),
   lblAddZone: document.getElementById('lblAddZone'),
   zonePopup: document.getElementById('zonePopup'),
@@ -394,6 +396,7 @@ const els = {
   // Save & Load
   btnNewProject: document.getElementById('btnNewProject'),
   btnLoadProject: document.getElementById('btnLoadProject'),
+  btnLoadProjectFirst: document.getElementById('btnLoadProjectFirst'),
   loadProjectInput: document.getElementById('loadProjectInput'),
   btnSaveProject: document.getElementById('btnSaveProject'),
   btnExport: document.getElementById('btnExport'),
@@ -516,7 +519,8 @@ function resetTools() {
   state.isDrawingLinebar = false;
   state.linebarStart = null;
   state.linebarEnd = null;
-  
+  state.snapGuides = [];
+
   state.selectedLightIds = [];
   state.selectedZoneId = null;
   state.selectedDimensionId = null;
@@ -818,6 +822,9 @@ function setupEventListeners() {
 
   els.btnSaveProject.addEventListener('click', saveProjectFile);
   els.btnLoadProject.addEventListener('click', () => els.loadProjectInput.click());
+  if (els.btnLoadProjectFirst) {
+    els.btnLoadProjectFirst.addEventListener('click', () => els.loadProjectInput.click());
+  }
   els.loadProjectInput.addEventListener('change', loadProjectFile);
   
   // Excel Export
@@ -937,6 +944,17 @@ function updateZoomAndPan() {
   
   els.zoomDisplay.textContent = Math.round(state.zoom * 100) + '%';
   els.scaleDisplay.textContent = `1m = ${Math.round(state.pixelsPerMeter)}px`;
+
+  // 평수 표시: 수동 입력값만 표시, 미입력 시 "입력값 없음"
+  if (els.pyeongDisplay) {
+    const pyeongVal = parseFloat(document.getElementById('pyeongInput')?.value);
+    if (pyeongVal > 0) {
+      const areaM2 = pyeongVal * 3.3058;
+      els.pyeongDisplay.textContent = `${pyeongVal.toFixed(1)}평 (${areaM2.toFixed(1)}㎡)`;
+    } else {
+      els.pyeongDisplay.textContent = '입력값 없음';
+    }
+  }
 }
 
 // ==================== CALIBRATION (SCALE CONFIG) FLOW ====================
@@ -1004,14 +1022,23 @@ function startCalibrationFlow() {
   
   state.calibrationPoints = [];
   state.calibrateMousePos = null;
-  
+
   modal.style.display = 'flex';
-  
+
   // Set default reference distance to 0.9m
   if (els.referenceDistance) {
     els.referenceDistance.value = "0.9";
   }
-  
+
+  // 평수 입력 초기화
+  const pyeongEl = document.getElementById('pyeongInput');
+  if (pyeongEl) pyeongEl.value = '';
+  const previewEl = document.getElementById('pyeongPreview');
+  if (previewEl) previewEl.textContent = '';
+
+  // 버튼 비활성화 (초기 상태)
+  els.btnApplyCalibrate.disabled = true;
+
   if (els.calibrateStatus) {
     els.calibrateStatus.textContent = "기준선의 시작점을 마우스로 클릭해 주세요.";
   }
@@ -1034,23 +1061,26 @@ function startCalibrationFlow() {
   let panStartX = 0;
   let panStartY = 0;
   let isDragging = false;
-  
+  let mouseDownOnCanvas = false; // mousedown이 캔버스에서 발생했는지 추적
+
   canvas.onmousedown = (e) => {
     if (e.button !== 0) return;
-    
+
+    mouseDownOnCanvas = true;
     clickStartX = e.clientX;
     clickStartY = e.clientY;
     panStartX = state.calibratePanX;
     panStartY = state.calibratePanY;
     isDragging = false;
-    
+
     canvas.style.cursor = 'crosshair';
   };
-  
+
   canvas.onmousemove = (e) => {
     const { imageX, imageY } = getCalibrateCoords(e, canvas);
-    
-    if (e.buttons === 1) {
+
+    // mouseDownOnCanvas 확인: 캔버스 외부에서 버튼을 누른 채 이동해온 경우 팬 방지
+    if (e.buttons === 1 && mouseDownOnCanvas) {
       const dx = e.clientX - clickStartX;
       const dy = e.clientY - clickStartY;
       if (Math.hypot(dx, dy) > 5) {
@@ -1063,10 +1093,10 @@ function startCalibrationFlow() {
         state.calibratePanY = panStartY + dy * sy;
         canvas.style.cursor = 'move';
       }
-    } else {
+    } else if (e.buttons === 0) {
       state.isCalibratePanning = false;
     }
-    
+
     if (state.calibrationPoints.length === 1) {
       let pt = { x: imageX, y: imageY };
       if (e.shiftKey) {
@@ -1074,16 +1104,17 @@ function startCalibrationFlow() {
       }
       state.calibrateMousePos = pt;
     }
-    
+
     renderCalibrationCanvas();
   };
-  
+
   canvas.onmouseup = (e) => {
     if (e.button !== 0) return;
-    
+
+    mouseDownOnCanvas = false;
     state.isCalibratePanning = false;
     canvas.style.cursor = 'crosshair';
-    
+
     if (isDragging) {
       isDragging = false;
       return;
@@ -1107,20 +1138,23 @@ function startCalibrationFlow() {
       if (els.calibrateStatus) {
         els.calibrateStatus.textContent = "기준선이 설정되었습니다. 실제 길이를 입력하고 '보정 값 적용' 버튼을 눌러주세요.";
       }
+      updateApplyButtonState();
     } else {
       state.calibrationPoints = [pt];
       state.calibrateMousePos = pt;
       if (els.calibrateStatus) {
         els.calibrateStatus.textContent = "기준선의 끝점을 마우스로 클릭해 주세요. (Shift 키를 누르면 수평/수직 정렬)";
       }
+      updateApplyButtonState();
     }
-    
+
     renderCalibrationCanvas();
   };
   
   canvas.onmouseleave = () => {
     state.isCalibratePanning = false;
     isDragging = false;
+    mouseDownOnCanvas = false;
     canvas.style.cursor = 'default';
   };
   
@@ -1241,12 +1275,49 @@ function drawDistanceText(ctx, cx, cy, distPx, drawScale) {
   ctx.restore();
 }
 
+// ── 보정 버튼 활성화 상태 관리 ──
+function updateApplyButtonState() {
+  const hasLine = state.calibrationPoints.length >= 2;
+  els.btnApplyCalibrate.disabled = !hasLine;
+}
+
+// ── 평수 입력 → m² 미리보기 + 버튼 활성화 ──
+const pyeongInputEl = document.getElementById('pyeongInput');
+if (pyeongInputEl) {
+  pyeongInputEl.addEventListener('input', () => {
+    const pyeong = parseFloat(pyeongInputEl.value);
+    // 보정 모달 내 미리보기
+    const preview = document.getElementById('pyeongPreview');
+    if (preview) {
+      preview.textContent = (pyeong > 0) ? `≈ ${(pyeong * 3.3058).toFixed(1)} ㎡` : '';
+    }
+    // 좌측 패널 면적 표시 즉시 반영
+    const display = els.pyeongDisplay;
+    if (display) {
+      display.textContent = (pyeong > 0)
+        ? `${pyeong.toFixed(1)}평 (${(pyeong * 3.3058).toFixed(1)}㎡)`
+        : '입력값 없음';
+    }
+    updateApplyButtonState();
+  });
+}
+
+
+// ── 패널 정보 스크롤 버튼 ──
+const infoPanelScroll = document.getElementById('infoPanelScroll');
+document.getElementById('infoPrevBtn')?.addEventListener('click', () => {
+  infoPanelScroll?.scrollBy({ left: -80, behavior: 'smooth' });
+});
+document.getElementById('infoNextBtn')?.addEventListener('click', () => {
+  infoPanelScroll?.scrollBy({ left: 80, behavior: 'smooth' });
+});
+
 els.btnApplyCalibrate.addEventListener('click', () => {
   if (state.calibrationPoints.length < 2) {
     alert("도면 위에 기준선을 먼저 그려주세요 (두 점 클릭).");
     return;
   }
-  
+
   const refDist = parseFloat(els.referenceDistance.value);
   if (isNaN(refDist) || refDist <= 0) {
     alert("올바른 기준선 길이를 입력해 주세요 (예: 0.9).");
@@ -1417,6 +1488,11 @@ function setupCanvasInteractions() {
               ex = state.linebarStart.x + dx * scale;
               ey = state.linebarStart.y + dy * scale;
             }
+            const lineLenPx = Math.sqrt((ex - state.linebarStart.x)**2 + (ey - state.linebarStart.y)**2);
+            const lengthM = state.pixelsPerMeter > 0 ? (lineLenPx / state.pixelsPerMeter) : 0;
+            const calculatedWatt = Math.round(lengthM * 10);
+            const calculatedLumen = Math.round(lengthM * 950);
+            
             const newLight = {
               id: state.nextLightId++,
               typeId: specCur.id,
@@ -1425,8 +1501,8 @@ function setupCanvasInteractions() {
               y: state.linebarStart.y,
               x2: ex,
               y2: ey,
-              watt: specCur.watt,
-              lumen: specCur.lumen,
+              watt: calculatedWatt,
+              lumen: calculatedLumen,
               color: specCur.color,
               size: specCur.size,
               price: specCur.price,
@@ -1442,7 +1518,9 @@ function setupCanvasInteractions() {
           renderAll();
         }
       } else {
-        placeLightAt(pt.x, pt.y);
+        // Use snapped position from ghostCursor if available
+        const placePt = state.ghostCursor || pt;
+        placeLightAt(placePt.x, placePt.y);
       }
     } else if (state.activeTool === 'draw-zone' || state.activeTool === 'draw-zone-polygon') {
       const lastPt = (state.isDrawingZone && state.zonePolygonPoints.length > 0)
@@ -1476,13 +1554,28 @@ function setupCanvasInteractions() {
   layer.addEventListener('mousemove', (e) => {
     const pt = getOriginalCoords(e);
     state.ghostCursor = pt;
-    
+    state.snapGuides = [];
+
+    // Place tool: compute snap for point fixtures (not linebar)
+    if (state.activeTool === 'place' && state.selectedFixtureId && !state.isDrawingLinebar) {
+      const spec = fixtureDatabase.find(f => f.id === state.selectedFixtureId);
+      if (spec && spec.category !== 'linebar' && spec.icon !== 'line') {
+        const zone = state.zones.find(z => isPointInPolygon(pt, z.points));
+        if (zone) {
+          const zoneLights = state.lights.filter(l => isLightInPolygon(l, zone.points));
+          const snap = getPlacementSnap(pt, zoneLights);
+          state.ghostCursor = { x: snap.x, y: snap.y };
+          state.snapGuides = snap.guides;
+        }
+      }
+    }
+
     // Light hover tooltip
     const hoveredLight = findLightAt(pt.x, pt.y);
     if (hoveredLight) {
       const spec = fixtureDatabase.find(f => f.id === hoveredLight.typeId);
       if (spec) {
-        els.lightTooltip.innerHTML = `<strong>${spec.name}</strong><br><span style="color:var(--text-dim);">${spec.model} | ${spec.watt}W | ${spec.lumen}lm | ${spec.beam}°</span>`;
+        els.lightTooltip.innerHTML = `<strong>${hoveredLight.name}</strong><br><span style="color:var(--text-dim);">${spec.model} | ${hoveredLight.watt}W | ${hoveredLight.lumen}lm | ${spec.beam}°</span>`;
         els.lightTooltip.style.display = 'block';
         const rect = els.canvasArea.getBoundingClientRect();
         els.lightTooltip.style.left = (e.clientX - rect.left + 15) + 'px';
@@ -1701,7 +1794,7 @@ function findLightAt(x, y) {
       const dx = l.x - x;
       const dy = l.y - y;
       const dist = Math.sqrt(dx*dx + dy*dy);
-      return dist <= l.size;
+      return dist <= getFixtureRenderSize(l.size);
     }
   });
 }
@@ -1723,6 +1816,62 @@ function findZoneAt(x, y) {
 }
 
 // Place selected Downlight
+function getPlacementSnap(pt, zoneLights) {
+  const SNAP_DIST = 20 / state.zoom;
+  const count = zoneLights.length;
+  if (count === 0) return { x: pt.x, y: pt.y, guides: [] };
+
+  let sx = pt.x, sy = pt.y;
+  const guides = [];
+  let snappedVert = false, snappedHoriz = false;
+
+  // 2nd+ light: H/V alignment snap to any existing light in zone
+  for (const light of zoneLights) {
+    const dx = Math.abs(pt.x - light.x);
+    const dy = Math.abs(pt.y - light.y);
+    if (!snappedVert && dx < SNAP_DIST) {
+      sx = light.x;
+      snappedVert = true;
+      guides.push({ type: 'v', x: light.x });
+    }
+    if (!snappedHoriz && dy < SNAP_DIST) {
+      sy = light.y;
+      snappedHoriz = true;
+      guides.push({ type: 'h', y: light.y });
+    }
+  }
+
+  // 3rd+ lights: equal spacing snap (based on light[0] → light[1] vector)
+  if (count >= 2) {
+    const l0 = zoneLights[0];
+    const l1 = zoneLights[1];
+    const spX = l1.x - l0.x;
+    const spY = l1.y - l0.y;
+    const spacing = Math.sqrt(spX * spX + spY * spY);
+    if (spacing > 1) {
+      const candidates = [];
+      for (let n = 1; n <= 20; n++) {
+        candidates.push({ x: l1.x + spX * n, y: l1.y + spY * n });
+        candidates.push({ x: l0.x - spX * n, y: l0.y - spY * n });
+      }
+      const snapThresh = Math.max(SNAP_DIST * 2, spacing * 0.15);
+      for (const cand of candidates) {
+        const dist = Math.sqrt((pt.x - cand.x) ** 2 + (pt.y - cand.y) ** 2);
+        if (dist < snapThresh) {
+          sx = cand.x;
+          sy = cand.y;
+          snappedVert = true;
+          snappedHoriz = true;
+          guides.push({ type: 'spacing', x: cand.x, y: cand.y, spX, spY });
+          break;
+        }
+      }
+    }
+  }
+
+  return { x: sx, y: sy, guides };
+}
+
 function placeLightAt(x, y) {
   if (state.zones.length === 0) {
     alert("공간 추가를 먼저 진행해 주세요.");
@@ -2315,10 +2464,7 @@ function recalculateAllZones() {
     categoriesToDistribute.forEach(cat => {
       const qty = distributed[cat];
       if (qty > 0) {
-        let name = '';
-        if (cat === 'downlight') name = '다운라이트 컨트롤러';
-        else if (cat === 'linebar') name = '라인바 컨트롤러';
-        else if (cat === 'multi') name = '마그네틱 컨트롤러';
+        let name = '컨트롤러';
         if (name) {
           zone.requiredControllers.push({ name, qty });
         }
@@ -2426,9 +2572,11 @@ function renderZonePanel() {
         </div>
         
         <div style="text-align:right;">
-          <div style="font-weight:700;">${(zone.totalLumen || 0).toLocaleString()} lm</div>
-          <div style="font-size:10px; color:var(--text-dim); margin-bottom:3px;">${lumenPerPyeong.toFixed(0)} / ${targetLumen} lm/평</div>
-          <div class="zone-lux-badge ${badgeClass}" style="display:inline-block;">${badgeText}</div>
+          <div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">
+            <div class="zone-lux-badge ${badgeClass}" style="display:inline-block;">${badgeText}</div>
+            <div style="font-weight:700;">${(zone.totalLumen || 0).toLocaleString()} lm</div>
+          </div>
+          <div style="font-size:10px; color:var(--text-dim); margin-top:2px;">${lumenPerPyeong.toFixed(0)} / ${targetLumen} lm/평</div>
         </div>
       </div>
       
@@ -2534,16 +2682,22 @@ function renderBOMTable() {
   filteredLights.forEach(l => {
     if (!groups[l.typeId]) {
       const spec = fixtureDatabase.find(f => f.id === l.typeId);
+      const isLine = spec && (spec.category === 'linebar' || spec.icon === 'line');
       groups[l.typeId] = {
         name: l.name,
         category: spec ? spec.category : '',
-        watt: l.watt,
-        lumen: l.lumen,
+        watt: isLine ? 0 : l.watt,
+        lumen: isLine ? 0 : l.lumen,
         price: l.price || 0,
-        qty: 0
+        qty: 0,
+        isLinebar: isLine
       };
     }
     groups[l.typeId].qty++;
+    if (groups[l.typeId].isLinebar) {
+      groups[l.typeId].watt += l.watt;
+      groups[l.typeId].lumen += l.lumen;
+    }
   });
   
   // Filter zones for accessories display
@@ -2671,6 +2825,17 @@ window.deleteBOMFixture = function(typeId) {
 };
 
 // ==================== CANVAS LAYERS RENDERING ====================
+// 이미지 대각선 기준으로 fixture 표시 크기 보정
+// 기준 대각선: 2000px → scale 1.0 / 소형 이미지일수록 작아짐
+function getFixtureRenderSize(baseSize) {
+  if (!state.uploadedImage) return baseSize;
+  const imgDiag = Math.sqrt(
+    state.uploadedImage.width ** 2 + state.uploadedImage.height ** 2
+  );
+  const scale = Math.max(0.2, Math.min(4, imgDiag / 2000));
+  return baseSize * scale * (2 / 3);
+}
+
 function renderAll() {
   if (!state.uploadedImage) return;
 
@@ -2689,69 +2854,34 @@ function renderFloorPlanLayer() {
   ctx.drawImage(state.uploadedImage, 0, 0);
 }
 
-// Draw dynamic light glow/heatmap representation
+// Draw zone illuminance overlays
 function renderHeatmapLayer() {
   const c = els.lightOverlay;
   const ctx = ctxs.light;
   ctx.clearRect(0, 0, c.width, c.height);
-  
-  if (state.heatmapMode === 'none') return;
-  
-  // 1. Heatmap Mode
-  if (state.heatmapMode === 'heatmap') {
-    ctx.save();
-    ctx.globalCompositeOperation = 'screen';
-    
-    state.lights.forEach(l => {
-      const glowRadius = (l.lumen / 10) * (state.pixelsPerMeter / 50);
-      
-      if (l.x2 !== undefined && l.y2 !== undefined) {
-        ctx.beginPath();
-        ctx.moveTo(l.x, l.y);
-        ctx.lineTo(l.x2, l.y2);
-        ctx.strokeStyle = 'rgba(255, 220, 100, 0.15)';
-        ctx.lineWidth = glowRadius;
-        ctx.lineCap = 'round';
-        ctx.shadowColor = 'rgba(255, 180, 50, 0.4)';
-        ctx.shadowBlur = glowRadius / 2;
-        ctx.stroke();
-      } else {
-        const grad = ctx.createRadialGradient(l.x, l.y, 2, l.x, l.y, glowRadius);
-        grad.addColorStop(0, 'rgba(255, 220, 100, 0.45)');
-        grad.addColorStop(0.3, 'rgba(255, 180, 50, 0.15)');
-        grad.addColorStop(1, 'rgba(255, 180, 50, 0)');
-        
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(l.x, l.y, glowRadius, 0, 2 * Math.PI);
-        ctx.fill();
-      }
-    });
-    ctx.restore();
-    return;
-  }
-  
-  // 2. Zone Illuminance overlays
-  if (state.heatmapMode === 'zone') {
-    ctx.save();
-    state.zones.forEach(zone => {
-      if (zone.visible === false) return;
-      ctx.beginPath();
-      ctx.moveTo(zone.points[0].x, zone.points[0].y);
-      zone.points.slice(1).forEach(pt => ctx.lineTo(pt.x, pt.y));
-      ctx.closePath();
-      
-      // opacity based on lux ratings
-      const rating = getLuxRating(zone.averageLux);
-      let fillColor = 'rgba(255, 59, 48, 0.15)'; // low
-      if (rating.class === 'adequate') fillColor = 'rgba(52, 199, 89, 0.15)';
-      if (rating.class === 'bright') fillColor = 'rgba(242, 162, 0, 0.15)';
-      
-      ctx.fillStyle = fillColor;
-      ctx.fill();
-    });
-    ctx.restore();
-  }
+
+  if (state.heatmapMode !== 'zone') return;
+
+  ctx.save();
+  state.zones.forEach(zone => {
+    if (zone.visible === false) return;
+    ctx.beginPath();
+    ctx.moveTo(zone.points[0].x, zone.points[0].y);
+    zone.points.slice(1).forEach(pt => ctx.lineTo(pt.x, pt.y));
+    ctx.closePath();
+
+    const zonePyeong = (zone.areaM2 || 0) * 0.3025;
+    const zoneLumenPerPyeong = zonePyeong > 0 ? (zone.totalLumen || 0) / zonePyeong : 0;
+    const zoneTarget = getTargetLumenPerPyung(zone.name);
+    const zoneMax = zoneTarget + 200;
+    let fillColor = 'rgba(255, 59, 48, 0.15)'; // 부족 - red
+    if (zoneLumenPerPyeong >= zoneMax) fillColor = 'rgba(52, 199, 89, 0.15)'; // 충분 - green
+    else if (zoneLumenPerPyeong >= zoneTarget) fillColor = 'rgba(242, 162, 0, 0.15)'; // 적당 - yellow
+
+    ctx.fillStyle = fillColor;
+    ctx.fill();
+  });
+  ctx.restore();
 }
 
 function renderZoneLayer() {
@@ -2902,24 +3032,25 @@ function renderLightsLayer() {
       ctx.stroke();
     } else {
       // Draw selection outer glow
+      const rs = getFixtureRenderSize(l.size);
       if (isSelected) {
         ctx.beginPath();
-        ctx.arc(l.x, l.y, l.size + 6, 0, 2 * Math.PI);
+        ctx.arc(l.x, l.y, rs + 6, 0, 2 * Math.PI);
         ctx.fillStyle = 'rgba(242, 162, 0, 0.3)';
         ctx.fill();
       }
-      
+
       // Outer white rim
       ctx.beginPath();
-      ctx.arc(l.x, l.y, l.size / 2, 0, 2 * Math.PI);
+      ctx.arc(l.x, l.y, rs / 2, 0, 2 * Math.PI);
       ctx.fillStyle = '#ffffff';
       ctx.shadowColor = 'rgba(0,0,0,0.5)';
       ctx.shadowBlur = 6;
       ctx.fill();
-      
+
       // Colored inner core
       ctx.beginPath();
-      ctx.arc(l.x, l.y, l.size / 2.5, 0, 2 * Math.PI);
+      ctx.arc(l.x, l.y, rs / 2.5, 0, 2 * Math.PI);
       ctx.fillStyle = l.color;
       ctx.shadowBlur = 0;
       ctx.fill();
@@ -2988,9 +3119,47 @@ function renderInteractionLayer() {
   } else if (state.activeTool === 'place' && state.ghostCursor && state.selectedFixtureId) {
     const spec = fixtureDatabase.find(f => f.id === state.selectedFixtureId);
     if (spec && spec.category !== 'linebar' && spec.icon !== 'line') {
+      // Draw snap guide lines
+      if (state.snapGuides && state.snapGuides.length > 0) {
+        ctx.save();
+        ctx.setLineDash([8, 5]);
+        ctx.lineWidth = 1.5;
+        ctx.globalAlpha = 0.75;
+        const W = c.width;
+        const H = c.height;
+        for (const g of state.snapGuides) {
+          if (g.type === 'v') {
+            ctx.strokeStyle = '#00d4ff';
+            ctx.beginPath();
+            ctx.moveTo(g.x, 0);
+            ctx.lineTo(g.x, H);
+            ctx.stroke();
+          } else if (g.type === 'h') {
+            ctx.strokeStyle = '#00d4ff';
+            ctx.beginPath();
+            ctx.moveTo(0, g.y);
+            ctx.lineTo(W, g.y);
+            ctx.stroke();
+          } else if (g.type === 'spacing') {
+            ctx.strokeStyle = '#ffcc00';
+            const len = Math.sqrt(g.spX * g.spX + g.spY * g.spY);
+            if (len > 0) {
+              const ux = g.spX / len, uy = g.spY / len;
+              const ext = Math.max(W, H);
+              ctx.beginPath();
+              ctx.moveTo(g.x - ux * ext, g.y - uy * ext);
+              ctx.lineTo(g.x + ux * ext, g.y + uy * ext);
+              ctx.stroke();
+            }
+          }
+        }
+        ctx.restore();
+      }
+
+      // Draw ghost cursor dot
       ctx.globalAlpha = 0.6;
       ctx.beginPath();
-      ctx.arc(state.ghostCursor.x, state.ghostCursor.y, spec.size / 2, 0, 2 * Math.PI);
+      ctx.arc(state.ghostCursor.x, state.ghostCursor.y, getFixtureRenderSize(spec.size) / 2, 0, 2 * Math.PI);
       ctx.fillStyle = spec.color;
       ctx.fill();
       ctx.strokeStyle = '#ffffff';
@@ -3210,10 +3379,10 @@ async function exportToExcel() {
       let fillColor = 'rgba(255, 59, 48, 0.15)'; // Red for low/부족
       if (lumenPerPyeong >= maxLimit) {
         statusText = '충분';
-        fillColor = 'rgba(61, 105, 185, 0.15)'; // Brand blue for 충분
+        fillColor = 'rgba(52, 199, 89, 0.15)'; // Green for 충분
       } else if (lumenPerPyeong >= targetLumen) {
         statusText = '적당';
-        fillColor = 'rgba(52, 199, 89, 0.15)'; // Green for adequate/적당
+        fillColor = 'rgba(242, 162, 0, 0.15)'; // Yellow for 적당
       }
       
       ctx.fillStyle = fillColor;
@@ -3298,13 +3467,14 @@ async function exportToExcel() {
       ctx.lineCap = 'round';
       ctx.stroke();
     } else {
+      const rs = getFixtureRenderSize(l.size);
       ctx.beginPath();
-      ctx.arc(l.x, l.y, l.size / 2, 0, 2 * Math.PI);
+      ctx.arc(l.x, l.y, rs / 2, 0, 2 * Math.PI);
       ctx.fillStyle = '#ffffff';
       ctx.fill();
-      
+
       ctx.beginPath();
-      ctx.arc(l.x, l.y, l.size / 2.5, 0, 2 * Math.PI);
+      ctx.arc(l.x, l.y, rs / 2.5, 0, 2 * Math.PI);
       ctx.fillStyle = l.color;
       ctx.fill();
     }
@@ -3333,8 +3503,8 @@ async function exportToExcel() {
   // 3. Title Style & Merges
   worksheet.mergeCells('B2:G2');
   const titleCell = worksheet.getCell('B2');
-  titleCell.value = 'LUX PRO - 조명 설계 및 가견적서 (zibis)';
-  titleCell.font = { name: 'Malgun Gothic', size: 16, bold: true, color: { argb: 'FFFF9500' } };
+  titleCell.value = 'ZIBIS 조명 설계 및 가견적서';
+  titleCell.font = { name: 'Malgun Gothic', size: 16, bold: true, color: { argb: 'FF2D6ABF' } };
   titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
   worksheet.getRow(2).height = 40;
   
@@ -3403,16 +3573,22 @@ async function exportToExcel() {
         : spec.category === 'multi'     ? '멀티매입등'
         : spec.category === 'smarthome' ? '스마트홈 기기'
         : '조명';
+      const isLine = spec && (spec.category === 'linebar' || spec.icon === 'line');
       groups[l.typeId] = {
         name: l.name,
         type: catLabel,
-        watt: l.watt,
-        lumen: l.lumen,
+        watt: isLine ? 0 : l.watt,
+        lumen: isLine ? 0 : l.lumen,
         price: l.price || 0,
-        qty: 0
+        qty: 0,
+        isLinebar: isLine
       };
     }
     groups[l.typeId].qty++;
+    if (groups[l.typeId].isLinebar) {
+      groups[l.typeId].watt += l.watt;
+      groups[l.typeId].lumen += l.lumen;
+    }
   });
   
   let totalCost = 0;

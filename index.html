@@ -38,7 +38,7 @@
         </svg>
         새 프로젝트
       </button>
-      <button class="btn" id="btnLoadProject" title="프로젝트 불러오기 (.luxpro)">
+      <button class="btn" id="btnLoadProject" title="프로젝트 불러오기 (.zbs)">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
           <line x1="12" y1="11" x2="12" y2="17"/>
@@ -46,8 +46,8 @@
         </svg>
         열기
       </button>
-      <input type="file" id="loadProjectInput" accept=".luxpro" style="display:none;">
-      <button class="btn" id="btnSaveProject" title="프로젝트 저장 (.luxpro)">
+      <input type="file" id="loadProjectInput" accept=".zbs" style="display:none;">
+      <button class="btn" id="btnSaveProject" title="프로젝트 저장 (.zbs)">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
           <polyline points="17 21 17 13 7 13 7 21"/>
@@ -96,22 +96,32 @@
       
       <!-- Left Panel Bottom Info Section -->
       <div class="left-panel-info" id="canvasToolbar" style="display:none;">
-        <div class="left-panel-info-group">
-          <div class="stat">
-            <span class="prop-label">배율</span>
-            <span class="stat-value" id="zoomDisplay">100%</span>
-          </div>
-          <div class="stat">
-            <span class="prop-label">스케일</span>
-            <span class="stat-value" id="scaleDisplay">1m = - px</span>
-          </div>
-          <div class="stat">
-            <span class="prop-label">천장고</span>
-            <div class="stat-value" style="display:flex; align-items:center; gap:4px;">
-              <input type="number" class="form-input" id="ceilingHeightInput" value="2.4" min="1.0" max="6.0" step="0.1" style="width: 46px; height: 24px; text-align: center; background-color: rgba(255,255,255,0.06); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 12px; padding: 0; box-sizing: border-box; outline: none; -moz-appearance: textfield;">
-              <span style="font-size:12px; color:var(--text-dim); font-weight:normal;">m</span>
+        <div style="display:flex; align-items:center; gap:0;">
+          <button id="infoPrevBtn" class="info-nav-btn" aria-label="이전">&#8249;</button>
+          <div class="left-panel-info-scroll" id="infoPanelScroll">
+            <div class="left-panel-info-group">
+              <div class="stat">
+                <span class="prop-label">배율</span>
+                <span class="stat-value" id="zoomDisplay">100%</span>
+              </div>
+              <div class="stat">
+                <span class="prop-label">스케일</span>
+                <span class="stat-value" id="scaleDisplay">1m = - px</span>
+              </div>
+              <div class="stat">
+                <span class="prop-label">면적</span>
+                <span class="stat-value" id="pyeongDisplay">-</span>
+              </div>
+              <div class="stat">
+                <span class="prop-label">천장고</span>
+                <div class="stat-value" style="display:flex; align-items:center; gap:4px;">
+                  <input type="number" class="form-input" id="ceilingHeightInput" value="2.4" min="1.0" max="6.0" step="0.1" style="width: 46px; height: 24px; text-align: center; background-color: rgba(255,255,255,0.06); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 12px; padding: 0; box-sizing: border-box; outline: none; -moz-appearance: textfield;">
+                  <span style="font-size:12px; color:var(--text-dim); font-weight:normal;">m</span>
+                </div>
+              </div>
             </div>
           </div>
+          <button id="infoNextBtn" class="info-nav-btn" aria-label="다음">&#8250;</button>
         </div>
       </div>
     </div>
@@ -198,7 +208,6 @@
             <select class="form-input" id="heatmapModeSelect">
               <option value="none">시각화 해제</option>
               <option value="zone" selected>공간 조도 판정</option>
-              <option value="heatmap">조도 히트맵</option>
             </select>
           </div>
         </div>
@@ -279,6 +288,17 @@
       </div>
       <input type="file" id="fileInput" accept="image/png, image/jpeg" style="display:none;">
       
+      <div style="display: flex; justify-content: center; margin-top: 15px;">
+        <button class="btn" id="btnLoadProjectFirst" style="width: 100%; height: 42px; justify-content: center; gap: 8px; font-weight: 600; border-color: var(--border); background-color: rgba(255, 255, 255, 0.03);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+            <line x1="12" y1="11" x2="12" y2="17"/>
+            <polyline points="9 14 12 11 15 14"/>
+          </svg>
+          기존 프로젝트 열기 (.zbs)
+        </button>
+      </div>
+      
       <div class="info-box" style="margin-top: 20px; text-align: left; background-color: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); padding: 10px 12px; border-radius: 6px; font-size: 11px; color: var(--text-dim); line-height: 1.5;">
         <strong>참고:</strong> 해상도가 양호하고 노이즈가 적은 파일일수록 정밀한 시각화 및 배선이 가능합니다.
       </div>
@@ -330,7 +350,16 @@
       </div>
       <div class="calibrate-panel">
         <div class="section-title">스케일 보정 설정</div>
-        
+
+        <div class="form-row" style="margin-bottom:6px;">
+          <label class="form-label">전체 면적</label>
+          <div class="height-input-row">
+            <input type="number" class="form-input" id="pyeongInput" placeholder="예: 32" min="1" step="0.5">
+            <span class="unit">평</span>
+          </div>
+        </div>
+        <div style="font-size:11px; color:var(--text-dim); margin-bottom:14px; min-height:16px;" id="pyeongPreview"></div>
+
         <div class="calibrate-tab-content active" id="contentCalibrateManual">
           <p class="calibrate-step-desc" style="margin-bottom: 12px;">
             도면 상의 <strong>실제 수치(예: 방 가로 치수선, 문 가로 폭 등)를 알고 있는 기준선의 양 끝점</strong>을 클릭하여 선을 직접 그려주세요.
@@ -342,20 +371,20 @@
               <span class="unit">meters</span>
             </div>
           </div>
-          
+
           <div class="info-box-sm" style="font-size: 12px; color: var(--text-dim); line-height: 1.6; margin-bottom: 12px; background-color: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); padding: 12px; border-radius: 6px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;">
             <img src="door.gif" alt="문 폭 측정 가이드" style="width: 100%; max-width: 240px; height: auto; border-radius: 4px; border: 1px solid var(--border);">
             <div style="font-weight: 600; color: var(--text);">
               방문의 가로 폭을 선으로 그어주세요.
             </div>
           </div>
-          
+
           <div class="form-row" id="calibrateStatus" style="font-size:11px; color:var(--text-dim); margin-bottom: 0;">
             기준선 시작점을 클릭하세요.
           </div>
         </div>
 
-        <button class="btn btn-primary" id="btnApplyCalibrate" style="width:100%; margin-top: auto;">보정 값 적용</button>
+        <button class="btn btn-primary" id="btnApplyCalibrate" style="width:100%; margin-top: auto;" disabled>보정 값 적용</button>
       </div>
     </div>
   </div>
