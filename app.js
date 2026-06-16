@@ -14,7 +14,7 @@ const fixtureDatabase = [
     size: 24,
     cutoutMM: 55,
     inch: '2인치',
-    price: 22000,
+    price: 17900,
     image: 'products/siren_cob.png',
     link: 'https://zibismart.co.kr/product/iot-사이렌-스마트-원형-다운라이트-2인치/317/'
   },
@@ -32,7 +32,7 @@ const fixtureDatabase = [
     size: 24,
     cutoutMM: 55,
     inch: '2인치',
-    price: 22000,
+    price: 17900,
     image: 'products/siren_diff.png',
     link: 'https://zibismart.co.kr/product/iot-사이렌-스마트-원형-다운라이트-2인치/317/'
   },
@@ -50,7 +50,7 @@ const fixtureDatabase = [
     size: 30,
     cutoutMM: 75,
     inch: '3인치',
-    price: 22000,
+    price: 9700,
     image: 'products/cutoff.png',
     link: 'https://zibismart.co.kr/product/iot-컷오프-스마트-원형-다운라이트-2인치3인치/316/'
   },
@@ -68,7 +68,7 @@ const fixtureDatabase = [
     size: 24,
     cutoutMM: 55,
     inch: '2인치',
-    price: 28000,
+    price: 9000,
     image: 'products/cutoff.png',
     link: 'https://zibismart.co.kr/product/iot-컷오프-스마트-원형-다운라이트-2인치3인치/316/'
   },
@@ -139,7 +139,7 @@ const fixtureDatabase = [
     size: 40,
     length: 5000,
     widthMM: 10,
-    price: 20000,
+    price: 8400,
     link: 'https://zibismart.co.kr/product/iot-플렉시블-라인-투명-실리콘-조명-10폭-5m/318/'
   },
   {
@@ -172,7 +172,7 @@ const fixtureDatabase = [
     heads: 6,
     lengthMM: 120,
     widthMM: 30,
-    price: 35000,
+    price: 30100,
     image: 'products/gridslot6 thumbnail.jpg',
     link: 'https://zibismart.co.kr/product/iot-그리드슬롯6구/323/'
   },
@@ -190,37 +190,9 @@ const fixtureDatabase = [
     heads: 12,
     lengthMM: 228,
     widthMM: 30,
-    price: 45000,
+    price: 46300,
     image: 'products/gridslot thumbnail.jpg',
     link: 'https://zibismart.co.kr/product/iot-그리드슬롯12구/315/'
-  },
-  {
-    id: 'smarthome-curtain',
-    category: 'smarthome',
-    name: 'IoT 스마트 전동커튼',
-    model: 'SH-Curtain',
-    watt: 15,
-    lumen: 0,
-    beam: 0,
-    color: '#00C7BE',
-    icon: 'curtain',
-    size: 24,
-    price: 164000,
-    link: 'https://zibismart.co.kr/product/iot-스마트-전동커튼/326/'
-  },
-  {
-    id: 'smarthome-ceilingfan',
-    category: 'smarthome',
-    name: 'IoT 스마트 실링팬 Smart Air (46인치 / 52인치)',
-    model: 'SH-CeilingFan',
-    watt: 35,
-    lumen: 0,
-    beam: 0,
-    color: '#30B0C7',
-    icon: 'fan',
-    size: 24,
-    price: 220000,
-    link: 'https://zibismart.co.kr/product/iot-스마트-실링팬-smart-air-46인치-52인치/325/'
   }
 ];
 
