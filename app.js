@@ -3577,7 +3577,7 @@ async function exportToExcel() {
       Object.entries(smpsCounts).forEach(([cap, qty]) => {
         const capNum = parseInt(cap, 10);
         const smpsId = `smps-${capNum}`;
-        const smpsPrice = capNum === 36 ? 24500 : (capNum === 60 ? 44800 : (capNum === 150 ? 44100 : 0));
+        const smpsPrice = capNum === 36 ? 24500 : (capNum === 60 ? 30100 : (capNum === 150 ? 44100 : 0));
         if (!allProducts[smpsId]) {
           allProducts[smpsId] = {
             name: `컨버터 ${capNum}W IoT`,
