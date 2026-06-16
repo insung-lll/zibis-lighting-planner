@@ -131,8 +131,8 @@ const fixtureDatabase = [
     category: 'linebar',
     name: 'IoT 플렉시블 라인 투명 실리콘 조명 10폭 5m',
     model: 'LB-Flex-Trans5M',
-    watt: 50,
-    lumen: 4750,
+    watt: 10,
+    lumen: 950,
     beam: 120,
     color: '#22CC22',
     icon: 'line',
@@ -147,8 +147,8 @@ const fixtureDatabase = [
     category: 'linebar',
     name: 'IoT 스타일컷 라인 실리콘 조명 10폭 5m',
     model: 'LB-Stylecut-Sil5M',
-    watt: 50,
-    lumen: 4750,
+    watt: 10,
+    lumen: 950,
     beam: 120,
     color: '#34C759',
     icon: 'line',
@@ -476,7 +476,7 @@ function renderFixtureLibrary() {
           ${item.lumen ? `<span>${item.lumen} lm</span>` : ''}
           ${item.beam ? `<span>${item.beam}°</span>` : ''}
           ${item.inch ? `<span>${item.inch}</span>` : ''}
-          ${item.length ? `<span>${item.length/1000}m</span>` : ''}
+          ${item.category === 'linebar' ? '<span>1m 기준</span>' : (item.length ? `<span>${item.length/1000}m</span>` : '')}
         </div>
         ${item.link ? `
         <div class="fixture-link-wrapper" style="margin-top: 6px;">
@@ -847,9 +847,13 @@ function setupEventListeners() {
   }
   if (els.btnCalibrateZoomReset) {
     els.btnCalibrateZoomReset.addEventListener('click', () => {
-      state.calibrateZoom = 1.0;
-      state.calibratePanX = 0;
-      state.calibratePanY = 0;
+      if (!state.uploadedImage) return;
+      const c = els.calibrateCanvas;
+      const fw = c.width, fh = c.height;
+      const fz = Math.min(fw / state.uploadedImage.width, fh / state.uploadedImage.height, 1.0);
+      state.calibrateZoom = fz;
+      state.calibratePanX = (fw - state.uploadedImage.width * fz) / 2;
+      state.calibratePanY = (fh - state.uploadedImage.height * fz) / 2;
       updateCalibrateZoomText();
       renderCalibrationCanvas();
     });
@@ -1016,14 +1020,22 @@ function startCalibrationFlow() {
 
   const modal = els.calibrateOverlay;
   const canvas = els.calibrateCanvas;
-  
-  canvas.width = state.uploadedImage.width;
-  canvas.height = state.uploadedImage.height;
-  
+
   state.calibrationPoints = [];
   state.calibrateMousePos = null;
 
+  // Show modal first so layout is settled before measuring wrap dimensions
   modal.style.display = 'flex';
+
+  // Measure the canvas-wrap after display to get correct dimensions
+  const wrap = canvas.parentElement;
+  const wrapW = wrap ? wrap.clientWidth : 800;
+  const wrapH = wrap ? wrap.clientHeight : 600;
+
+  // Set canvas size to match the visible wrap area (not the image size).
+  // This ensures pan/zoom coordinates stay within canvas bounds at all zoom levels.
+  canvas.width = wrapW;
+  canvas.height = wrapH;
 
   // Set default reference distance to 0.9m
   if (els.referenceDistance) {
@@ -1042,11 +1054,8 @@ function startCalibrationFlow() {
   if (els.calibrateStatus) {
     els.calibrateStatus.textContent = "기준선의 시작점을 마우스로 클릭해 주세요.";
   }
-  
-  // Initialize zoom and pan — fit image to visible canvas container
-  const wrap = els.calibrateCanvas.parentElement;
-  const wrapW = wrap ? wrap.clientWidth : canvas.width;
-  const wrapH = wrap ? wrap.clientHeight : canvas.height;
+
+  // Initialize zoom and pan — fit image centered in the canvas/wrap
   const fitZoom = Math.min(wrapW / state.uploadedImage.width, wrapH / state.uploadedImage.height, 1.0);
   state.calibrateZoom = fitZoom;
   state.calibratePanX = (wrapW - state.uploadedImage.width * fitZoom) / 2;
@@ -1490,8 +1499,8 @@ function setupCanvasInteractions() {
             }
             const lineLenPx = Math.sqrt((ex - state.linebarStart.x)**2 + (ey - state.linebarStart.y)**2);
             const lengthM = state.pixelsPerMeter > 0 ? (lineLenPx / state.pixelsPerMeter) : 0;
-            const calculatedWatt = Math.round(lengthM * 10);
-            const calculatedLumen = Math.round(lengthM * 950);
+            const calculatedWatt = Math.round(lengthM * specCur.watt);
+            const calculatedLumen = Math.round(lengthM * specCur.lumen);
             
             const newLight = {
               id: state.nextLightId++,
