@@ -1970,6 +1970,19 @@ function handleMeasureClick(x, y) {
 
 // Keyboard delete/nudge handlers
 function handleKeyDown(e) {
+  // Reset calibration points when in calibration mode
+  if (state.activeTool === 'calibrate') {
+    if (e.key === 'Escape' || e.key === 'Delete' || e.key === 'Backspace') {
+      state.calibrationPoints = [];
+      if (els.calibrateStatus) {
+        els.calibrateStatus.textContent = "기준선의 시작점을 마우스로 클릭해 주세요.";
+      }
+      renderCalibrationCanvas();
+      e.preventDefault();
+      return;
+    }
+  }
+
   // Spacebar to temporarily pan
   if (e.key === ' ' || e.code === 'Space') {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
