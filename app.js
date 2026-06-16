@@ -3518,6 +3518,10 @@ async function exportToExcel() {
   titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
   worksheet.getRow(2).height = 40;
   
+  const targetWidth = 640;
+  const imageAspectRatio = w / h;
+  const targetHeight = targetWidth / imageAspectRatio;
+
   // 4. Insert Image
   const imgId = workbook.addImage({
     base64: base64Image,
@@ -3525,11 +3529,14 @@ async function exportToExcel() {
   });
   worksheet.addImage(imgId, {
     tl: { col: 1, row: 3 },
-    ext: { width: 640, height: 400 }
+    ext: { width: targetWidth, height: targetHeight }
   });
   
-  // Add empty rows up to row 25 to leave space for image
-  for (let r = 4; r <= 24; r++) {
+  const rowsNeeded = Math.ceil(targetHeight / 20);
+  const tableStartRow = 3 + rowsNeeded + 2; // leave 2 blank rows
+  
+  // Set empty rows covering the image to reserve space
+  for (let r = 3; r < tableStartRow - 1; r++) {
     worksheet.getRow(r).height = 20;
   }
   
@@ -3642,8 +3649,8 @@ async function exportToExcel() {
   }
 
   // 6. Section 1: Product Summary Table (주문서용 - 제품별 총 주문 수량 합계)
-  worksheet.mergeCells('B25:H25');
-  const summaryTitle = worksheet.getCell('B25');
+  worksheet.mergeCells(`B${tableStartRow}:H${tableStartRow}`);
+  const summaryTitle = worksheet.getCell(`B${tableStartRow}`);
   summaryTitle.value = '제품별 총 주문 수량 합계 (주문서용)';
   summaryTitle.font = { name: 'Malgun Gothic', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
   summaryTitle.fill = {
@@ -3652,10 +3659,10 @@ async function exportToExcel() {
     fgColor: { argb: 'FF2D6ABF' } // ZIBIS blue
   };
   summaryTitle.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
-  worksheet.getRow(25).height = 28;
+  worksheet.getRow(tableStartRow).height = 28;
   
   const summaryHeaders = ['도면 컬러', '제품명 / 자재명', '구분 (타입)', '단가 (원)', '총 주문 수량', '비고', '총 합계 금액'];
-  const summaryHeaderRow = worksheet.getRow(26);
+  const summaryHeaderRow = worksheet.getRow(tableStartRow + 1);
   summaryHeaderRow.height = 25;
   
   summaryHeaders.forEach((h, idx) => {
@@ -3676,7 +3683,7 @@ async function exportToExcel() {
     };
   });
   
-  let currentRowNum = 27;
+  let currentRowNum = tableStartRow + 2;
   let grandTotalCost = 0;
   
   Object.values(allProducts).forEach(p => {
