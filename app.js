@@ -2366,14 +2366,14 @@ function finishZoneCreation(switchCount) {
 
 function getTargetLumenPerPyung(zoneName) {
   const name = zoneName.trim();
-  if (name.includes('주방')) return 1250;
+  if (name.includes('주방') || name.includes('부엌')) return 1250;
   if (name.includes('메이크업룸')) return 1250;
-  if (name.includes('거실')) return 800;
-  if (name.includes('화장실')) return 750;
+  if (name.includes('거실')) return 1250;
+  if (name.includes('화장실')) return 1250;
   if (name.includes('드레스룸')) return 600;
-  if (name.includes('복도')) return 550;
-  if (name.includes('침실')) return 600;
-  if (name.includes('방')) return 800;
+  if (name.includes('복도')) return 825;
+  if (name.includes('침실')) return 825;
+  if (name.includes('방')) return 1250;
   return 1250; // 기본값
 }
 
@@ -2540,7 +2540,7 @@ function renderZonePanel() {
     const lumenPerPyeong = pyeong > 0 ? (zone.totalLumen || 0) / pyeong : 0;
     
     const targetLumen = getTargetLumenPerPyung(zone.name);
-    const maxLimit = targetLumen + 200;
+    const maxLimit = Math.round(targetLumen * 1.2);
     
     let badgeText = '부족';
     let badgeClass = 'low';
@@ -2882,7 +2882,7 @@ function renderHeatmapLayer() {
     const zonePyeong = (zone.areaM2 || 0) * 0.3025;
     const zoneLumenPerPyeong = zonePyeong > 0 ? (zone.totalLumen || 0) / zonePyeong : 0;
     const zoneTarget = getTargetLumenPerPyung(zone.name);
-    const zoneMax = zoneTarget + 200;
+    const zoneMax = Math.round(zoneTarget * 1.2);
     let fillColor = 'rgba(255, 59, 48, 0.15)'; // 부족 - red
     if (zoneLumenPerPyeong >= zoneMax) fillColor = 'rgba(52, 199, 89, 0.15)'; // 충분 - green
     else if (zoneLumenPerPyeong >= zoneTarget) fillColor = 'rgba(242, 162, 0, 0.15)'; // 적당 - yellow
@@ -2934,7 +2934,7 @@ function renderZoneLayer() {
     const pyeong = (zone.areaM2 || 0) * 0.3025;
     const lumenPerPyeong = pyeong > 0 ? (zone.totalLumen || 0) / pyeong : 0;
     const targetLumen = getTargetLumenPerPyung(zone.name);
-    const maxLimit = targetLumen + 200;
+    const maxLimit = Math.round(targetLumen * 1.2);
     
     let statusText = '부족';
     if (lumenPerPyeong >= maxLimit) {
@@ -3382,7 +3382,7 @@ async function exportToExcel() {
       const pyeong = (zone.areaM2 || 0) * 0.3025;
       const lumenPerPyeong = pyeong > 0 ? (zone.totalLumen || 0) / pyeong : 0;
       const targetLumen = getTargetLumenPerPyung(zone.name);
-      const maxLimit = targetLumen + 200;
+      const maxLimit = Math.round(targetLumen * 1.2);
       
       let statusText = '부족';
       let fillColor = 'rgba(255, 59, 48, 0.15)'; // Red for low/부족
