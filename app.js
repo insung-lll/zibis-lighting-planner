@@ -3674,7 +3674,7 @@ async function exportToExcel() {
   summaryTitle.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
   worksheet.getRow(tableStartRow).height = 28;
   
-  const summaryHeaders = ['도면 컬러', '제품명 / 자재명', '구분 (타입)', '단가 (원)', '총 주문 수량', '비고', '총 합계 금액'];
+  const summaryHeaders = ['제품 컬러', '제품명 / 자재명', '구분 (타입)', '단가 (원)', '총 주문 수량', '비고', '총 합계 금액'];
   const summaryHeaderRow = worksheet.getRow(tableStartRow + 1);
   summaryHeaderRow.height = 25;
   
@@ -3706,16 +3706,10 @@ async function exportToExcel() {
     const row = worksheet.getRow(currentRowNum);
     row.height = 22;
     
-    // Column B: Draw Color Swatch
+    // Column B: Draw Color Swatch as a Dot
     const cellB = row.getCell(2);
     if (p.color) {
-      const cleanColor = p.color.replace('#', '');
-      cellB.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FF' + cleanColor }
-      };
-      cellB.value = ''; // Leave text empty to show colorSwatch
+      cellB.value = '●';
     } else {
       cellB.value = '-';
     }
@@ -3740,7 +3734,15 @@ async function exportToExcel() {
     
     for (let c = 2; c <= 8; c++) {
       const cell = row.getCell(c);
-      cell.font = { name: 'Malgun Gothic', size: 10 };
+      if (c === 2 && p.color) {
+        const cleanColor = p.color.replace('#', '');
+        cell.font = { name: 'Malgun Gothic', size: 14, color: { argb: 'FF' + cleanColor } };
+      } else if (c === 8) {
+        cell.font = { name: 'Malgun Gothic', size: 10, bold: true };
+      } else {
+        cell.font = { name: 'Malgun Gothic', size: 10 };
+      }
+      
       cell.border = {
         top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
         left: { style: 'thin', color: { argb: 'FFE0E0E0' } },
@@ -3751,7 +3753,6 @@ async function exportToExcel() {
         cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
       } else if (c === 8) {
         cell.alignment = { vertical: 'middle', horizontal: 'right' };
-        cell.font = { name: 'Malgun Gothic', size: 10, bold: true };
       } else {
         cell.alignment = { vertical: 'middle', horizontal: 'center' };
       }
