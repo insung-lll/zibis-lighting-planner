@@ -3501,16 +3501,17 @@ async function exportToExcel() {
   // Set column widths
   worksheet.columns = [
     { key: 'A', width: 4 },
-    { key: 'B', width: 35 },
-    { key: 'C', width: 18 },
-    { key: 'D', width: 14 },
-    { key: 'E', width: 14 },
-    { key: 'F', width: 12 },
-    { key: 'G', width: 16 }
+    { key: 'B', width: 16 }, // 공간 분류
+    { key: 'C', width: 35 }, // 조명 모델 / 자재명
+    { key: 'D', width: 18 }, // 구분 (타입)
+    { key: 'E', width: 14 }, // 소비전력 (W)
+    { key: 'F', width: 14 }, // 광량 (lm)
+    { key: 'G', width: 12 }, // 배치 수량
+    { key: 'H', width: 16 }  // 예상 금액
   ];
   
   // 3. Title Style & Merges
-  worksheet.mergeCells('B2:G2');
+  worksheet.mergeCells('B2:H2');
   const titleCell = worksheet.getCell('B2');
   titleCell.value = 'ZIBIS 조명 설계 및 가견적서';
   titleCell.font = { name: 'Malgun Gothic', size: 16, bold: true, color: { argb: 'FF2D6ABF' } };
@@ -3533,7 +3534,7 @@ async function exportToExcel() {
   }
   
   // 5. BOM Section Title
-  worksheet.mergeCells('B25:G25');
+  worksheet.mergeCells('B25:H25');
   const bomTitle = worksheet.getCell('B25');
   bomTitle.value = '선택된 조명 및 자동 산출 자재 목록 (BOM)';
   bomTitle.font = { name: 'Malgun Gothic', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -3546,7 +3547,7 @@ async function exportToExcel() {
   worksheet.getRow(25).height = 28;
   
   // 6. Table Headers
-  const headers = ['조명 모델 / 자재명', '구분 (타입)', '소비전력 (W)', '광량 (lm)', '배치 수량', '예상 금액'];
+  const headers = ['공간 분류', '조명 모델 / 자재명', '구분 (타입)', '소비전력 (W)', '광량 (lm)', '배치 수량', '예상 금액'];
   const headerRow = worksheet.getRow(26);
   headerRow.height = 25;
   
@@ -3563,85 +3564,119 @@ async function exportToExcel() {
     cell.border = {
       top: { style: 'thin', color: { argb: 'FF44475A' } },
       left: { style: 'thin', color: { argb: 'FF44475A' } },
-      bottom: { style: 'medium', color: { argb: 'FFFF9500' } },
+      bottom: { style: 'medium', color: { argb: 'FF2D6ABF' } },
       right: { style: 'thin', color: { argb: 'FF44475A' } }
     };
   });
   
-  // 7. Populate Data Rows
-  let currentRowNum = 27;
-  
-  // Group lights by typeId
-  const groups = {};
-  state.lights.forEach(l => {
-    if (!groups[l.typeId]) {
-      const spec = fixtureDatabase.find(f => f.id === l.typeId);
-      const catLabel = !spec ? '조명'
-        : spec.category === 'downlight' ? '매입 다운라이트'
-        : spec.category === 'linebar'   ? '라인/마그네틱'
-        : spec.category === 'multi'     ? '멀티매입등'
-        : spec.category === 'smarthome' ? '스마트홈 기기'
-        : '조명';
-      const isLine = spec && (spec.category === 'linebar' || spec.icon === 'line');
-      groups[l.typeId] = {
-        name: l.name,
-        type: catLabel,
-        watt: isLine ? 0 : l.watt,
-        lumen: isLine ? 0 : l.lumen,
-        price: l.price || 0,
-        qty: 0,
-        isLinebar: isLine
-      };
-    }
-    groups[l.typeId].qty++;
-    if (groups[l.typeId].isLinebar) {
-      groups[l.typeId].watt += l.watt;
-      groups[l.typeId].lumen += l.lumen;
-    }
-  });
-  
-  let totalCost = 0;
-  
-  // Write Light Rows
-  Object.values(groups).forEach(g => {
-    const rowCost = g.price * g.qty;
-    totalCost += rowCost;
-    
-    const row = worksheet.getRow(currentRowNum);
-    row.height = 22;
-    
-    row.getCell(2).value = g.name;
-    row.getCell(3).value = g.type;
-    row.getCell(4).value = g.watt ? g.watt + 'W' : '-';
-    row.getCell(5).value = g.lumen ? g.lumen + ' lm' : '-';
-    row.getCell(6).value = g.qty + '개';
-    row.getCell(7).value = rowCost;
-    row.getCell(7).numFormat = '₩#,##0';
-    
-    for (let c = 2; c <= 7; c++) {
+  // Helper to format cells
+  function applyRowStyles(row, isItalic) {
+    for (let c = 2; c <= 8; c++) {
       const cell = row.getCell(c);
-      cell.font = { name: 'Malgun Gothic', size: 10 };
+      cell.font = { name: 'Malgun Gothic', size: 10, italic: isItalic };
       cell.border = {
         top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
         left: { style: 'thin', color: { argb: 'FFE0E0E0' } },
         bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } },
         right: { style: 'thin', color: { argb: 'FFE0E0E0' } }
       };
-      if (c === 2) {
+      if (c === 2 || c === 3) {
         cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
-      } else if (c === 7) {
+      } else if (c === 8) {
         cell.alignment = { vertical: 'middle', horizontal: 'right' };
-        cell.font = { name: 'Malgun Gothic', size: 10, bold: true };
+        if (!isItalic) {
+          cell.font = { name: 'Malgun Gothic', size: 10, bold: true };
+        } else {
+          cell.value = '포함';
+          cell.font = { name: 'Malgun Gothic', size: 10, color: { argb: 'FF888888' } };
+        }
       } else {
         cell.alignment = { vertical: 'middle', horizontal: 'center' };
       }
     }
-    currentRowNum++;
-  });
+  }
+
+  // 7. Populate Data Rows (Space by Space)
+  let currentRowNum = 27;
+  let totalCost = 0;
   
-  // Write SMPS & Controllers per space
+  // Track aggregated products for the summary table
+  const allProducts = {};
+  
+  // Process lights inside each zone
   state.zones.forEach(zone => {
-    // 2.1 SMPS
+    const insideLights = state.lights.filter(l => isLightInPolygon(l, zone.points));
+    
+    // Group lights in this zone
+    const groups = {};
+    insideLights.forEach(l => {
+      if (!groups[l.typeId]) {
+        const spec = fixtureDatabase.find(f => f.id === l.typeId);
+        const catLabel = !spec ? '조명'
+          : spec.category === 'downlight' ? '매입 다운라이트'
+          : spec.category === 'linebar'   ? '라인/마그네틱'
+          : spec.category === 'multi'     ? '멀티매입등'
+          : spec.category === 'smarthome' ? '스마트홈 기기'
+          : '조명';
+        const isLine = spec && (spec.category === 'linebar' || spec.icon === 'line');
+        groups[l.typeId] = {
+          name: l.name,
+          type: catLabel,
+          watt: isLine ? 0 : l.watt,
+          lumen: isLine ? 0 : l.lumen,
+          price: l.price || 0,
+          qty: 0,
+          isLinebar: isLine
+        };
+      }
+      groups[l.typeId].qty++;
+      if (groups[l.typeId].isLinebar) {
+        groups[l.typeId].watt += l.watt;
+        groups[l.typeId].lumen += l.lumen;
+      }
+      
+      // Accumulate for grand ordering table
+      if (!allProducts[l.typeId]) {
+        const spec = fixtureDatabase.find(f => f.id === l.typeId);
+        allProducts[l.typeId] = {
+          name: l.name,
+          type: groups[l.typeId].type,
+          price: l.price || 0,
+          qty: 0,
+          isLine: groups[l.typeId].isLinebar,
+          totalWatt: 0,
+          totalLumen: 0
+        };
+      }
+      allProducts[l.typeId].qty++;
+      if (allProducts[l.typeId].isLine) {
+        allProducts[l.typeId].totalWatt += l.watt;
+        allProducts[l.typeId].totalLumen += l.lumen;
+      }
+    });
+    
+    // Write lights in this zone
+    Object.values(groups).forEach(g => {
+      const rowCost = g.price * g.qty;
+      totalCost += rowCost;
+      
+      const row = worksheet.getRow(currentRowNum);
+      row.height = 22;
+      
+      row.getCell(2).value = zone.name;
+      row.getCell(3).value = g.name;
+      row.getCell(4).value = g.type;
+      row.getCell(5).value = g.watt ? g.watt + 'W' : '-';
+      row.getCell(6).value = g.lumen ? g.lumen + ' lm' : '-';
+      row.getCell(7).value = g.qty + '개';
+      row.getCell(8).value = rowCost;
+      row.getCell(8).numFormat = '₩#,##0';
+      
+      applyRowStyles(row, false);
+      currentRowNum++;
+    });
+    
+    // SMPS in this zone
     if (zone.requiredSMPS && zone.requiredSMPS.length > 0) {
       const smpsCounts = {};
       zone.requiredSMPS.forEach(cap => {
@@ -3652,82 +3687,144 @@ async function exportToExcel() {
         const row = worksheet.getRow(currentRowNum);
         row.height = 22;
         
-        row.getCell(2).value = `${zone.name} > ${cap}W 안정기`;
-        row.getCell(3).value = '안정기 (SMPS)';
-        row.getCell(4).value = cap + 'W';
-        row.getCell(5).value = '-';
-        row.getCell(6).value = qty + '개';
-        row.getCell(7).value = 0;
-        row.getCell(7).numFormat = '₩#,##0';
+        row.getCell(2).value = zone.name;
+        row.getCell(3).value = `${cap}W 안정기`;
+        row.getCell(4).value = '안정기 (SMPS)';
+        row.getCell(5).value = cap + 'W';
+        row.getCell(6).value = '-';
+        row.getCell(7).value = qty + '개';
+        row.getCell(8).value = 0; // Included
         
-        for (let c = 2; c <= 7; c++) {
-          const cell = row.getCell(c);
-          cell.font = { name: 'Malgun Gothic', size: 10, italic: true };
-          cell.border = {
-            top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
-            left: { style: 'thin', color: { argb: 'FFE0E0E0' } },
-            bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } },
-            right: { style: 'thin', color: { argb: 'FFE0E0E0' } }
-          };
-          if (c === 2) {
-            cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
-          } else if (c === 7) {
-            cell.alignment = { vertical: 'middle', horizontal: 'right' };
-            cell.value = '포함';
-            cell.font = { name: 'Malgun Gothic', size: 10, color: { argb: 'FF888888' } };
-          } else {
-            cell.alignment = { vertical: 'middle', horizontal: 'center' };
-          }
-        }
+        applyRowStyles(row, true);
         currentRowNum++;
+        
+        // Accumulate SMPS for ordering table
+        const capNum = parseInt(cap, 10);
+        const smpsId = `smps-${capNum}`;
+        const smpsPrice = capNum === 36 ? 37500 : (capNum === 60 ? 46200 : 0);
+        if (!allProducts[smpsId]) {
+          allProducts[smpsId] = {
+            name: `컨버터 ${capNum}W IoT`,
+            type: '컨버터/액세서리',
+            price: smpsPrice,
+            qty: 0,
+            isLine: false
+          };
+        }
+        allProducts[smpsId].qty += qty;
       });
     }
     
-    // 2.2 Controllers
+    // Controllers in this zone
     if (zone.requiredControllers && zone.requiredControllers.length > 0) {
       zone.requiredControllers.forEach(ctrl => {
         const row = worksheet.getRow(currentRowNum);
         row.height = 22;
         
-        const name = typeof ctrl === 'string' ? ctrl : ctrl.name;
+        const ctrlName = typeof ctrl === 'string' ? ctrl : ctrl.name;
         const qty = typeof ctrl === 'string' ? 1 : ctrl.qty;
         
-        row.getCell(2).value = `${zone.name} > ${name}`;
-        row.getCell(3).value = '컨트롤러';
-        row.getCell(4).value = '-';
+        row.getCell(2).value = zone.name;
+        row.getCell(3).value = ctrlName;
+        row.getCell(4).value = '컨트롤러';
         row.getCell(5).value = '-';
-        row.getCell(6).value = `${qty}개`;
-        row.getCell(7).value = 0;
-        row.getCell(7).numFormat = '₩#,##0';
+        row.getCell(6).value = '-';
+        row.getCell(7).value = `${qty}개`;
+        row.getCell(8).value = 0; // Included
         
-        for (let c = 2; c <= 7; c++) {
-          const cell = row.getCell(c);
-          cell.font = { name: 'Malgun Gothic', size: 10, italic: true };
-          cell.border = {
-            top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
-            left: { style: 'thin', color: { argb: 'FFE0E0E0' } },
-            bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } },
-            right: { style: 'thin', color: { argb: 'FFE0E0E0' } }
-          };
-          if (c === 2) {
-            cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
-          } else if (c === 7) {
-            cell.alignment = { vertical: 'middle', horizontal: 'right' };
-            cell.value = '포함';
-            cell.font = { name: 'Malgun Gothic', size: 10, color: { argb: 'FF888888' } };
-          } else {
-            cell.alignment = { vertical: 'middle', horizontal: 'center' };
-          }
-        }
+        applyRowStyles(row, true);
         currentRowNum++;
+        
+        // Accumulate Controller for ordering table
+        const ctrlId = `controller-${ctrlName}`;
+        if (!allProducts[ctrlId]) {
+          allProducts[ctrlId] = {
+            name: ctrlName,
+            type: '컨트롤러',
+            price: 0, // No specific price available (normally included in service packages)
+            qty: 0,
+            isLine: false
+          };
+        }
+        allProducts[ctrlId].qty += qty;
       });
     }
   });
   
+  // Process lights outside any zone
+  const outsideLights = state.lights.filter(l => !state.zones.some(zone => isLightInPolygon(l, zone.points)));
+  if (outsideLights.length > 0) {
+    const groups = {};
+    outsideLights.forEach(l => {
+      if (!groups[l.typeId]) {
+        const spec = fixtureDatabase.find(f => f.id === l.typeId);
+        const catLabel = !spec ? '조명'
+          : spec.category === 'downlight' ? '매입 다운라이트'
+          : spec.category === 'linebar'   ? '라인/마그네틱'
+          : spec.category === 'multi'     ? '멀티매입등'
+          : spec.category === 'smarthome' ? '스마트홈 기기'
+          : '조명';
+        const isLine = spec && (spec.category === 'linebar' || spec.icon === 'line');
+        groups[l.typeId] = {
+          name: l.name,
+          type: catLabel,
+          watt: isLine ? 0 : l.watt,
+          lumen: isLine ? 0 : l.lumen,
+          price: l.price || 0,
+          qty: 0,
+          isLinebar: isLine
+        };
+      }
+      groups[l.typeId].qty++;
+      if (groups[l.typeId].isLinebar) {
+        groups[l.typeId].watt += l.watt;
+        groups[l.typeId].lumen += l.lumen;
+      }
+      
+      // Accumulate for grand ordering table
+      if (!allProducts[l.typeId]) {
+        allProducts[l.typeId] = {
+          name: l.name,
+          type: groups[l.typeId].type,
+          price: l.price || 0,
+          qty: 0,
+          isLine: groups[l.typeId].isLinebar,
+          totalWatt: 0,
+          totalLumen: 0
+        };
+      }
+      allProducts[l.typeId].qty++;
+      if (allProducts[l.typeId].isLine) {
+        allProducts[l.typeId].totalWatt += l.watt;
+        allProducts[l.typeId].totalLumen += l.lumen;
+      }
+    });
+    
+    Object.values(groups).forEach(g => {
+      const rowCost = g.price * g.qty;
+      totalCost += rowCost;
+      
+      const row = worksheet.getRow(currentRowNum);
+      row.height = 22;
+      
+      row.getCell(2).value = '기타 (공간 외)';
+      row.getCell(3).value = g.name;
+      row.getCell(4).value = g.type;
+      row.getCell(5).value = g.watt ? g.watt + 'W' : '-';
+      row.getCell(6).value = g.lumen ? g.lumen + ' lm' : '-';
+      row.getCell(7).value = g.qty + '개';
+      row.getCell(8).value = rowCost;
+      row.getCell(8).numFormat = '₩#,##0';
+      
+      applyRowStyles(row, false);
+      currentRowNum++;
+    });
+  }
+  
   // 8. Total Summary Row
   const totalRow = worksheet.getRow(currentRowNum);
   totalRow.height = 30;
-  worksheet.mergeCells(`B${currentRowNum}:F${currentRowNum}`);
+  worksheet.mergeCells(`B${currentRowNum}:G${currentRowNum}`);
   
   const labelCell = totalRow.getCell(2);
   labelCell.value = '최종 예상 가견적 합계:';
@@ -3739,19 +3836,19 @@ async function exportToExcel() {
     fgColor: { argb: 'FF1F2233' }
   };
   
-  for (let col = 2; col <= 6; col++) {
+  for (let col = 2; col <= 7; col++) {
     totalRow.getCell(col).border = {
-      top: { style: 'medium', color: { argb: 'FFFF9500' } },
-      bottom: { style: 'medium', color: { argb: 'FFFF9500' } },
+      top: { style: 'medium', color: { argb: 'FF2D6ABF' } },
+      bottom: { style: 'medium', color: { argb: 'FF2D6ABF' } },
       left: col === 2 ? { style: 'thin', color: { argb: 'FF44475A' } } : undefined,
-      right: col === 6 ? { style: 'thin', color: { argb: 'FF44475A' } } : undefined
+      right: col === 7 ? { style: 'thin', color: { argb: 'FF44475A' } } : undefined
     };
   }
   
-  const valueCell = totalRow.getCell(7);
+  const valueCell = totalRow.getCell(8);
   valueCell.value = totalCost;
   valueCell.numFormat = '₩#,##0';
-  valueCell.font = { name: 'Malgun Gothic', size: 12, bold: true, color: { argb: 'FFFF9500' } };
+  valueCell.font = { name: 'Malgun Gothic', size: 12, bold: true, color: { argb: 'FF2D6ABF' } };
   valueCell.alignment = { vertical: 'middle', horizontal: 'right' };
   valueCell.fill = {
     type: 'pattern',
@@ -3759,12 +3856,143 @@ async function exportToExcel() {
     fgColor: { argb: 'FF1F2233' }
   };
   valueCell.border = {
-    top: { style: 'medium', color: { argb: 'FFFF9500' } },
-    bottom: { style: 'medium', color: { argb: 'FFFF9500' } },
+    top: { style: 'medium', color: { argb: 'FF2D6ABF' } },
+    bottom: { style: 'medium', color: { argb: 'FF2D6ABF' } },
     right: { style: 'thin', color: { argb: 'FF44475A' } }
   };
   
-  // 9. Download Excel workbook
+  // 9. Aggregated Order Table (Product by Product Summary)
+  currentRowNum += 3; // Leave 2 blank rows
+  
+  worksheet.mergeCells(`B${currentRowNum}:H${currentRowNum}`);
+  const summaryTitle = worksheet.getCell(`B${currentRowNum}`);
+  summaryTitle.value = '제품별 총 주문 수량 합계 (주문서용)';
+  summaryTitle.font = { name: 'Malgun Gothic', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
+  summaryTitle.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF2D6ABF' }
+  };
+  summaryTitle.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+  worksheet.getRow(currentRowNum).height = 28;
+  currentRowNum++;
+  
+  const summaryHeaders = ['제품명 / 자재명', '', '구분 (타입)', '단가 (원)', '총 주문 수량', '비고', '총 합계 금액'];
+  const summaryHeaderRow = worksheet.getRow(currentRowNum);
+  summaryHeaderRow.height = 25;
+  
+  summaryHeaders.forEach((h, idx) => {
+    if (idx === 1) return; // Column C is merged with B
+    const cell = summaryHeaderRow.getCell(idx + 2);
+    cell.value = h;
+    cell.font = { name: 'Malgun Gothic', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF2A2D3D' }
+    };
+    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    cell.border = {
+      top: { style: 'thin', color: { argb: 'FF44475A' } },
+      left: { style: 'thin', color: { argb: 'FF44475A' } },
+      bottom: { style: 'medium', color: { argb: 'FF2D6ABF' } },
+      right: { style: 'thin', color: { argb: 'FF44475A' } }
+    };
+  });
+  worksheet.mergeCells(`B${currentRowNum}:C${currentRowNum}`);
+  currentRowNum++;
+  
+  let grandTotalCost = 0;
+  Object.values(allProducts).forEach(p => {
+    const rowCost = p.price * p.qty;
+    grandTotalCost += rowCost;
+    
+    const row = worksheet.getRow(currentRowNum);
+    row.height = 22;
+    
+    row.getCell(2).value = p.name;
+    row.getCell(4).value = p.type;
+    row.getCell(5).value = p.price;
+    row.getCell(5).numFormat = '₩#,##0';
+    row.getCell(6).value = p.qty + '개';
+    
+    // Remarks column
+    let remarkVal = '-';
+    if (p.isLine) {
+      remarkVal = `총 ${(p.totalWatt / 10).toFixed(1)}m (${p.totalWatt}W, ${p.totalLumen} lm)`;
+    } else if (p.price === 0) {
+      remarkVal = '포함 자재';
+    }
+    row.getCell(7).value = remarkVal;
+    
+    row.getCell(8).value = rowCost;
+    row.getCell(8).numFormat = '₩#,##0';
+    
+    worksheet.mergeCells(`B${currentRowNum}:C${currentRowNum}`);
+    
+    for (let c = 2; c <= 8; c++) {
+      if (c === 3) continue;
+      const cell = row.getCell(c);
+      cell.font = { name: 'Malgun Gothic', size: 10 };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+        left: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+        bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+        right: { style: 'thin', color: { argb: 'FFE0E0E0' } }
+      };
+      if (c === 2) {
+        cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+      } else if (c === 8) {
+        cell.alignment = { vertical: 'middle', horizontal: 'right' };
+        cell.font = { name: 'Malgun Gothic', size: 10, bold: true };
+      } else {
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      }
+    }
+    currentRowNum++;
+  });
+  
+  // Aggregate summary row for consolidated order
+  const aggTotalRow = worksheet.getRow(currentRowNum);
+  aggTotalRow.height = 30;
+  worksheet.mergeCells(`B${currentRowNum}:G${currentRowNum}`);
+  
+  const aggLabelCell = aggTotalRow.getCell(2);
+  aggLabelCell.value = '제품 주문 총 예상 합계:';
+  aggLabelCell.font = { name: 'Malgun Gothic', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+  aggLabelCell.alignment = { vertical: 'middle', horizontal: 'right' };
+  aggLabelCell.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF1F2233' }
+  };
+  
+  for (let col = 2; col <= 7; col++) {
+    aggTotalRow.getCell(col).border = {
+      top: { style: 'medium', color: { argb: 'FF2D6ABF' } },
+      bottom: { style: 'medium', color: { argb: 'FF2D6ABF' } },
+      left: col === 2 ? { style: 'thin', color: { argb: 'FF44475A' } } : undefined,
+      right: col === 7 ? { style: 'thin', color: { argb: 'FF44475A' } } : undefined
+    };
+  }
+  
+  const aggValueCell = aggTotalRow.getCell(8);
+  aggValueCell.value = grandTotalCost;
+  aggValueCell.numFormat = '₩#,##0';
+  aggValueCell.font = { name: 'Malgun Gothic', size: 12, bold: true, color: { argb: 'FF2D6ABF' } };
+  aggValueCell.alignment = { vertical: 'middle', horizontal: 'right' };
+  aggValueCell.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF1F2233' }
+  };
+  aggValueCell.border = {
+    top: { style: 'medium', color: { argb: 'FF2D6ABF' } },
+    bottom: { style: 'medium', color: { argb: 'FF2D6ABF' } },
+    right: { style: 'thin', color: { argb: 'FF44475A' } }
+  };
+  
+  // 10. Download Excel workbook
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const url = URL.createObjectURL(blob);
