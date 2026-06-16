@@ -2191,16 +2191,22 @@ function calculateRequiredSMPS(watt) {
   if (watt <= 0) return [];
   let smps = [];
   let w = watt;
+  // 150W SMPS has 80% safe load limit of 120W
   while (w > 120) {
     smps.push(150);
     w -= 120;
   }
   if (w > 0) {
-    if (w <= 48) {
+    // 36W (80% safe limit = 28.8W)
+    if (w <= 28.8) {
+      smps.push(36);
+    }
+    // 60W (80% safe limit = 48.0W)
+    else if (w <= 48.0) {
       smps.push(60);
-    } else if (w <= 80) {
-      smps.push(100);
-    } else {
+    }
+    // 150W (80% safe limit = 120.0W)
+    else {
       smps.push(150);
     }
   }
