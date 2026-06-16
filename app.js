@@ -2755,6 +2755,11 @@ function renderBOMTable() {
   });
   
   // 2. Render automatically calculated SMPS and Controllers per zone
+  const getSMPSPrice = (cap) => {
+    const c = parseInt(cap, 10);
+    return c === 36 ? 24500 : (c === 60 ? 30100 : (c === 150 ? 44100 : 0));
+  };
+
   filteredZones.forEach(zone => {
     // 2.1 SMPS
     if (zone.requiredSMPS && zone.requiredSMPS.length > 0) {
@@ -2764,6 +2769,10 @@ function renderBOMTable() {
       });
       
       Object.entries(smpsCounts).forEach(([cap, qty]) => {
+        const smpsPrice = getSMPSPrice(cap);
+        const smpsCost = smpsPrice * qty;
+        totalCost += smpsCost;
+
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td><strong>${zone.name} &gt; ${cap}W 안정기</strong></td>
@@ -2771,7 +2780,7 @@ function renderBOMTable() {
           <td>${cap}W</td>
           <td>-</td>
           <td>${qty}개</td>
-          <td><strong>₩0</strong> <span style="font-size:10px;color:var(--text-dim);font-weight:normal;">(포함)</span></td>
+          <td><strong>₩${smpsCost.toLocaleString()}</strong></td>
           <td>
             <span style="font-size:11px;color:var(--text-dim);">자동 배정</span>
           </td>
