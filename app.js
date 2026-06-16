@@ -1971,7 +1971,7 @@ function handleMeasureClick(x, y) {
 // Keyboard delete/nudge handlers
 function handleKeyDown(e) {
   // Reset calibration points when in calibration mode
-  if (state.activeTool === 'calibrate') {
+  if (els.calibrateOverlay && els.calibrateOverlay.style.display === 'flex') {
     if (e.key === 'Escape' || e.key === 'Delete' || e.key === 'Backspace') {
       state.calibrationPoints = [];
       if (els.calibrateStatus) {
