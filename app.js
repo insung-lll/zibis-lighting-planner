@@ -818,6 +818,16 @@ function setupEventListeners() {
   }
   els.loadProjectInput.addEventListener('change', loadProjectFile);
   
+  // Template Click Listeners
+  document.querySelectorAll('.template-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const fileUrl = card.getAttribute('data-template-file');
+      if (fileUrl) {
+        loadTemplateProject(fileUrl);
+      }
+    });
+  });
+  
   // Excel Export
   els.btnExport.addEventListener('click', exportToExcel);
 
@@ -3347,6 +3357,35 @@ function loadProjectFile(e) {
     }
   };
   reader.readAsText(file);
+}
+
+function loadTemplateProject(url) {
+  const container = document.querySelector('.template-container');
+  if (container) {
+    container.style.opacity = '0.5';
+    container.style.pointerEvents = 'none';
+  }
+
+  fetch(url)
+    .then(res => {
+      if (!res.ok) {
+        throw new Error('네트워크 응답 오류');
+      }
+      return res.json();
+    })
+    .then(data => {
+      clearProjectState();
+      loadProjectData(data);
+    })
+    .catch(err => {
+      alert("템플릿 프로젝트를 불러오는 데 실패했습니다: " + err.message);
+    })
+    .finally(() => {
+      if (container) {
+        container.style.opacity = '1';
+        container.style.pointerEvents = 'auto';
+      }
+    });
 }
 
 function loadProjectData(data) {
