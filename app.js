@@ -155,7 +155,7 @@ const fixtureDatabase = [
     size: 40,
     length: 5000,
     widthMM: 10,
-    price: 24000,
+    price: 50000,
     link: 'https://zibismart.co.kr/product/iot-스타일컷-라인-실리콘-조명-10폭-5m/319/'
   },
   {
@@ -2795,6 +2795,9 @@ function renderBOMTable() {
         const tr = document.createElement('tr');
         const name = typeof ctrl === 'string' ? ctrl : ctrl.name;
         const qty = typeof ctrl === 'string' ? 1 : ctrl.qty;
+        const ctrlPrice = 35000;
+        const ctrlCost = ctrlPrice * qty;
+        totalCost += ctrlCost;
         
         tr.innerHTML = `
           <td><strong>${zone.name} &gt; ${name}</strong></td>
@@ -2802,7 +2805,7 @@ function renderBOMTable() {
           <td>-</td>
           <td>-</td>
           <td>${qty}개</td>
-          <td><strong>₩0</strong> <span style="font-size:10px;color:var(--text-dim);font-weight:normal;">(포함)</span></td>
+          <td><strong>₩${ctrlCost.toLocaleString()}</strong></td>
           <td>
             <span style="font-size:11px;color:var(--text-dim);">자동 배정</span>
           </td>
@@ -3611,7 +3614,7 @@ async function exportToExcel() {
             name: ctrlName,
             type: '컨트롤러',
             color: null,
-            price: 0,
+            price: 35000,
             qty: 0,
             isLine: false
           };
