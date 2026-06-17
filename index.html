@@ -272,64 +272,76 @@
 
   <!-- Upload Floor Plan Modal (Step 1) -->
   <div class="upload-overlay" id="uploadOverlay">
-    <div class="upload-box" id="uploadBox" style="width: 500px; max-width: 90%;">
-      <h2 class="upload-title">평면도 파일 업로드</h2>
-      <p class="upload-subtitle">설계 작업을 시작할 도면 이미지 파일(JPG, PNG)을 업로드하세요</p>
+    <div class="start-container">
       
-      <div class="main-drop-zone" id="mainDropZone" style="margin-top: 20px; padding: 40px 20px;">
-        <div class="drop-icon">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-          </svg>
+      <!-- Card 1: File Upload & Project Load -->
+      <div class="upload-box" id="uploadBox">
+        <h2 class="upload-title">평면도 파일 업로드</h2>
+        <p class="upload-subtitle">설계 작업을 시작할 도면 이미지 파일(JPG, PNG)을 업로드하세요</p>
+        
+        <div class="main-drop-zone" id="mainDropZone" style="margin-top: 20px; padding: 40px 20px;">
+          <div class="drop-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+          </div>
+          <p class="drop-title">이미지를 드래그하거나 클릭하여 선택</p>
+          <p class="drop-hint">지원 이미지 형식: JPG, PNG</p>
         </div>
-        <p class="drop-title">이미지를 드래그하거나 클릭하여 선택</p>
-        <p class="drop-hint">지원 이미지 형식: JPG, PNG</p>
-      </div>
-      <input type="file" id="fileInput" accept="image/png, image/jpeg" style="display:none;">
-      
-      <div style="display: flex; justify-content: center; margin-top: 15px;">
-        <button class="btn" id="btnLoadProjectFirst" style="width: 100%; height: 42px; justify-content: center; gap: 8px; font-weight: 600; border-color: var(--border); background-color: rgba(255, 255, 255, 0.03);">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-            <line x1="12" y1="11" x2="12" y2="17"/>
-            <polyline points="9 14 12 11 15 14"/>
-          </svg>
-          기존 프로젝트 열기 (.zbs)
-        </button>
+        <input type="file" id="fileInput" accept="image/png, image/jpeg" style="display:none;">
+        
+        <div style="display: flex; justify-content: center; margin-top: 15px;">
+          <button class="btn" id="btnLoadProjectFirst" style="width: 100%; height: 42px; justify-content: center; gap: 8px; font-weight: 600; border-color: var(--border); background-color: rgba(255, 255, 255, 0.03);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+              <line x1="12" y1="11" x2="12" y2="17"/>
+              <polyline points="9 14 12 11 15 14"/>
+            </svg>
+            기존 프로젝트 열기 (.zbs)
+          </button>
+        </div>
+        
+        <div class="info-box" style="margin-top: 20px; text-align: left; background-color: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); padding: 10px 12px; border-radius: 6px; font-size: 11px; color: var(--text-dim); line-height: 1.5; margin-bottom: 0;">
+          <strong>참고:</strong> 해상도가 양호하고 노이즈가 적은 파일일수록 정밀한 시각화가 가능합니다.
+        </div>
       </div>
 
-      <!-- Sample Template Selection -->
-      <div class="template-container">
-        <h3 class="template-section-title">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="12 2 2 7 12 12 22 7 12 2"/>
-            <polyline points="2 17 12 22 22 17"/>
-            <polyline points="2 12 12 17 22 12"/>
-          </svg>
-          샘플 템플릿으로 시작하기
-        </h3>
-        <div class="template-grid">
-          <div class="template-card" data-template-file="temp/20평_zibis_조명배치_1781674941679.zbs">
-            <span class="template-icon">🏡</span>
-            <span class="template-name">20평형 템플릿</span>
-            <span class="template-desc">투룸 구성 도면</span>
+      <!-- Card 2: Sample Templates -->
+      <div class="template-box" id="templateBox">
+        <h2 class="upload-title">샘플 템플릿으로 시작</h2>
+        <p class="upload-subtitle">준비된 3가지 평형의 가상 프로젝트를 활용해 보세요</p>
+        
+        <div class="template-list">
+          <div class="template-card-row" data-template-file="temp/20평_zibis_조명배치_1781674941679.zbs">
+            <span class="template-card-icon">🏡</span>
+            <div class="template-card-text">
+              <span class="template-card-name">20평형 투룸형 템플릿</span>
+              <span class="template-card-desc">실속 있는 2룸 구성 평면도 및 샘플 배치</span>
+            </div>
           </div>
-          <div class="template-card" data-template-file="temp/30평_zibis_조명배치_1781675904407.zbs">
-            <span class="template-icon">🏢</span>
-            <span class="template-name">30평형 템플릿</span>
-            <span class="template-desc">쓰리룸 구성 도면</span>
+          
+          <div class="template-card-row" data-template-file="temp/30평_zibis_조명배치_1781675904407.zbs">
+            <span class="template-card-icon">🏢</span>
+            <div class="template-card-text">
+              <span class="template-card-name">30평형 쓰리룸형 템플릿</span>
+              <span class="template-card-desc">가장 대중적인 3룸 구성 평면도 및 샘플 배치</span>
+            </div>
           </div>
-          <div class="template-card" data-template-file="temp/40평_zibis_조명배치_1781676753989.zbs">
-            <span class="template-icon">🏰</span>
-            <span class="template-name">40평형 템플릿</span>
-            <span class="template-desc">포룸 구성 도면</span>
+          
+          <div class="template-card-row" data-template-file="temp/40평_zibis_조명배치_1781676753989.zbs">
+            <span class="template-card-icon">🏰</span>
+            <div class="template-card-text">
+              <span class="template-card-name">40평형 포룸형 템플릿</span>
+              <span class="template-card-desc">여유로운 4룸 구성 평면도 및 샘플 배치</span>
+            </div>
           </div>
         </div>
+        
+        <div class="info-box" style="margin-top: 20px; text-align: left; background-color: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); padding: 10px 12px; border-radius: 6px; font-size: 11px; color: var(--text-dim); line-height: 1.5; margin-bottom: 0;">
+          <strong>알림:</strong> 템플릿을 선택하면 공간 및 조명 기구가 샘플 데이터 기준으로 미리 배치됩니다.
+        </div>
       </div>
-      
-      <div class="info-box" style="margin-top: 20px; text-align: left; background-color: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); padding: 10px 12px; border-radius: 6px; font-size: 11px; color: var(--text-dim); line-height: 1.5;">
-        <strong>참고:</strong> 해상도가 양호하고 노이즈가 적은 파일일수록 정밀한 시각화 및 배선이 가능합니다.
-      </div>
+
     </div>
   </div>
 

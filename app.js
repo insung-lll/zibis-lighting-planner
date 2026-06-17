@@ -819,7 +819,7 @@ function setupEventListeners() {
   els.loadProjectInput.addEventListener('change', loadProjectFile);
   
   // Template Click Listeners
-  document.querySelectorAll('.template-card').forEach(card => {
+  document.querySelectorAll('.template-card-row').forEach(card => {
     card.addEventListener('click', () => {
       const fileUrl = card.getAttribute('data-template-file');
       if (fileUrl) {
@@ -3360,7 +3360,7 @@ function loadProjectFile(e) {
 }
 
 function loadTemplateProject(url) {
-  const container = document.querySelector('.template-container');
+  const container = document.querySelector('.template-box');
   if (container) {
     container.style.opacity = '0.5';
     container.style.pointerEvents = 'none';
