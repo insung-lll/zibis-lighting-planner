@@ -3331,7 +3331,11 @@ function loadProjectData(data) {
     state.uploadedImage = img;
     state.pixelsPerMeter = data.pixelsPerMeter || 50;
     state.ceilingHeight = data.ceilingHeight || 2.4;
-    state.lights = data.lights || [];
+    // 불러온 조명의 price를 fixtureDatabase 최신 단가로 갱신
+    state.lights = (data.lights || []).map(l => {
+      const spec = fixtureDatabase.find(f => f.id === l.typeId);
+      return spec ? { ...l, price: spec.price } : l;
+    });
     state.zones = data.zones || [];
     state.bomFilterZoneId = null;
     
