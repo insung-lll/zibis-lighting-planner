@@ -3557,11 +3557,12 @@ async function exportToExcel() {
         : spec.category === 'multi'     ? '멀티매입등'
         : spec.category === 'smarthome' ? '스마트홈 기기'
         : '조명';
+      const currentPrice = spec ? spec.price : (l.price || 0); // 최신 가격테이블 기준
       allProducts[l.typeId] = {
         name: l.name,
         type: catLabel,
         color: spec ? spec.color : null,
-        price: l.price || 0,
+        price: currentPrice,
         qty: 0,
         isLine: spec && (spec.category === 'linebar' || spec.icon === 'line'),
         totalWatt: 0,
@@ -3707,7 +3708,7 @@ async function exportToExcel() {
     row.getCell(3).value = p.name;
     row.getCell(4).value = p.type;
     row.getCell(5).value = p.price;
-    row.getCell(5).numFormat = '₩#,##0';
+    row.getCell(5).numFmt = '₩#,##0';
     row.getCell(6).value = p.qty + '개';
     
     // Remarks
@@ -3720,7 +3721,7 @@ async function exportToExcel() {
     row.getCell(7).value = remarkVal;
     
     row.getCell(8).value = rowCost;
-    row.getCell(8).numFormat = '₩#,##0';
+    row.getCell(8).numFmt = '₩#,##0';
     
     for (let c = 2; c <= 8; c++) {
       const cell = row.getCell(c);
@@ -3776,7 +3777,7 @@ async function exportToExcel() {
   
   const aggValueCell = aggTotalRow.getCell(8);
   aggValueCell.value = grandTotalCost;
-  aggValueCell.numFormat = '₩#,##0';
+  aggValueCell.numFmt = '₩#,##0';
   aggValueCell.font = { name: 'Malgun Gothic', size: 12, bold: true, color: { argb: 'FF2D6ABF' } };
   aggValueCell.alignment = { vertical: 'middle', horizontal: 'right' };
   aggValueCell.fill = {
@@ -3848,12 +3849,14 @@ async function exportToExcel() {
           : spec.category === 'smarthome' ? '스마트홈 기기'
           : '조명';
         const isLine = spec && (spec.category === 'linebar' || spec.icon === 'line');
+        const specCurrent = fixtureDatabase.find(f => f.id === l.typeId);
+        const currentPrice = specCurrent ? specCurrent.price : (l.price || 0); // 최신 가격테이블 기준
         groups[l.typeId] = {
           name: l.name,
           type: catLabel,
           watt: isLine ? 0 : l.watt,
           lumen: isLine ? 0 : l.lumen,
-          price: l.price || 0,
+          price: currentPrice,
           qty: 0,
           isLinebar: isLine
         };
@@ -3864,7 +3867,7 @@ async function exportToExcel() {
         groups[l.typeId].lumen += l.lumen;
       }
     });
-    
+
     // Write lights in this zone
     Object.values(groups).forEach(g => {
       const rowCost = g.price * g.qty;
@@ -3880,7 +3883,7 @@ async function exportToExcel() {
       row.getCell(6).value = g.lumen ? g.lumen + ' lm' : '-';
       row.getCell(7).value = g.qty + '개';
       row.getCell(8).value = rowCost;
-      row.getCell(8).numFormat = '₩#,##0';
+      row.getCell(8).numFmt = '₩#,##0';
       
       applyRowStyles(row, false);
       currentRowNum++;
@@ -3897,15 +3900,21 @@ async function exportToExcel() {
         const row = worksheet.getRow(currentRowNum);
         row.height = 22;
         
+        const capNum = parseInt(cap, 10);
+        const smpsPrice = capNum === 36 ? 24500 : (capNum === 60 ? 30100 : (capNum === 150 ? 44100 : 0));
+        const smpsCost = smpsPrice * qty;
+        totalCost += smpsCost;
+        
         row.getCell(2).value = zone.name;
         row.getCell(3).value = `${cap}W 안정기`;
         row.getCell(4).value = '안정기 (SMPS)';
         row.getCell(5).value = cap + 'W';
         row.getCell(6).value = '-';
         row.getCell(7).value = qty + '개';
-        row.getCell(8).value = 0; // Included
+        row.getCell(8).value = smpsCost;
+        row.getCell(8).numFmt = '₩#,##0';
         
-        applyRowStyles(row, true);
+        applyRowStyles(row, false);
         currentRowNum++;
       });
     }
@@ -3918,6 +3927,9 @@ async function exportToExcel() {
         
         const ctrlName = typeof ctrl === 'string' ? ctrl : ctrl.name;
         const qty = typeof ctrl === 'string' ? 1 : ctrl.qty;
+        const ctrlPrice = 35000;
+        const ctrlCost = ctrlPrice * qty;
+        totalCost += ctrlCost;
         
         row.getCell(2).value = zone.name;
         row.getCell(3).value = ctrlName;
@@ -3925,9 +3937,10 @@ async function exportToExcel() {
         row.getCell(5).value = '-';
         row.getCell(6).value = '-';
         row.getCell(7).value = `${qty}개`;
-        row.getCell(8).value = 0; // Included
+        row.getCell(8).value = ctrlCost;
+        row.getCell(8).numFmt = '₩#,##0';
         
-        applyRowStyles(row, true);
+        applyRowStyles(row, false);
         currentRowNum++;
       });
     }
@@ -3956,12 +3969,14 @@ async function exportToExcel() {
           : spec.category === 'smarthome' ? '스마트홈 기기'
           : '조명';
         const isLine = spec && (spec.category === 'linebar' || spec.icon === 'line');
+        const specCurrent2 = fixtureDatabase.find(f => f.id === l.typeId);
+        const currentPrice2 = specCurrent2 ? specCurrent2.price : (l.price || 0); // 최신 가격테이블 기준
         groups[l.typeId] = {
           name: l.name,
           type: catLabel,
           watt: isLine ? 0 : l.watt,
           lumen: isLine ? 0 : l.lumen,
-          price: l.price || 0,
+          price: currentPrice2,
           qty: 0,
           isLinebar: isLine
         };
@@ -3972,14 +3987,14 @@ async function exportToExcel() {
         groups[l.typeId].lumen += l.lumen;
       }
     });
-    
+
     Object.values(groups).forEach(g => {
       const rowCost = g.price * g.qty;
       totalCost += rowCost;
-      
+
       const row = worksheet.getRow(currentRowNum);
       row.height = 22;
-      
+
       row.getCell(2).value = '기타 (공간 외)';
       row.getCell(3).value = g.name;
       row.getCell(4).value = g.type;
@@ -3987,7 +4002,7 @@ async function exportToExcel() {
       row.getCell(6).value = g.lumen ? g.lumen + ' lm' : '-';
       row.getCell(7).value = g.qty + '개';
       row.getCell(8).value = rowCost;
-      row.getCell(8).numFormat = '₩#,##0';
+      row.getCell(8).numFmt = '₩#,##0';
       
       applyRowStyles(row, false);
       currentRowNum++;
@@ -4028,7 +4043,7 @@ async function exportToExcel() {
   
   const valueCell = totalRow.getCell(8);
   valueCell.value = totalCost;
-  valueCell.numFormat = '₩#,##0';
+  valueCell.numFmt = '₩#,##0';
   valueCell.font = { name: 'Malgun Gothic', size: 12, bold: true, color: { argb: 'FF2D6ABF' } };
   valueCell.alignment = { vertical: 'middle', horizontal: 'right' };
   valueCell.fill = {
