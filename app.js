@@ -3709,7 +3709,7 @@ async function exportToExcel() {
     row.getCell(3).value = p.name;
     row.getCell(4).value = p.type;
     row.getCell(5).value = p.price;
-    row.getCell(5).numFmt = '₩#,##0';
+    row.getCell(5).numFmt = '#,##0';
     row.getCell(6).value = p.qty + '개';
     
     // Remarks
@@ -3722,7 +3722,7 @@ async function exportToExcel() {
     row.getCell(7).value = remarkVal;
     
     row.getCell(8).value = rowCost;
-    row.getCell(8).numFmt = '₩#,##0';
+    row.getCell(8).numFmt = '#,##0';
     
     for (let c = 2; c <= 8; c++) {
       const cell = row.getCell(c);
@@ -3778,7 +3778,7 @@ async function exportToExcel() {
   
   const aggValueCell = aggTotalRow.getCell(8);
   aggValueCell.value = grandTotalCost;
-  aggValueCell.numFmt = '₩#,##0';
+  aggValueCell.numFmt = '#,##0';
   aggValueCell.font = { name: 'Malgun Gothic', size: 12, bold: true, color: { argb: 'FF2D6ABF' } };
   aggValueCell.alignment = { vertical: 'middle', horizontal: 'right' };
   aggValueCell.fill = {
@@ -3884,7 +3884,7 @@ async function exportToExcel() {
       row.getCell(6).value = g.lumen ? g.lumen + ' lm' : '-';
       row.getCell(7).value = g.qty + '개';
       row.getCell(8).value = rowCost;
-      row.getCell(8).numFmt = '₩#,##0';
+      row.getCell(8).numFmt = '#,##0';
       
       applyRowStyles(row, false);
       currentRowNum++;
@@ -3913,7 +3913,7 @@ async function exportToExcel() {
         row.getCell(6).value = '-';
         row.getCell(7).value = qty + '개';
         row.getCell(8).value = smpsCost;
-        row.getCell(8).numFmt = '₩#,##0';
+        row.getCell(8).numFmt = '#,##0';
         
         applyRowStyles(row, false);
         currentRowNum++;
@@ -3939,7 +3939,7 @@ async function exportToExcel() {
         row.getCell(6).value = '-';
         row.getCell(7).value = `${qty}개`;
         row.getCell(8).value = ctrlCost;
-        row.getCell(8).numFmt = '₩#,##0';
+        row.getCell(8).numFmt = '#,##0';
         
         applyRowStyles(row, false);
         currentRowNum++;
@@ -4003,7 +4003,7 @@ async function exportToExcel() {
       row.getCell(6).value = g.lumen ? g.lumen + ' lm' : '-';
       row.getCell(7).value = g.qty + '개';
       row.getCell(8).value = rowCost;
-      row.getCell(8).numFmt = '₩#,##0';
+      row.getCell(8).numFmt = '#,##0';
       
       applyRowStyles(row, false);
       currentRowNum++;
@@ -4044,7 +4044,7 @@ async function exportToExcel() {
   
   const valueCell = totalRow.getCell(8);
   valueCell.value = grandTotalCost; // 상단 제품 주문 총 예상 합계와 동일하게 통일
-  valueCell.numFmt = '₩#,##0';
+  valueCell.numFmt = '#,##0';
   valueCell.font = { name: 'Malgun Gothic', size: 12, bold: true, color: { argb: 'FF2D6ABF' } };
   valueCell.alignment = { vertical: 'middle', horizontal: 'right' };
   valueCell.fill = {
