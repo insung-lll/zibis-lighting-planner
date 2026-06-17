@@ -2683,12 +2683,13 @@ function renderBOMTable() {
     if (!groups[l.typeId]) {
       const spec = fixtureDatabase.find(f => f.id === l.typeId);
       const isLine = spec && (spec.category === 'linebar' || spec.icon === 'line');
+      const currentPrice = spec ? spec.price : (l.price || 0); // 항상 최신 가격테이블 기준
       groups[l.typeId] = {
         name: l.name,
         category: spec ? spec.category : '',
         watt: isLine ? 0 : l.watt,
         lumen: isLine ? 0 : l.lumen,
-        price: l.price || 0,
+        price: currentPrice,
         qty: 0,
         isLinebar: isLine
       };
