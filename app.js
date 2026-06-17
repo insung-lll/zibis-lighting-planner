@@ -4043,7 +4043,7 @@ async function exportToExcel() {
   }
   
   const valueCell = totalRow.getCell(8);
-  valueCell.value = totalCost;
+  valueCell.value = grandTotalCost; // 상단 제품 주문 총 예상 합계와 동일하게 통일
   valueCell.numFmt = '₩#,##0';
   valueCell.font = { name: 'Malgun Gothic', size: 12, bold: true, color: { argb: 'FF2D6ABF' } };
   valueCell.alignment = { vertical: 'middle', horizontal: 'right' };
