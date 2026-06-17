@@ -516,6 +516,32 @@ function resetTools() {
   renderFixtureLibrary();
 }
 
+function clearProjectState() {
+  state.lights = [];
+  state.zones = [];
+  state.dimensions = [];
+  state.zoom = 1.0;
+  state.panX = 0;
+  state.panY = 0;
+  state.bomFilterZoneId = null;
+  state.selectedZoneId = null;
+  state.selectedFixtureId = null;
+  state.selectedDimensionId = null;
+  state.selectedLightIds = [];
+  state.tempZoneData = null;
+  state.pendingZoneData = null;
+  state.nextLightId = 1;
+  state.nextZoneId = 1;
+  state.nextDimId = 1;
+
+  // Clear file inputs so change events fire even for the same file
+  if (els.fileInput) els.fileInput.value = '';
+  if (els.loadProjectInput) els.loadProjectInput.value = '';
+  
+  resetTools();
+}
+
+
 function selectPanMode() {
   state.activeTool = 'pan';
   state.selectedFixtureId = null;
@@ -776,14 +802,7 @@ function setupEventListeners() {
   // Project Saves & Loads
   els.btnNewProject.addEventListener('click', () => {
     showConfirm("새 프로젝트", "현재 작성 중인 모든 데이터가 삭제됩니다. 계속하시겠습니까?", () => {
-      state.lights = [];
-      state.zones = [];
-      state.dimensions = [];
-      state.zoom = 1.0;
-      state.panX = 0;
-      state.panY = 0;
-      state.bomFilterZoneId = null;
-      resetTools();
+      clearProjectState();
       els.uploadOverlay.style.display = 'flex';
       els.canvasContainer.style.display = 'none';
       els.canvasToolbar.style.display = 'none';
@@ -857,6 +876,9 @@ function handleUpload(file) {
     alert("올바른 도면 이미지 파일(PNG, JPG)을 업로드해주세요.");
     return;
   }
+
+  // Clear previous project state when uploading a new layout image
+  clearProjectState();
 
   // Handle image files
   const reader = new FileReader();
@@ -3317,6 +3339,8 @@ function loadProjectFile(e) {
   reader.onload = function(evt) {
     try {
       const data = JSON.parse(evt.target.result);
+      // Clear previous project state before loading project data
+      clearProjectState();
       loadProjectData(data);
     } catch (err) {
       alert("프로젝트 파일을 읽어오는 데 실패했습니다.");
