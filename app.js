@@ -139,7 +139,7 @@ const fixtureDatabase = [
     size: 40,
     length: 5000,
     widthMM: 10,
-    price: 8400,
+    price: 50000,
     link: 'https://zibismart.co.kr/product/iot-플렉시블-라인-투명-실리콘-조명-10폭-5m/318/'
   },
   {
@@ -155,7 +155,7 @@ const fixtureDatabase = [
     size: 40,
     length: 5000,
     widthMM: 10,
-    price: 50000,
+    price: 77500,
     link: 'https://zibismart.co.kr/product/iot-스타일컷-라인-실리콘-조명-10폭-5m/319/'
   },
   {
