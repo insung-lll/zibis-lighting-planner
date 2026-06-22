@@ -812,7 +812,7 @@ function setupEventListeners() {
 
   // Project Saves & Loads
   els.btnNewProject.addEventListener('click', () => {
-    showConfirm("새 프로젝트", "현재 작성 중인 모든 데이터가 삭제됩니다. 계속하시겠습니까?", () => {
+    showConfirm("홈으로 이동", "현재 작성 중인 모든 데이터가 삭제됩니다. 계속하시겠습니까?", () => {
       clearProjectState();
       els.uploadOverlay.style.display = 'flex';
       els.canvasContainer.style.display = 'none';
