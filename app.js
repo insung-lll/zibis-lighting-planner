@@ -3235,7 +3235,7 @@ function renderLightsLayer() {
 function drawTick(ctx, x, y, angle) {
   ctx.save();
   ctx.translate(x, y);
-  ctx.rotate(angle + Math.PI / 2);
+  ctx.rotate(angle);
   ctx.beginPath();
   ctx.moveTo(0, -6);
   ctx.lineTo(0, 6);
