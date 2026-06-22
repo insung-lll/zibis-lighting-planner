@@ -6,7 +6,7 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>ZIBIS — 조명 배치 플래너</title>
-  <link rel="stylesheet" type="text/css" href="style.css?v=11" />
+  <link rel="stylesheet" type="text/css" href="style.css?v=21" />
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 </head>
 <body>
@@ -128,7 +128,7 @@
     
     <!-- Center Canvas Area -->
     <div class="canvas-area" id="canvasArea" tabindex="0">
-      
+
       <!-- Horizontal Toolbar at Bottom Center -->
       <div class="horizontal-toolbar" id="horizontalToolbar">
         <!-- 공간 추가 (Plus button with Popup) -->
@@ -200,30 +200,37 @@
         <canvas id="interactionLayer"></canvas>
       </div>
       
-      <!-- Floating Right Panel: Analytics & Zone List -->
-      <div class="right-panel" id="rightPanel">
-        <div class="right-panel-section">
-          <div class="section-title">조도 시각화 모드</div>
-          <div class="form-row">
-            <select class="form-input" id="heatmapModeSelect">
-              <option value="none">시각화 해제</option>
-              <option value="zone" selected>공간 조도 판정</option>
-            </select>
-          </div>
-        </div>
-        <div class="right-panel-section">
-          <div class="section-title">구획된 공간 목록</div>
-          <div class="zone-list" id="zoneList">
-            <!-- Populated dynamically -->
-          </div>
-        </div>
-      </div>
       
 
       
       <!-- Hover Tooltip for Placed Lights -->
       <div class="light-tooltip" id="lightTooltip"></div>
       
+    </div>
+
+    <!-- Right Sidebar: Analytics & Zone List -->
+    <div class="right-panel" id="rightPanel">
+      <div class="right-panel-section">
+        <div class="section-title">조도 시각화 모드</div>
+        <div class="form-row">
+          <select class="form-input" id="heatmapModeSelect">
+            <option value="none">시각화 해제</option>
+            <option value="zone" selected>공간 조도 판정</option>
+          </select>
+        </div>
+      </div>
+      <div class="right-panel-section">
+        <div class="section-title">구획된 공간 목록</div>
+        <div class="zone-list" id="zoneList">
+          <!-- Populated dynamically -->
+        </div>
+        <div class="snap-toggle-row">
+          <span class="snap-toggle-label">스냅</span>
+          <button class="snap-toggle-btn active" id="snapToggleBtn">
+            <span class="snap-toggle-dot"></span>ON
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -376,14 +383,7 @@
               <line x1="5" y1="12" x2="19" y2="12"></line>
             </svg>
           </button>
-          <button class="zoom-btn" id="btnCalibrateZoomReset" title="초기화" style="margin-left: 4px;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M15 3h6v6"></path>
-              <path d="M9 21H3v-6"></path>
-              <path d="M21 3l-7 7"></path>
-              <path d="M3 21l7-7"></path>
-            </svg>
-          </button>
+          <button class="zoom-btn" id="btnCalibrateZoomReset" title="초기화" style="margin-left: 4px; font-size: 10px; font-weight: 800; width: auto; padding: 0 6px; letter-spacing: 0.5px;">FIT</button>
         </div>
       </div>
       <div class="calibrate-panel">
@@ -495,6 +495,6 @@
 
 </div>
 
-<script src="app.js?v=11"></script>
+<script src="app.js?v=21"></script>
 </body>
 </html>
