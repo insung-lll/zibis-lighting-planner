@@ -232,7 +232,6 @@ const state = {
   
   // Active Tools & selections
   activeTool: 'select', // 'select', 'place', 'draw-zone', 'measure', 'calibrate'
-  preSpaceTool: null,
   selectedFixtureId: null,
   activeCategory: 'downlight',
   activeSubCategory: 'all',
@@ -258,9 +257,15 @@ const state = {
   // Dragging states
   selectedLightIds: [],
   draggingLightId: null,
+  draggingZoneId: null,
+  draggingDimensionId: null,
   dragOffsetX: 0,
   dragOffsetY: 0,
   
+  // Snap & hover
+  snapEnabled: true,
+  hoveredZoneId: null,
+
   // Interaction previews
   ghostCursor: null,
   snapGuides: [],
@@ -318,6 +323,10 @@ const els = {
   btnCalibrateZoomIn: document.getElementById('btnCalibrateZoomIn'),
   btnCalibrateZoomOut: document.getElementById('btnCalibrateZoomOut'),
   btnCalibrateZoomReset: document.getElementById('btnCalibrateZoomReset'),
+  btnCanvasZoomIn: document.getElementById('btnCanvasZoomIn'),
+  btnCanvasZoomOut: document.getElementById('btnCanvasZoomOut'),
+  btnCanvasZoomReset: document.getElementById('btnCanvasZoomReset'),
+  zoomDisplay: document.getElementById('zoomDisplay'),
   txtCalibrateZoom: document.getElementById('txtCalibrateZoom'),
   
   // Left Panel
@@ -326,7 +335,6 @@ const els = {
   
   // Toolbar overlay & floating actions
   canvasToolbar: document.getElementById('canvasToolbar'),
-  zoomDisplay: document.getElementById('zoomDisplay'),
   scaleDisplay: document.getElementById('scaleDisplay'),
   pyeongDisplay: document.getElementById('pyeongDisplay'),
   tabAddZone: document.getElementById('tabAddZone'),
@@ -375,7 +383,6 @@ const els = {
   
   // Custom additions
   btnSelectMode: document.getElementById('btnSelectMode'),
-  btnPanMode: document.getElementById('btnPanMode'),
   subCategoryPillsWrap: document.getElementById('subCategoryPillsWrap'),
   subCategoryPills: document.getElementById('subCategoryPills'),
   lightTooltip: document.getElementById('lightTooltip'),
@@ -452,7 +459,7 @@ function renderFixtureLibrary() {
         </div>
         ${item.link ? `
         <div class="fixture-link-wrapper" style="margin-top: 6px;">
-          <a href="${item.link}" target="_blank" onclick="event.stopPropagation();" style="color: #3d69b9; text-decoration: underline; font-size: 11px; font-weight: 500; cursor: pointer;">자세히보기</a>
+          <a href="${item.link}" target="_blank" onclick="event.stopPropagation();" style="color: #0070f3; text-decoration: underline; font-size: 11px; font-weight: 500; cursor: pointer;">자세히보기</a>
         </div>
         ` : ''}
       </div>
@@ -471,7 +478,6 @@ function selectFixture(id) {
   els.tabAddZone.classList.remove('active');
   els.tabMeasure.classList.remove('active');
   if (els.btnSelectMode) els.btnSelectMode.classList.remove('active');
-  if (els.btnPanMode) els.btnPanMode.classList.remove('active');
   // Crosshair cursor for light placement mode
   if (els.canvasContainer) els.canvasContainer.classList.add('crosshair-cursor');
 }
@@ -497,14 +503,15 @@ function resetTools() {
   state.selectedZoneId = null;
   state.selectedDimensionId = null;
   state.editingZoneId = null;
+  state.draggingLightId = null;
+  state.draggingZoneId = null;
+  state.draggingDimensionId = null;
   
   if (els.canvasContainer) {
     els.canvasContainer.classList.remove('crosshair-cursor');
-    els.canvasContainer.classList.remove('pan-mode');
   }
   
   if (els.btnSelectMode) els.btnSelectMode.classList.add('active');
-  if (els.btnPanMode) els.btnPanMode.classList.remove('active');
   els.tabAddZone.classList.remove('active');
   els.tabMeasure.classList.remove('active');
   
@@ -542,40 +549,6 @@ function clearProjectState() {
 }
 
 
-function selectPanMode() {
-  state.activeTool = 'pan';
-  state.selectedFixtureId = null;
-  state.isDrawingZone = false;
-  state.zonePolygonPoints = [];
-  state.isDrawingZoneRect = false;
-  state.zoneRectStart = null;
-  state.zoneRectEnd = null;
-  state.measurePhase = 0;
-  state.measureStart = null;
-  state.measureEnd = null;
-  
-  state.selectedLightIds = [];
-  state.selectedZoneId = null;
-  state.selectedDimensionId = null;
-  
-  if (els.canvasContainer) {
-    els.canvasContainer.classList.remove('crosshair-cursor');
-    els.canvasContainer.classList.add('pan-mode');
-  }
-  
-  if (els.btnSelectMode) els.btnSelectMode.classList.remove('active');
-  if (els.btnPanMode) els.btnPanMode.classList.add('active');
-  els.tabAddZone.classList.remove('active');
-  els.tabMeasure.classList.remove('active');
-  
-  if (els.btnDrawZonePolygon) els.btnDrawZonePolygon.classList.remove('active');
-  if (els.btnDrawZoneRect) els.btnDrawZoneRect.classList.remove('active');
-  if (els.zonePopup) els.zonePopup.classList.remove('visible');
-  if (els.lblAddZone) els.lblAddZone.textContent = "공간 추가";
-  
-  renderFixtureLibrary();
-  renderAll();
-}
 
 // Show standard confirmation modal
 function showConfirm(title, msg, onOk) {
@@ -643,13 +616,6 @@ function setupEventListeners() {
     resetTools();
     renderAll();
   });
-
-  // Pan Mode Toolbar Button
-  if (els.btnPanMode) {
-    els.btnPanMode.addEventListener('click', () => {
-      selectPanMode();
-    });
-  }
 
   // File Upload Handlers
   els.mainDropZone.addEventListener('click', () => els.fileInput.click());
@@ -761,6 +727,16 @@ function setupEventListeners() {
     renderAll();
   });
 
+  // Snap toggle
+  const snapBtn = document.getElementById('snapToggleBtn');
+  if (snapBtn) {
+    snapBtn.addEventListener('click', () => {
+      state.snapEnabled = !state.snapEnabled;
+      snapBtn.classList.toggle('active', state.snapEnabled);
+      snapBtn.innerHTML = `<span class="snap-toggle-dot"></span>${state.snapEnabled ? 'ON' : 'OFF'}`;
+    });
+  }
+
   // Grid checkbox removed - grid always hidden
   if (els.chkShowGrid) {
     els.chkShowGrid.addEventListener('change', (e) => {
@@ -838,6 +814,44 @@ function setupEventListeners() {
   // Setup main canvas interactions (Zoom, Pan, click events)
   setupCanvasInteractions();
   setupZoneSelectEvents();
+
+  // Canvas zoom nav buttons
+  if (els.btnCanvasZoomIn) {
+    els.btnCanvasZoomIn.addEventListener('click', () => {
+      const newZoom = Math.min(state.zoom * 1.2, 4.0);
+      const cx = els.canvasArea.clientWidth / 2;
+      const cy = els.canvasArea.clientHeight / 2;
+      state.panX = cx - (cx - state.panX) * (newZoom / state.zoom);
+      state.panY = cy - (cy - state.panY) * (newZoom / state.zoom);
+      state.zoom = newZoom;
+      updateZoomAndPan();
+    });
+  }
+  if (els.btnCanvasZoomOut) {
+    els.btnCanvasZoomOut.addEventListener('click', () => {
+      const newZoom = Math.max(state.zoom / 1.2, 0.2);
+      const cx = els.canvasArea.clientWidth / 2;
+      const cy = els.canvasArea.clientHeight / 2;
+      state.panX = cx - (cx - state.panX) * (newZoom / state.zoom);
+      state.panY = cy - (cy - state.panY) * (newZoom / state.zoom);
+      state.zoom = newZoom;
+      updateZoomAndPan();
+    });
+  }
+  if (els.btnCanvasZoomReset) {
+    els.btnCanvasZoomReset.addEventListener('click', () => {
+      const areaW = els.canvasArea.clientWidth;
+      const areaH = els.canvasArea.clientHeight;
+      const imgW = els.floorplanCanvas.width;
+      const imgH = els.floorplanCanvas.height;
+      if (!imgW || !imgH) return;
+      const fitZoom = Math.min(areaW / imgW, areaH / imgH, 1.0);
+      state.zoom = fitZoom;
+      state.panX = (areaW - imgW * fitZoom) / 2;
+      state.panY = (areaH - imgH * fitZoom) / 2;
+      updateZoomAndPan();
+    });
+  }
 
   // Calibration zoom nav & back button listeners
   if (els.btnCalibrateZoomIn) {
@@ -924,15 +938,28 @@ function initCanvasDimensions(w, h) {
   els.interactionLayer.width = w;
   els.interactionLayer.height = h;
 
-  state.zoom = 1.0;
-  state.panX = 0;
-  state.panY = 0;
-  
-  updateZoomAndPan();
-  
   els.canvasContainer.style.display = 'block';
   els.canvasToolbar.style.display = 'flex';
   updateBackButtonVisibility();
+
+  // FIT on first load — use rAF to get correct canvasArea dimensions after layout
+  requestAnimationFrame(() => {
+    const areaW = els.canvasArea.clientWidth;
+    const areaH = els.canvasArea.clientHeight;
+    const imgW = els.floorplanCanvas.width;
+    const imgH = els.floorplanCanvas.height;
+    if (areaW && areaH && imgW && imgH) {
+      const fitZoom = Math.min(areaW / imgW, areaH / imgH, 1.0);
+      state.zoom = fitZoom;
+      state.panX = (areaW - imgW * fitZoom) / 2;
+      state.panY = (areaH - imgH * fitZoom) / 2;
+    } else {
+      state.zoom = 1.0;
+      state.panX = 0;
+      state.panY = 0;
+    }
+    updateZoomAndPan();
+  });
 }
 
 function updateBackButtonVisibility() {
@@ -945,11 +972,11 @@ function updateBackButtonVisibility() {
   }
 }
 
+
 function updateZoomAndPan() {
   els.canvasContainer.style.width = els.floorplanCanvas.width + 'px';
   els.canvasContainer.style.height = els.floorplanCanvas.height + 'px';
   els.canvasContainer.style.transform = `translate(${state.panX}px, ${state.panY}px) scale(${state.zoom})`;
-  
   els.zoomDisplay.textContent = Math.round(state.zoom * 100) + '%';
   els.scaleDisplay.textContent = `1m = ${Math.round(state.pixelsPerMeter)}px`;
 
@@ -1214,7 +1241,7 @@ function renderCalibrationCanvas() {
   if (state.calibrationPoints.length >= 1) {
     const p1 = state.calibrationPoints[0];
     
-    ctx.fillStyle = '#3d69b9';
+    ctx.fillStyle = '#0070f3';
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 2 / drawScale;
     ctx.beginPath();
@@ -1225,7 +1252,7 @@ function renderCalibrationCanvas() {
     if (state.calibrationPoints.length === 1 && state.calibrateMousePos) {
       const p2 = state.calibrateMousePos;
       
-      ctx.strokeStyle = '#3d69b9';
+      ctx.strokeStyle = '#0070f3';
       ctx.lineWidth = 2 / drawScale;
       ctx.setLineDash([5 / drawScale, 5 / drawScale]);
       ctx.beginPath();
@@ -1251,14 +1278,14 @@ function renderCalibrationCanvas() {
     const p1 = state.calibrationPoints[0];
     const p2 = state.calibrationPoints[1];
     
-    ctx.strokeStyle = '#3d69b9';
+    ctx.strokeStyle = '#0070f3';
     ctx.lineWidth = 3 / drawScale;
     ctx.beginPath();
     ctx.moveTo(p1.x, p1.y);
     ctx.lineTo(p2.x, p2.y);
     ctx.stroke();
     
-    ctx.fillStyle = '#3d69b9';
+    ctx.fillStyle = '#0070f3';
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 2 / drawScale;
     ctx.beginPath();
@@ -1415,7 +1442,12 @@ function setupCanvasInteractions() {
       e.preventDefault();
       return;
     }
-    
+
+    // Universal drag-to-pan tracking (calibrate-style)
+    state._mouseDownOnLayer = true;
+    state._isDraggingCanvas = false;
+    state._panDragStart = { x: e.clientX, y: e.clientY, panX: state.panX, panY: state.panY };
+
     const pt = getOriginalCoords(e);
     
     if (state.activeTool === 'select') {
@@ -1448,6 +1480,10 @@ function setupCanvasInteractions() {
           state.selectedDimensionId = clickedDim.id;
           state.selectedZoneId = null;
           state.selectedLightIds = [];
+          
+          state.draggingDimensionId = clickedDim.id;
+          state.dragOffsetX = pt.x;
+          state.dragOffsetY = pt.y;
           renderAll();
         } else {
           // Check if clicked inside a zone
@@ -1456,6 +1492,10 @@ function setupCanvasInteractions() {
             state.selectedZoneId = clickedZone.id;
             state.selectedDimensionId = null;
             state.selectedLightIds = [];
+            
+            state.draggingZoneId = clickedZone.id;
+            state.dragOffsetX = pt.x;
+            state.dragOffsetY = pt.y;
             renderAll();
           } else {
             // Clicked empty space
@@ -1465,10 +1505,6 @@ function setupCanvasInteractions() {
           }
         }
       }
-    } else if (state.activeTool === 'pan') {
-      state.isPanning = true;
-      state.panStartX = e.clientX - state.panX;
-      state.panStartY = e.clientY - state.panY;
     } else if (state.activeTool === 'place' && state.selectedFixtureId) {
       if (state.zones.length === 0) {
         alert("공간 추가를 먼저 진행해 주세요.");
@@ -1565,6 +1601,21 @@ function setupCanvasInteractions() {
   });
 
   layer.addEventListener('mousemove', (e) => {
+    // Universal drag-to-pan (calibrate-style) — active when not dragging a light, zone, or dimension, or drawing a zone
+    if (e.buttons === 1 && state._mouseDownOnLayer && !state.draggingLightId && !state.draggingZoneId && !state.draggingDimensionId && !state.isDrawingZoneRect &&
+        state.activeTool !== 'draw-zone' && state.activeTool !== 'draw-zone-polygon') {
+      const dx = e.clientX - state._panDragStart.x;
+      const dy = e.clientY - state._panDragStart.y;
+      if (Math.hypot(dx, dy) > 5) {
+        state._isDraggingCanvas = true;
+        state.panX = state._panDragStart.panX + dx;
+        state.panY = state._panDragStart.panY + dy;
+        layer.style.cursor = 'move';
+        updateZoomAndPan();
+        return;
+      }
+    }
+
     const pt = getOriginalCoords(e);
     state.ghostCursor = pt;
     state.snapGuides = [];
@@ -1581,6 +1632,14 @@ function setupCanvasInteractions() {
           state.snapGuides = snap.guides;
         }
       }
+    }
+
+    // Zone hover detection
+    const hoveredZone = state.zones.find(z => z.visible !== false && isPointInPolygon(pt, z.points));
+    const newHoveredZoneId = hoveredZone ? hoveredZone.id : null;
+    if (newHoveredZoneId !== state.hoveredZoneId) {
+      state.hoveredZoneId = newHoveredZoneId;
+      if (state.uploadedImage) renderZoneLayer();
     }
 
     // Light hover tooltip
@@ -1623,6 +1682,42 @@ function setupCanvasInteractions() {
         
         recalculateAllZones();
         updateStats();
+        renderAll();
+      }
+    } else if (state.draggingZoneId) {
+      const zone = state.zones.find(z => z.id === state.draggingZoneId);
+      if (zone) {
+        const dx = pt.x - state.dragOffsetX;
+        const dy = pt.y - state.dragOffsetY;
+        
+        // Move all points of the zone polygon
+        zone.points.forEach(point => {
+          point.x += dx;
+          point.y += dy;
+        });
+        
+        state.dragOffsetX = pt.x;
+        state.dragOffsetY = pt.y;
+        
+        recalculateAllZones();
+        updateStats();
+        renderAll();
+      }
+    } else if (state.draggingDimensionId) {
+      const dim = state.dimensions.find(d => d.id === state.draggingDimensionId);
+      if (dim) {
+        const dx = pt.x - state.dragOffsetX;
+        const dy = pt.y - state.dragOffsetY;
+        
+        // Move start and end points of the dimension line
+        dim.start.x += dx;
+        dim.start.y += dy;
+        dim.end.x += dx;
+        dim.end.y += dy;
+        
+        state.dragOffsetX = pt.x;
+        state.dragOffsetY = pt.y;
+        
         renderAll();
       }
     } else if (state.activeTool === 'place' && state.isDrawingLinebar) {
@@ -1679,8 +1774,17 @@ function setupCanvasInteractions() {
   });
 
   window.addEventListener('mouseup', (e) => {
+    const wasDraggingCanvas = state._isDraggingCanvas;
+    state._mouseDownOnLayer = false;
+    state._isDraggingCanvas = false;
     state.isPanning = false;
     state.draggingLightId = null;
+    state.draggingZoneId = null;
+    state.draggingDimensionId = null;
+    if (wasDraggingCanvas) {
+      layer.style.cursor = '';
+      return; // skip click-action processing (zone finalize, light placement, etc.)
+    }
     // Linebar is now click-drag-click, so we do NOT place on mouseup.
     
     if (state.isDrawingZoneRect && state.zoneRectStart) {
@@ -1744,11 +1848,16 @@ function setupCanvasInteractions() {
   // Hide tooltip when leaving canvas
   layer.addEventListener('mouseleave', () => {
     els.lightTooltip.style.display = 'none';
+    if (state.hoveredZoneId !== null) {
+      state.hoveredZoneId = null;
+      if (state.uploadedImage) renderZoneLayer();
+    }
   });
 }
 
 function getSnappedPoint(p1, p2, forceSnap = false) {
   if (!p1) return p2;
+  if (!state.snapEnabled && !forceSnap) return p2;
   const dx = p2.x - p1.x;
   const dy = p2.y - p1.y;
   const dist = Math.sqrt(dx * dx + dy * dy);
@@ -1830,6 +1939,7 @@ function findZoneAt(x, y) {
 
 // Place selected Downlight
 function getPlacementSnap(pt, zoneLights) {
+  if (!state.snapEnabled) return { x: pt.x, y: pt.y, guides: [] };
   const SNAP_DIST = 20 / state.zoom;
   const count = zoneLights.length;
   if (count === 0) return { x: pt.x, y: pt.y, guides: [] };
@@ -1987,18 +2097,6 @@ function handleKeyDown(e) {
     }
   }
 
-  // Spacebar to temporarily pan
-  if (e.key === ' ' || e.code === 'Space') {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
-      return;
-    }
-    e.preventDefault();
-    if (state.activeTool !== 'pan' && !state.preSpaceTool) {
-      state.preSpaceTool = state.activeTool;
-      selectPanMode();
-    }
-    return;
-  }
 
   if (els.switchInputOverlay && els.switchInputOverlay.classList.contains('visible')) {
     if (e.key === 'Escape') {
@@ -2132,56 +2230,7 @@ function handleKeyDown(e) {
   }
 }
 
-function handleKeyUp(e) {
-  if (e.key === ' ' || e.code === 'Space') {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
-      return;
-    }
-    e.preventDefault();
-    if (state.preSpaceTool) {
-      restorePreSpaceTool();
-    }
-  }
-}
-
-function restorePreSpaceTool() {
-  if (!state.preSpaceTool) return;
-  const tool = state.preSpaceTool;
-  state.preSpaceTool = null;
-  
-  if (tool === 'select') {
-    resetTools();
-  } else if (tool === 'place' && state.selectedFixtureId) {
-    selectFixture(state.selectedFixtureId);
-  } else if (tool === 'draw-zone-polygon') {
-    resetTools();
-    state.activeTool = 'draw-zone-polygon';
-    els.tabAddZone.classList.add('active');
-    els.btnDrawZonePolygon.classList.add('active');
-    if (els.lblAddZone) els.lblAddZone.textContent = "공간: 다각형";
-    if (els.btnSelectMode) els.btnSelectMode.classList.remove('active');
-    if (els.canvasContainer) els.canvasContainer.classList.add('crosshair-cursor');
-  } else if (tool === 'draw-zone-rect') {
-    resetTools();
-    state.activeTool = 'draw-zone-rect';
-    els.tabAddZone.classList.add('active');
-    els.btnDrawZoneRect.classList.add('active');
-    if (els.lblAddZone) els.lblAddZone.textContent = "공간: 사각형";
-    if (els.btnSelectMode) els.btnSelectMode.classList.remove('active');
-    if (els.canvasContainer) els.canvasContainer.classList.add('crosshair-cursor');
-  } else if (tool === 'measure') {
-    resetTools();
-    state.activeTool = 'measure';
-    els.tabMeasure.classList.add('active');
-    if (els.btnSelectMode) els.btnSelectMode.classList.remove('active');
-    if (els.canvasContainer) els.canvasContainer.classList.add('crosshair-cursor');
-  } else if (tool === 'pan') {
-    selectPanMode();
-  } else {
-    resetTools();
-  }
-  renderAll();
-}
+function handleKeyUp(e) {}
 
 // ==================== AREA & ILLUMINANCE (LUX) CALCULATION ====================
 function calculatePolygonArea(pts) {
@@ -2635,6 +2684,9 @@ function renderZonePanel() {
       renderZonePanel();
       renderAll();
     });
+    toggleBtn.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+    });
 
     const switchSelect = item.querySelector('.zone-switch-select');
     switchSelect.addEventListener('change', (e) => {
@@ -2961,26 +3013,48 @@ function renderZoneLayer() {
       ctx.stroke();
     }
     
-    // Label space
-    const center = getPolygonCenter(zone.points);
-    ctx.fillStyle = zone.color;
-    ctx.font = 'bold 12px sans-serif';
-    ctx.textAlign = 'center';
-    
-    const pyeong = (zone.areaM2 || 0) * 0.3025;
-    const lumenPerPyeong = pyeong > 0 ? (zone.totalLumen || 0) / pyeong : 0;
-    const targetLumen = getTargetLumenPerPyung(zone.name);
-    const maxLimit = Math.round(targetLumen * 1.2);
-    
-    let statusText = '부족';
-    if (lumenPerPyeong >= maxLimit) {
-      statusText = '충분';
-    } else if (lumenPerPyeong >= targetLumen) {
-      statusText = '적당';
+    // Hover: pill label ABOVE the zone (outside, above top edge)
+    if (state.hoveredZoneId === zone.id) {
+      const xs = zone.points.map(p => p.x);
+      const ys = zone.points.map(p => p.y);
+      const minX = Math.min(...xs), maxX = Math.max(...xs);
+      const minY = Math.min(...ys);
+      const cx = (minX + maxX) / 2;
+
+      const pyeong = (zone.areaM2 || 0) * 0.3025;
+      const label = `${zone.name}  ·  ${pyeong.toFixed(1)}평`;
+
+      ctx.save();
+      ctx.font = 'bold 11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      const textW = ctx.measureText(label).width;
+      const padX = 10, padY = 5;
+      const pillW = textW + padX * 2;
+      const pillH = 22;
+      const pillX = cx - pillW / 2;
+      const pillY = minY - pillH - 6; // 6px gap above zone top edge
+      const r = pillH / 2;
+
+      // Pill background
+      ctx.beginPath();
+      ctx.moveTo(pillX + r, pillY);
+      ctx.arcTo(pillX + pillW, pillY, pillX + pillW, pillY + pillH, r);
+      ctx.arcTo(pillX + pillW, pillY + pillH, pillX, pillY + pillH, r);
+      ctx.arcTo(pillX, pillY + pillH, pillX, pillY, r);
+      ctx.arcTo(pillX, pillY, pillX + pillW, pillY, r);
+      ctx.closePath();
+      ctx.fillStyle = zone.color;
+      ctx.globalAlpha = 0.92;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      // Label text
+      ctx.fillStyle = '#fff';
+      ctx.fillText(label, cx, pillY + pillH / 2);
+      ctx.restore();
     }
-    
-    ctx.fillText(zone.name, center.x, center.y - 4);
-    ctx.fillText(`${(zone.totalLumen || 0).toLocaleString()} lm (${statusText})`, center.x, center.y + 12);
   });
   ctx.restore();
 }
@@ -2995,7 +3069,21 @@ function renderGridLayer() {
   const c = els.gridCanvas;
   const ctx = ctxs.grid;
   ctx.clearRect(0, 0, c.width, c.height);
-  // Grid permanently hidden
+
+  // Dot grid — one dot per 50cm
+  const spacing = state.pixelsPerMeter * 0.5;
+  if (spacing < 4) return; // too dense at extreme zoom-out
+
+  const dotR = 1.5;
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+
+  for (let x = 0; x <= c.width; x += spacing) {
+    for (let y = 0; y <= c.height; y += spacing) {
+      ctx.beginPath();
+      ctx.arc(x, y, dotR, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
 }
 
 function renderLightsLayer() {
