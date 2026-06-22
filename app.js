@@ -140,6 +140,7 @@ const fixtureDatabase = [
     length: 5000,
     widthMM: 10,
     price: 50000,
+    image: 'products/line10_2.png',
     link: 'https://zibismart.co.kr/product/iot-플렉시블-라인-투명-실리콘-조명-10폭-5m/318/'
   },
   {
@@ -156,6 +157,7 @@ const fixtureDatabase = [
     length: 5000,
     widthMM: 10,
     price: 77500,
+    image: 'products/line10_1.png',
     link: 'https://zibismart.co.kr/product/iot-스타일컷-라인-실리콘-조명-10폭-5m/319/'
   },
   {
@@ -173,7 +175,7 @@ const fixtureDatabase = [
     lengthMM: 120,
     widthMM: 30,
     price: 30100,
-    image: 'products/gridslot6 thumbnail.jpg',
+    image: 'products/gridslot6 thumbnail.png',
     link: 'https://zibismart.co.kr/product/iot-그리드슬롯6구/323/'
   },
   {
@@ -191,7 +193,7 @@ const fixtureDatabase = [
     lengthMM: 228,
     widthMM: 30,
     price: 46300,
-    image: 'products/gridslot thumbnail.jpg',
+    image: 'products/gridslot thumbnail.png',
     link: 'https://zibismart.co.kr/product/iot-그리드슬롯12구/315/'
   }
 ];
@@ -203,6 +205,7 @@ const state = {
   uploadedImage: null,
   pixelsPerMeter: 50, // default fallback
   ceilingHeight: 2.4,
+  onboardingDismissed: false,
   calibrationMode: 'ai', // 'ai' or 'manual'
   detectedBoundaryPoints: [],
   scanningPoints: [], // 64 points for scan animation
@@ -363,7 +366,7 @@ const els = {
   // Right panel
   rightPanel: document.getElementById('rightPanel'),
   leftPanel: document.getElementById('leftPanel'),
-  heatmapModeSelect: document.getElementById('heatmapModeSelect'),
+  btnIllumToggle: document.getElementById('btnIllumToggle'),
   chkShowGrid: document.getElementById('chkShowGrid'),
   zoneList: document.getElementById('zoneList'),
   
@@ -475,7 +478,7 @@ function selectFixture(id) {
   state.selectedFixtureId = id;
   state.activeTool = 'place';
   renderFixtureLibrary();
-  els.tabAddZone.classList.remove('active');
+  if (els.tabAddZone) els.tabAddZone.classList.remove('active');
   els.tabMeasure.classList.remove('active');
   if (els.btnSelectMode) els.btnSelectMode.classList.remove('active');
   // Crosshair cursor for light placement mode
@@ -512,7 +515,7 @@ function resetTools() {
   }
   
   if (els.btnSelectMode) els.btnSelectMode.classList.add('active');
-  els.tabAddZone.classList.remove('active');
+  if (els.tabAddZone) els.tabAddZone.classList.remove('active');
   els.tabMeasure.classList.remove('active');
   
   if (els.btnDrawZonePolygon) els.btnDrawZonePolygon.classList.remove('active');
@@ -520,7 +523,19 @@ function resetTools() {
   if (els.zonePopup) els.zonePopup.classList.remove('visible');
   if (els.lblAddZone) els.lblAddZone.textContent = "공간 추가";
   
+  checkOnboardingTooltip();
   renderFixtureLibrary();
+}
+
+function checkOnboardingTooltip() {
+  const tooltip = document.getElementById('onboardingTooltip');
+  if (!tooltip) return;
+  
+  if (!state.onboardingDismissed && state.zones.length === 0 && els.canvasContainer && els.canvasContainer.style.display === 'block') {
+    tooltip.classList.add('visible');
+  } else {
+    tooltip.classList.remove('visible');
+  }
 }
 
 function clearProjectState() {
@@ -630,35 +645,54 @@ function setupEventListeners() {
   });
 
   // Floating Actions
-  els.tabAddZone.addEventListener('click', (e) => {
-    if (els.heightPopup) els.heightPopup.classList.remove('visible');
-    e.stopPropagation();
-    els.zonePopup.classList.toggle('visible');
-  });
+  if (els.tabAddZone) {
+    els.tabAddZone.addEventListener('click', (e) => {
+      if (els.heightPopup) els.heightPopup.classList.remove('visible');
+      e.stopPropagation();
+      if (els.zonePopup) els.zonePopup.classList.toggle('visible');
+    });
+  }
 
-  els.btnDrawZonePolygon.addEventListener('click', (e) => {
-    e.stopPropagation();
-    resetTools();
-    state.activeTool = 'draw-zone-polygon';
-    els.tabAddZone.classList.add('active');
-    els.btnDrawZonePolygon.classList.add('active');
-    els.zonePopup.classList.remove('visible');
-    if (els.lblAddZone) els.lblAddZone.textContent = "공간: 다각형";
-    if (els.btnSelectMode) els.btnSelectMode.classList.remove('active');
-    if (els.canvasContainer) els.canvasContainer.classList.add('crosshair-cursor');
-  });
+  if (els.btnDrawZonePolygon) {
+    els.btnDrawZonePolygon.addEventListener('click', (e) => {
+      e.stopPropagation();
+      resetTools();
+      state.activeTool = 'draw-zone-polygon';
+      state.onboardingDismissed = true;
+      checkOnboardingTooltip();
+      if (els.tabAddZone) els.tabAddZone.classList.add('active');
+      els.btnDrawZonePolygon.classList.add('active');
+      if (els.zonePopup) els.zonePopup.classList.remove('visible');
+      if (els.lblAddZone) els.lblAddZone.textContent = "공간: 다각형";
+      if (els.btnSelectMode) els.btnSelectMode.classList.remove('active');
+      if (els.canvasContainer) els.canvasContainer.classList.add('crosshair-cursor');
+    });
+  }
 
-  els.btnDrawZoneRect.addEventListener('click', (e) => {
-    e.stopPropagation();
-    resetTools();
-    state.activeTool = 'draw-zone-rect';
-    els.tabAddZone.classList.add('active');
-    els.btnDrawZoneRect.classList.add('active');
-    els.zonePopup.classList.remove('visible');
-    if (els.lblAddZone) els.lblAddZone.textContent = "공간: 사각형";
-    if (els.btnSelectMode) els.btnSelectMode.classList.remove('active');
-    if (els.canvasContainer) els.canvasContainer.classList.add('crosshair-cursor');
-  });
+  if (els.btnDrawZoneRect) {
+    els.btnDrawZoneRect.addEventListener('click', (e) => {
+      e.stopPropagation();
+      resetTools();
+      state.activeTool = 'draw-zone-rect';
+      state.onboardingDismissed = true;
+      checkOnboardingTooltip();
+      if (els.tabAddZone) els.tabAddZone.classList.add('active');
+      els.btnDrawZoneRect.classList.add('active');
+      if (els.zonePopup) els.zonePopup.classList.remove('visible');
+      if (els.lblAddZone) els.lblAddZone.textContent = "공간: 사각형";
+      if (els.btnSelectMode) els.btnSelectMode.classList.remove('active');
+      if (els.canvasContainer) els.canvasContainer.classList.add('crosshair-cursor');
+    });
+  }
+
+  const btnDismissOnboarding = document.getElementById('btnDismissOnboarding');
+  if (btnDismissOnboarding) {
+    btnDismissOnboarding.addEventListener('click', (e) => {
+      e.stopPropagation();
+      state.onboardingDismissed = true;
+      checkOnboardingTooltip();
+    });
+  }
 
   els.tabMeasure.addEventListener('click', () => {
     resetTools();
@@ -722,10 +756,12 @@ function setupEventListeners() {
   }
 
   // Display toggles
-  els.heatmapModeSelect.addEventListener('change', (e) => {
-    state.heatmapMode = e.target.value;
-    renderAll();
-  });
+  if (els.btnIllumToggle) {
+    els.btnIllumToggle.addEventListener('click', () => {
+      state.heatmapMode = state.heatmapMode === 'zone' ? 'none' : 'zone';
+      renderAll();
+    });
+  }
 
   // Snap toggle
   const snapBtn = document.getElementById('snapToggleBtn');
@@ -733,7 +769,6 @@ function setupEventListeners() {
     snapBtn.addEventListener('click', () => {
       state.snapEnabled = !state.snapEnabled;
       snapBtn.classList.toggle('active', state.snapEnabled);
-      snapBtn.innerHTML = `<span class="snap-toggle-dot"></span>${state.snapEnabled ? 'ON' : 'OFF'}`;
     });
   }
 
@@ -941,6 +976,7 @@ function initCanvasDimensions(w, h) {
   els.canvasContainer.style.display = 'block';
   els.canvasToolbar.style.display = 'flex';
   updateBackButtonVisibility();
+  checkOnboardingTooltip();
 
   // FIT on first load — use rAF to get correct canvasArea dimensions after layout
   requestAnimationFrame(() => {
@@ -1510,8 +1546,8 @@ function setupCanvasInteractions() {
         alert("공간 추가를 먼저 진행해 주세요.");
         resetTools();
         setTimeout(() => {
-          const tabAddZone = document.getElementById('tabAddZone');
-          if (tabAddZone) tabAddZone.click();
+          const btnDrawZonePolygon = document.getElementById('btnDrawZonePolygon');
+          if (btnDrawZonePolygon) btnDrawZonePolygon.click();
         }, 50);
         return;
       }
@@ -2000,8 +2036,8 @@ function placeLightAt(x, y) {
     alert("공간 추가를 먼저 진행해 주세요.");
     resetTools();
     setTimeout(() => {
-      const tabAddZone = document.getElementById('tabAddZone');
-      if (tabAddZone) tabAddZone.click();
+      const btnDrawZonePolygon = document.getElementById('btnDrawZonePolygon');
+      if (btnDrawZonePolygon) btnDrawZonePolygon.click();
     }, 50);
     return;
   }
@@ -2636,11 +2672,11 @@ function renderZonePanel() {
     item.style.flexDirection = 'column';
     item.style.alignItems = 'stretch';
     item.style.gap = '8px';
+    item.style.borderLeft = `4px solid ${zone.color}`;
     
     item.innerHTML = `
       <div style="display: flex; justify-content: space-between; align-items: flex-start;">
         <div class="zone-item-left">
-          <div class="zone-color-indicator" style="background-color: ${zone.color}"></div>
           <div>
             <div class="zone-name" style="display:flex; align-items:center; gap:6px;">
               <span>${zone.name}</span>
@@ -2936,6 +2972,10 @@ function getFixtureRenderSize(baseSize) {
 function renderAll() {
   if (!state.uploadedImage) return;
 
+  if (els.btnIllumToggle) {
+    els.btnIllumToggle.classList.toggle('active', state.heatmapMode === 'zone');
+  }
+
   renderFloorPlanLayer();
   renderHeatmapLayer();
   renderZoneLayer();
@@ -3195,7 +3235,7 @@ function renderLightsLayer() {
 function drawTick(ctx, x, y, angle) {
   ctx.save();
   ctx.translate(x, y);
-  ctx.rotate(angle + Math.PI / 4);
+  ctx.rotate(angle + Math.PI / 2);
   ctx.beginPath();
   ctx.moveTo(0, -6);
   ctx.lineTo(0, 6);

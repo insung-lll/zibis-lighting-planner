@@ -101,10 +101,6 @@
           <div class="left-panel-info-scroll" id="infoPanelScroll">
             <div class="left-panel-info-group">
               <div class="stat">
-                <span class="prop-label">배율</span>
-                <span class="stat-value" id="zoomDisplay">100%</span>
-              </div>
-              <div class="stat">
                 <span class="prop-label">스케일</span>
                 <span class="stat-value" id="scaleDisplay">1m = - px</span>
               </div>
@@ -131,30 +127,29 @@
 
       <!-- Horizontal Toolbar at Bottom Center -->
       <div class="horizontal-toolbar" id="horizontalToolbar">
-        <!-- 공간 추가 (Plus button with Popup) -->
+        <!-- 공간 추가 (사각형) -->
         <div class="toolbar-group" style="position: relative;">
-          <button class="toolbar-btn" id="tabAddZone" data-tooltip="공간 추가">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="12" y1="4" x2="12" y2="20"/>
-              <line x1="4" y1="12" x2="20" y2="12"/>
+          <button class="toolbar-btn" id="btnDrawZoneRect" data-tooltip="공간 추가 (사각형)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
             </svg>
           </button>
           
-          <!-- Zone Popup: positioned above the button -->
-          <div class="zone-popup" id="zonePopup">
-            <button class="zone-popup-item" id="btnDrawZonePolygon">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;">
-                <polygon points="12 2, 22 8.5, 17 20, 7 20, 2 8.5"/>
-              </svg>
-              다각형 그리기 (점 클릭)
-            </button>
-            <button class="zone-popup-item" id="btnDrawZoneRect">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;">
-                <rect x="3" y="3" width="18" height="18" rx="2"/>
-              </svg>
-              사각형 그리기 (드래그)
-            </button>
+          <!-- Onboarding Guide Tooltip -->
+          <div class="onboarding-tooltip" id="onboardingTooltip">
+            <span>도면 위에 먼저 공간을 추가해 주세요!</span>
+            <button class="onboarding-close-btn" id="btnDismissOnboarding" title="닫기">×</button>
+            <div class="onboarding-tooltip-arrow"></div>
           </div>
+        </div>
+
+        <!-- 공간 추가 (다각형) -->
+        <div class="toolbar-group">
+          <button class="toolbar-btn" id="btnDrawZonePolygon" data-tooltip="공간 추가 (다각형)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="12 2, 22 8.5, 17 20, 7 20, 2 8.5"/>
+            </svg>
+          </button>
         </div>
 
         <!-- 선택 모드 -->
@@ -162,18 +157,6 @@
           <button class="toolbar-btn active" id="btnSelectMode" data-tooltip="선택 모드">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polygon points="3 3, 21 10, 12 12, 10 21"/>
-            </svg>
-          </button>
-        </div>
-
-        <!-- 화면 이동 (손) 모드 -->
-        <div class="toolbar-group">
-          <button class="toolbar-btn" id="btnPanMode" data-tooltip="화면 이동">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v5" />
-              <path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v6" />
-              <path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8.5" />
-              <path d="M6 14v-1.5a1.5 1.5 0 0 0-3 0V16a8 8 0 0 0 8 8h3a8 8 0 0 0 8-8v-3.5a1.5 1.5 0 0 0-3 0V14" />
             </svg>
           </button>
         </div>
@@ -203,32 +186,48 @@
       
 
       
+      <!-- Canvas Zoom Nav -->
+      <div class="canvas-zoom-nav" id="canvasZoomNav">
+        <button class="zoom-btn" id="btnCanvasZoomOut" title="축소">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+        </button>
+        <span class="zoom-text" id="zoomDisplay">100%</span>
+        <button class="zoom-btn" id="btnCanvasZoomIn" title="확대">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+        </button>
+        <button class="zoom-btn" id="btnCanvasZoomReset" title="초기화" style="margin-left:4px; font-size:10px; font-weight:800; width:auto; padding:0 6px; letter-spacing:0.5px;">FIT</button>
+      </div>
+
       <!-- Hover Tooltip for Placed Lights -->
       <div class="light-tooltip" id="lightTooltip"></div>
-      
+
     </div>
 
     <!-- Right Sidebar: Analytics & Zone List -->
     <div class="right-panel" id="rightPanel">
-      <div class="right-panel-section">
-        <div class="section-title">조도 시각화 모드</div>
-        <div class="form-row">
-          <select class="form-input" id="heatmapModeSelect">
-            <option value="none">시각화 해제</option>
-            <option value="zone" selected>공간 조도 판정</option>
-          </select>
+      <div class="right-panel-section" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+          <div class="section-title" style="margin-bottom: 0;">구획된 공간 목록</div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 11px; color: var(--text-dim);">조도 표시</span>
+            <div class="apple-switch active" id="btnIllumToggle">
+              <div class="apple-switch-handle"></div>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="right-panel-section">
-        <div class="section-title">구획된 공간 목록</div>
-        <div class="zone-list" id="zoneList">
+        <div class="zone-list" id="zoneList" style="flex: 1; overflow-y: auto;">
           <!-- Populated dynamically -->
         </div>
         <div class="snap-toggle-row">
           <span class="snap-toggle-label">스냅</span>
-          <button class="snap-toggle-btn active" id="snapToggleBtn">
-            <span class="snap-toggle-dot"></span>ON
-          </button>
+          <div class="apple-switch active" id="snapToggleBtn">
+            <div class="apple-switch-handle"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -495,6 +494,6 @@
 
 </div>
 
-<script src="app.js?v=21"></script>
+<script src="app.js?v=26"></script>
 </body>
 </html>
