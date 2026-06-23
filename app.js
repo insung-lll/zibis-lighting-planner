@@ -252,7 +252,7 @@ const fixtureDatabase = [
     cutoutMM: 75,
     inch: '3인치',
     price: 18000,
-    image: 'products/no14_round 1.png'
+    image: 'products/pa1.png'
   },
   {
     id: 'gr-downlight-3in',
@@ -268,76 +268,10 @@ const fixtureDatabase = [
     cutoutMM: 75,
     inch: '3인치',
     price: 19000,
-    image: 'products/mr16 copy.png'
+    image: 'products/pa1.png'
   }
 ];
 
-
-// ==================== UNDO HISTORY ====================
-const undoHistory = [];
-const MAX_UNDO = 30;
-
-function saveUndo() {
-  undoHistory.push({
-    zones: JSON.parse(JSON.stringify(state.zones)),
-    lights: JSON.parse(JSON.stringify(state.lights)),
-    dimensions: JSON.parse(JSON.stringify(state.dimensions || [])),
-  });
-  if (undoHistory.length > MAX_UNDO) undoHistory.shift();
-}
-
-function showUndoToast(msg) {
-  let toast = document.getElementById('undoToast');
-  if (!toast) {
-    toast = document.createElement('div');
-    toast.id = 'undoToast';
-    Object.assign(toast.style, {
-      position: 'fixed', bottom: '80px', left: '50%', transform: 'translateX(-50%)',
-      background: 'rgba(0,0,0,0.75)', color: '#fff', padding: '7px 18px',
-      borderRadius: '20px', fontSize: '13px', zIndex: '9999',
-      pointerEvents: 'none', transition: 'opacity 0.3s'
-    });
-    document.body.appendChild(toast);
-  }
-  toast.textContent = msg;
-  toast.style.opacity = '1';
-  clearTimeout(toast._timer);
-  toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 1500);
-}
-
-function undo() {
-  if (undoHistory.length === 0) {
-    showUndoToast('되돌릴 작업이 없습니다');
-    return;
-  }
-  const snap = undoHistory.pop();
-  state.zones = snap.zones;
-  state.lights = snap.lights;
-  state.dimensions = snap.dimensions;
-  state.selectedLightIds = [];
-  state.selectedZoneId = null;
-  state.selectedDimensionId = null;
-  recalculateAllZones();
-  updateStats();
-  renderAll();
-  renderZonePanel();
-  showUndoToast(`실행 취소 (남은 횟수: ${undoHistory.length})`);
-}
-
-// Capture-phase undo listener — fires before Chrome menu shortcuts
-document.addEventListener('keydown', function(e) {
-  if ((e.metaKey || e.ctrlKey) && e.code === 'KeyZ' && !e.shiftKey) {
-    const tag = e.target.tagName;
-    if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT' && !e.target.isContentEditable) {
-      const container = document.getElementById('canvasContainer');
-      if (container && container.style.display !== 'none') {
-        e.preventDefault();
-        e.stopPropagation();
-        undo();
-      }
-    }
-  }
-}, true); // true = capture phase
 
 // ==================== APP STATE ====================
 const state = {
@@ -1639,7 +1573,6 @@ function setupCanvasInteractions() {
           state.selectedLightIds = [clickedLight.id];
         }
         state.draggingLightId = clickedLight.id;
-        state._preDragSaved = false; // will save on first move
         state.dragOffsetX = pt.x - clickedLight.x;
         state.dragOffsetY = pt.y - clickedLight.y;
         
@@ -1734,7 +1667,6 @@ function setupCanvasInteractions() {
               price: specCur.price,
               rotation: 0
             };
-            saveUndo();
             state.lights.push(newLight);
             recalculateAllZones();
             updateStats();
@@ -1842,7 +1774,6 @@ function setupCanvasInteractions() {
     } else if (state.draggingLightId) {
       const mainLight = state.lights.find(l => l.id === state.draggingLightId);
       if (mainLight) {
-        if (!state._preDragSaved) { saveUndo(); state._preDragSaved = true; }
         const dx = pt.x - state.dragOffsetX - mainLight.x;
         const dy = pt.y - state.dragOffsetY - mainLight.y;
         
@@ -2201,7 +2132,6 @@ function placeLightAt(x, y) {
     rotation: 0
   };
 
-  saveUndo();
   state.lights.push(newLight);
   recalculateAllZones();
   updateStats();
@@ -2264,17 +2194,6 @@ function handleMeasureClick(x, y) {
 
 // Keyboard delete/nudge handlers
 function handleKeyDown(e) {
-  // Undo: Cmd+Z (Mac) / Ctrl+Z (Windows)
-  if ((e.metaKey || e.ctrlKey) && e.code === 'KeyZ' && !e.shiftKey) {
-    const tag = e.target.tagName;
-    if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT' && !e.target.isContentEditable) {
-      e.preventDefault();
-      e.stopPropagation();
-      undo();
-      return;
-    }
-  }
-
   // Reset calibration points when in calibration mode
   if (els.calibrateOverlay && els.calibrateOverlay.style.display === 'flex') {
     if (e.key === 'Escape' || e.key === 'Delete' || e.key === 'Backspace') {
@@ -2320,12 +2239,10 @@ function handleKeyDown(e) {
     
     let deletedSomething = false;
     if (state.selectedLightIds.length > 0) {
-      saveUndo();
       state.lights = state.lights.filter(l => !state.selectedLightIds.includes(l.id));
       state.selectedLightIds = [];
       deletedSomething = true;
     } else if (state.selectedZoneId !== null) {
-      saveUndo();
       const zoneToDelete = state.zones.find(z => z.id === state.selectedZoneId);
       if (zoneToDelete) {
         state.lights = state.lights.filter(l => !isLightInPolygon(l, zoneToDelete.points));
@@ -2334,7 +2251,6 @@ function handleKeyDown(e) {
       state.selectedZoneId = null;
       deletedSomething = true;
     } else if (state.selectedDimensionId !== null) {
-      saveUndo();
       state.dimensions = state.dimensions.filter(d => d.id !== state.selectedDimensionId);
       state.selectedDimensionId = null;
       deletedSomething = true;
@@ -2348,12 +2264,10 @@ function handleKeyDown(e) {
   } else if (e.key === 'Escape') {
     let deletedSomething = false;
     if (state.selectedLightIds.length > 0) {
-      saveUndo();
       state.lights = state.lights.filter(l => !state.selectedLightIds.includes(l.id));
       state.selectedLightIds = [];
       deletedSomething = true;
     } else if (state.selectedZoneId !== null) {
-      saveUndo();
       const zoneToDeleteEsc = state.zones.find(z => z.id === state.selectedZoneId);
       if (zoneToDeleteEsc) {
         state.lights = state.lights.filter(l => !isLightInPolygon(l, zoneToDeleteEsc.points));
@@ -2362,7 +2276,6 @@ function handleKeyDown(e) {
       state.selectedZoneId = null;
       deletedSomething = true;
     } else if (state.selectedDimensionId !== null) {
-      saveUndo();
       state.dimensions = state.dimensions.filter(d => d.id !== state.selectedDimensionId);
       state.selectedDimensionId = null;
       deletedSomething = true;
@@ -2404,7 +2317,6 @@ function handleKeyDown(e) {
       e.preventDefault();
       const offset = 20;
       const newSelections = [];
-      saveUndo();
       state.selectedLightIds.forEach(id => {
         const orig = state.lights.find(l => l.id === id);
         if (orig) {
@@ -2611,7 +2523,6 @@ function finishZoneCreation(switchCount) {
     }
     state.editingZoneId = null;
   } else if (state.pendingZoneData) {
-    saveUndo();
     const { name, points, areaM2 } = state.pendingZoneData;
     state.zones.push({
       id: state.nextZoneId++,
@@ -2898,7 +2809,6 @@ function renderZonePanel() {
     // Add context menu or delete button on dblclick
     item.addEventListener('dblclick', () => {
       showConfirm("공간 삭제", `"${zone.name}" 공간 구획을 삭제하시겠습니까?`, () => {
-        saveUndo();
         state.lights = state.lights.filter(l => !isLightInPolygon(l, zone.points));
         state.zones = state.zones.filter(z => z.id !== zone.id);
         recalculateAllZones();
