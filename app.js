@@ -3560,6 +3560,7 @@ function renderInteractionLayer() {
         ctx.stroke();
       }
     }
+  }
   
   // 2. Zone drawing polyline
   if ((state.activeTool === 'draw-zone' || state.activeTool === 'draw-zone-polygon') && state.isDrawingZone && state.zonePolygonPoints.length > 0) {
