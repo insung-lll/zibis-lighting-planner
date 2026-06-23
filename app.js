@@ -1626,7 +1626,7 @@ function setupCanvasInteractions() {
         return;
       }
       const spec = fixtureDatabase.find(f => f.id === state.selectedFixtureId);
-      if (spec && (spec.category === 'linebar' || spec.icon === 'line')) {
+      if (spec && (spec.category === 'linebar' || spec.icon === 'line' || spec.id.includes('gridslot'))) {
         if (!state.isDrawingLinebar) {
           // FIRST CLICK: start drawing linebar
           state.isDrawingLinebar = true;
@@ -1639,18 +1639,27 @@ function setupCanvasInteractions() {
           const len = Math.sqrt(dx*dx + dy*dy);
           const specCur = fixtureDatabase.find(f => f.id === state.selectedFixtureId);
           if (specCur) {
-            const maxLenPx = specCur.length ? (specCur.length / 1000) * state.pixelsPerMeter : Infinity;
             let ex = state.linebarEnd.x;
             let ey = state.linebarEnd.y;
-            if (len > 0 && len > maxLenPx) {
-              const scale = maxLenPx / len;
-              ex = state.linebarStart.x + dx * scale;
-              ey = state.linebarStart.y + dy * scale;
+            
+            let calculatedWatt = 0;
+            let calculatedLumen = 0;
+            
+            if (specCur.id.includes('gridslot')) {
+              calculatedWatt = specCur.watt;
+              calculatedLumen = specCur.lumen;
+            } else {
+              const maxLenPx = specCur.length ? (specCur.length / 1000) * state.pixelsPerMeter : Infinity;
+              if (len > 0 && len > maxLenPx) {
+                const scale = maxLenPx / len;
+                ex = state.linebarStart.x + dx * scale;
+                ey = state.linebarStart.y + dy * scale;
+              }
+              const lineLenPx = Math.sqrt((ex - state.linebarStart.x)**2 + (ey - state.linebarStart.y)**2);
+              const lengthM = state.pixelsPerMeter > 0 ? (lineLenPx / state.pixelsPerMeter) : 0;
+              calculatedWatt = Math.round(lengthM * specCur.watt);
+              calculatedLumen = Math.round(lengthM * specCur.lumen);
             }
-            const lineLenPx = Math.sqrt((ex - state.linebarStart.x)**2 + (ey - state.linebarStart.y)**2);
-            const lengthM = state.pixelsPerMeter > 0 ? (lineLenPx / state.pixelsPerMeter) : 0;
-            const calculatedWatt = Math.round(lengthM * specCur.watt);
-            const calculatedLumen = Math.round(lengthM * specCur.lumen);
             
             const newLight = {
               id: state.nextLightId++,
@@ -1831,20 +1840,43 @@ function setupCanvasInteractions() {
         renderAll();
       }
     } else if (state.activeTool === 'place' && state.isDrawingLinebar) {
-      let snappedPt = getSnappedPoint(state.linebarStart, pt, e.shiftKey);
-      // Clamp to max linebar length (spec.length mm -> meters -> pixels)
       const specCur = fixtureDatabase.find(f => f.id === state.selectedFixtureId);
-      if (specCur && specCur.length) {
-        const maxLenPx = (specCur.length / 1000) * state.pixelsPerMeter;
+      if (specCur && specCur.id.includes('gridslot')) {
+        // Force snap to horizontal/vertical for gridslots
+        const snappedPt = getSnappedPoint(state.linebarStart, pt, true);
         const dx = snappedPt.x - state.linebarStart.x;
         const dy = snappedPt.y - state.linebarStart.y;
-        const len = Math.sqrt(dx*dx + dy*dy);
-        if (len > maxLenPx && len > 0) {
-          const scale = maxLenPx / len;
-          snappedPt = { x: state.linebarStart.x + dx * scale, y: state.linebarStart.y + dy * scale };
+        
+        // Exact length in pixels
+        const lenM = (specCur.lengthMM || 120) / 1000;
+        const lenPx = lenM * state.pixelsPerMeter;
+        
+        if (Math.abs(dx) >= Math.abs(dy)) {
+          state.linebarEnd = {
+            x: state.linebarStart.x + (dx >= 0 ? lenPx : -lenPx),
+            y: state.linebarStart.y
+          };
+        } else {
+          state.linebarEnd = {
+            x: state.linebarStart.x,
+            y: state.linebarStart.y + (dy >= 0 ? lenPx : -lenPx)
+          };
         }
+      } else {
+        let snappedPt = getSnappedPoint(state.linebarStart, pt, e.shiftKey);
+        // Clamp to max linebar length (spec.length mm -> meters -> pixels)
+        if (specCur && specCur.length) {
+          const maxLenPx = (specCur.length / 1000) * state.pixelsPerMeter;
+          const dx = snappedPt.x - state.linebarStart.x;
+          const dy = snappedPt.y - state.linebarStart.y;
+          const len = Math.sqrt(dx*dx + dy*dy);
+          if (len > maxLenPx && len > 0) {
+            const scale = maxLenPx / len;
+            snappedPt = { x: state.linebarStart.x + dx * scale, y: state.linebarStart.y + dy * scale };
+          }
+        }
+        state.linebarEnd = snappedPt;
       }
-      state.linebarEnd = snappedPt;
       renderAll();
     } else if ((state.activeTool === 'draw-zone' || state.activeTool === 'draw-zone-polygon') && state.isDrawingZone) {
       const lastPt = state.zonePolygonPoints[state.zonePolygonPoints.length - 1];
@@ -3246,37 +3278,92 @@ function renderLightsLayer() {
     const isSelected = state.selectedLightIds.includes(l.id);
     
     if (l.x2 !== undefined && l.y2 !== undefined) {
-      // 1. Draw selection outer glow for line bar
-      if (isSelected) {
+      const spec = fixtureDatabase.find(f => f.id === l.typeId);
+      if (spec && spec.id.includes('gridslot')) {
+        // Draw gridslot as a rectangle
+        const dx = l.x2 - l.x;
+        const dy = l.y2 - l.y;
+        const len = Math.sqrt(dx*dx + dy*dy);
+        const wM = spec.widthMM ? (spec.widthMM / 1000) : 0.03;
+        const wPx = wM * state.pixelsPerMeter;
+        
+        ctx.save();
+        const angle = Math.atan2(dy, dx);
+        
+        // Draw selection glow
+        if (isSelected) {
+          ctx.save();
+          ctx.translate(l.x, l.y);
+          ctx.rotate(angle);
+          ctx.fillStyle = 'rgba(242, 162, 0, 0.3)';
+          ctx.fillRect(-6, -wPx/2 - 6, len + 12, wPx + 12);
+          ctx.restore();
+        }
+        
+        // Draw outer border (white)
+        ctx.save();
+        ctx.translate(l.x, l.y);
+        ctx.rotate(angle);
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 6;
+        
+        // Fill white rectangle
+        ctx.fillRect(0, -wPx/2, len, wPx);
+        ctx.shadowBlur = 0; // reset shadow
+        
+        // Stroke border
+        ctx.strokeStyle = l.color;
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(0, -wPx/2, len, wPx);
+        
+        // Fill inner colored rectangle/core representing heads
+        const heads = spec.heads || 6;
+        const headSize = wPx * 0.7;
+        ctx.fillStyle = l.color;
+        for (let i = 0; i < heads; i++) {
+          const hx = (len / heads) * (i + 0.5);
+          ctx.beginPath();
+          ctx.arc(hx, 0, headSize / 2, 0, 2 * Math.PI);
+          ctx.fill();
+        }
+        
+        ctx.restore();
+      } else {
+        // 1. Draw selection outer glow for line bar
+        if (isSelected) {
+          ctx.beginPath();
+          ctx.moveTo(l.x, l.y);
+          ctx.lineTo(l.x2, l.y2);
+          ctx.strokeStyle = 'rgba(242, 162, 0, 0.3)';
+          ctx.lineWidth = 14;
+          ctx.lineCap = 'round';
+          ctx.stroke();
+        }
+        
+        // 2. Draw line bar (outer white border)
         ctx.beginPath();
         ctx.moveTo(l.x, l.y);
         ctx.lineTo(l.x2, l.y2);
-        ctx.strokeStyle = 'rgba(242, 162, 0, 0.3)';
-        ctx.lineWidth = 14;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 8;
         ctx.lineCap = 'round';
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 6;
+        ctx.stroke();
+        
+        // 3. Draw inner colored core
+        ctx.beginPath();
+        ctx.moveTo(l.x, l.y);
+        ctx.lineTo(l.x2, l.y2);
+        ctx.strokeStyle = l.color;
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.shadowBlur = 0; // reset shadow
         ctx.stroke();
       }
-      
-      // 2. Draw line bar (outer white border)
-      ctx.beginPath();
-      ctx.moveTo(l.x, l.y);
-      ctx.lineTo(l.x2, l.y2);
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 8;
-      ctx.lineCap = 'round';
-      ctx.shadowColor = 'rgba(0,0,0,0.5)';
-      ctx.shadowBlur = 6;
-      ctx.stroke();
-      
-      // 3. Draw inner colored core
-      ctx.beginPath();
-      ctx.moveTo(l.x, l.y);
-      ctx.lineTo(l.x2, l.y2);
-      ctx.strokeStyle = l.color;
-      ctx.lineWidth = 4;
-      ctx.lineCap = 'round';
-      ctx.shadowBlur = 0; // reset shadow
-      ctx.stroke();
     } else {
       // Draw selection outer glow
       const rs = getFixtureRenderSize(l.size);
@@ -3327,93 +3414,152 @@ function renderInteractionLayer() {
   // 1. Ghost placement pointer
   if (state.activeTool === 'place' && state.isDrawingLinebar && state.linebarStart && state.linebarEnd) {
     ctx.globalAlpha = 0.8;
-    ctx.beginPath();
-    ctx.moveTo(state.linebarStart.x, state.linebarStart.y);
-    ctx.lineTo(state.linebarEnd.x, state.linebarEnd.y);
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 8;
-    ctx.lineCap = 'round';
-    ctx.stroke();
-    
-    ctx.beginPath();
-    ctx.moveTo(state.linebarStart.x, state.linebarStart.y);
-    ctx.lineTo(state.linebarEnd.x, state.linebarEnd.y);
     const spec = fixtureDatabase.find(f => f.id === state.selectedFixtureId);
-    ctx.strokeStyle = spec ? spec.color : '#22cc22';
-    ctx.lineWidth = 4;
-    ctx.lineCap = 'round';
-    ctx.stroke();
     
-    // Draw start-point indicator dot
-    ctx.beginPath();
-    ctx.arc(state.linebarStart.x, state.linebarStart.y, 5, 0, 2 * Math.PI);
-    ctx.fillStyle = '#ffffff';
-    ctx.fill();
-    
-    // Draw real-time length label (in meters)
-    const dxL = state.linebarEnd.x - state.linebarStart.x;
-    const dyL = state.linebarEnd.y - state.linebarStart.y;
-    const lenPx = Math.sqrt(dxL*dxL + dyL*dyL);
-    const lenM = lenPx / state.pixelsPerMeter;
-    const maxLenM = spec && spec.length ? spec.length / 1000 : null;
-    const midX = (state.linebarStart.x + state.linebarEnd.x) / 2;
-    const midY = (state.linebarStart.y + state.linebarEnd.y) / 2;
-    ctx.globalAlpha = 1;
-    ctx.font = 'bold 12px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillStyle = maxLenM && lenM >= maxLenM * 0.99 ? '#ff3b30' : '#ffffff';
-    ctx.fillText(`${lenM.toFixed(2)}m${maxLenM ? ` / max ${maxLenM}m` : ''}`, midX, midY - 10);
+    if (spec && spec.id.includes('gridslot')) {
+      const dx = state.linebarEnd.x - state.linebarStart.x;
+      const dy = state.linebarEnd.y - state.linebarStart.y;
+      const len = Math.sqrt(dx*dx + dy*dy);
+      const wM = spec.widthMM ? (spec.widthMM / 1000) : 0.03;
+      const wPx = wM * state.pixelsPerMeter;
+      const angle = Math.atan2(dy, dx);
+      
+      ctx.save();
+      ctx.globalAlpha = 0.6;
+      ctx.translate(state.linebarStart.x, state.linebarStart.y);
+      ctx.rotate(angle);
+      
+      ctx.fillStyle = spec.color;
+      ctx.fillRect(0, -wPx/2, len, wPx);
+      
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(0, -wPx/2, len, wPx);
+      
+      const heads = spec.heads || 6;
+      const headSize = wPx * 0.7;
+      ctx.fillStyle = '#ffffff';
+      for (let i = 0; i < heads; i++) {
+        const hx = (len / heads) * (i + 0.5);
+        ctx.beginPath();
+        ctx.arc(hx, 0, headSize / 2, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+      ctx.restore();
+      
+      ctx.save();
+      ctx.globalAlpha = 1;
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffffff';
+      const midX = (state.linebarStart.x + state.linebarEnd.x) / 2;
+      const midY = (state.linebarStart.y + state.linebarEnd.y) / 2;
+      ctx.fillText(`${spec.name} (${spec.lengthMM}mm x ${spec.widthMM}mm)`, midX, midY - 12);
+      ctx.restore();
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(state.linebarStart.x, state.linebarStart.y);
+      ctx.lineTo(state.linebarEnd.x, state.linebarEnd.y);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 8;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+      
+      ctx.beginPath();
+      ctx.moveTo(state.linebarStart.x, state.linebarStart.y);
+      ctx.lineTo(state.linebarEnd.x, state.linebarEnd.y);
+      ctx.strokeStyle = spec ? spec.color : '#22cc22';
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+      
+      // Draw start-point indicator dot
+      ctx.beginPath();
+      ctx.arc(state.linebarStart.x, state.linebarStart.y, 5, 0, 2 * Math.PI);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      
+      // Draw real-time length label (in meters)
+      const dxL = state.linebarEnd.x - state.linebarStart.x;
+      const dyL = state.linebarEnd.y - state.linebarStart.y;
+      const lenPx = Math.sqrt(dxL*dxL + dyL*dyL);
+      const lenM = lenPx / state.pixelsPerMeter;
+      const maxLenM = spec && spec.length ? spec.length / 1000 : null;
+      const midX = (state.linebarStart.x + state.linebarEnd.x) / 2;
+      const midY = (state.linebarStart.y + state.linebarEnd.y) / 2;
+      ctx.globalAlpha = 1;
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = maxLenM && lenM >= maxLenM * 0.99 ? '#ff3b30' : '#ffffff';
+      ctx.fillText(`${lenM.toFixed(2)}m${maxLenM ? ` / max ${maxLenM}m` : ''}`, midX, midY - 10);
+    }
   } else if (state.activeTool === 'place' && state.ghostCursor && state.selectedFixtureId) {
     const spec = fixtureDatabase.find(f => f.id === state.selectedFixtureId);
-    if (spec && spec.category !== 'linebar' && spec.icon !== 'line') {
-      // Draw snap guide lines
-      if (state.snapGuides && state.snapGuides.length > 0) {
+    if (spec) {
+      if (spec.id.includes('gridslot')) {
+        const lenM = (spec.lengthMM || 120) / 1000;
+        const lenPx = lenM * state.pixelsPerMeter;
+        const wM = spec.widthMM ? (spec.widthMM / 1000) : 0.03;
+        const wPx = wM * state.pixelsPerMeter;
+        
         ctx.save();
-        ctx.setLineDash([8, 5]);
+        ctx.globalAlpha = 0.5;
+        ctx.translate(state.ghostCursor.x, state.ghostCursor.y);
+        ctx.fillStyle = spec.color;
+        ctx.fillRect(-lenPx / 2, -wPx / 2, lenPx, wPx);
+        ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 1.5;
-        ctx.globalAlpha = 0.75;
-        const W = c.width;
-        const H = c.height;
-        for (const g of state.snapGuides) {
-          if (g.type === 'v') {
-            ctx.strokeStyle = '#00d4ff';
-            ctx.beginPath();
-            ctx.moveTo(g.x, 0);
-            ctx.lineTo(g.x, H);
-            ctx.stroke();
-          } else if (g.type === 'h') {
-            ctx.strokeStyle = '#00d4ff';
-            ctx.beginPath();
-            ctx.moveTo(0, g.y);
-            ctx.lineTo(W, g.y);
-            ctx.stroke();
-          } else if (g.type === 'spacing') {
-            ctx.strokeStyle = '#ffcc00';
-            const len = Math.sqrt(g.spX * g.spX + g.spY * g.spY);
-            if (len > 0) {
-              const ux = g.spX / len, uy = g.spY / len;
-              const ext = Math.max(W, H);
+        ctx.strokeRect(-lenPx / 2, -wPx / 2, lenPx, wPx);
+        ctx.restore();
+      } else if (spec.category !== 'linebar' && spec.icon !== 'line') {
+        // Draw snap guide lines
+        if (state.snapGuides && state.snapGuides.length > 0) {
+          ctx.save();
+          ctx.setLineDash([8, 5]);
+          ctx.lineWidth = 1.5;
+          ctx.globalAlpha = 0.75;
+          const W = c.width;
+          const H = c.height;
+          for (const g of state.snapGuides) {
+            if (g.type === 'v') {
+              ctx.strokeStyle = '#00d4ff';
               ctx.beginPath();
-              ctx.moveTo(g.x - ux * ext, g.y - uy * ext);
-              ctx.lineTo(g.x + ux * ext, g.y + uy * ext);
+              ctx.moveTo(g.x, 0);
+              ctx.lineTo(g.x, H);
               ctx.stroke();
+            } else if (g.type === 'h') {
+              ctx.strokeStyle = '#00d4ff';
+              ctx.beginPath();
+              ctx.moveTo(0, g.y);
+              ctx.lineTo(W, g.y);
+              ctx.stroke();
+            } else if (g.type === 'spacing') {
+              ctx.strokeStyle = '#ffcc00';
+              const len = Math.sqrt(g.spX * g.spX + g.spY * g.spY);
+              if (len > 0) {
+                const ux = g.spX / len, uy = g.spY / len;
+                const ext = Math.max(W, H);
+                ctx.beginPath();
+                ctx.moveTo(g.x - ux * ext, g.y - uy * ext);
+                ctx.lineTo(g.x + ux * ext, g.y + uy * ext);
+                ctx.stroke();
+              }
             }
           }
+          ctx.restore();
         }
-        ctx.restore();
-      }
 
-      // Draw ghost cursor dot
-      ctx.globalAlpha = 0.6;
-      ctx.beginPath();
-      ctx.arc(state.ghostCursor.x, state.ghostCursor.y, getFixtureRenderSize(spec.size) / 2, 0, 2 * Math.PI);
-      ctx.fillStyle = spec.color;
-      ctx.fill();
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2;
-      ctx.stroke();
+        // Draw ghost cursor dot
+        ctx.globalAlpha = 0.6;
+        ctx.beginPath();
+        ctx.arc(state.ghostCursor.x, state.ghostCursor.y, getFixtureRenderSize(spec.size) / 2, 0, 2 * Math.PI);
+        ctx.fillStyle = spec.color;
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
     }
-  }
   
   // 2. Zone drawing polyline
   if ((state.activeTool === 'draw-zone' || state.activeTool === 'draw-zone-polygon') && state.isDrawingZone && state.zonePolygonPoints.length > 0) {
