@@ -578,13 +578,18 @@ async function init() {
   } catch (e) {
     console.warn('Supabase 로드 실패, 로컬 데이터 사용:', e);
   }
-  // 사이렌 집중 조명을 가장 위로 배치
+  // 다운라이트 배치 순서 조정 (사이렌 집중 2인치 -> 사이렌 확산 2인치 -> 컷오프 2인치 -> 컷오프 3인치)
   fixtureDatabase.sort((a, b) => {
-    const aIsSirenSpot = a.name && a.name.includes('사이렌') && a.name.includes('집중');
-    const bIsSirenSpot = b.name && b.name.includes('사이렌') && b.name.includes('집중');
-    if (aIsSirenSpot && !bIsSirenSpot) return -1;
-    if (!aIsSirenSpot && bIsSirenSpot) return 1;
-    return 0;
+    const getOrder = (item) => {
+      if (!item.name) return 999;
+      const name = item.name;
+      if (name.includes('사이렌') && name.includes('집중') && name.includes('2인치')) return 1;
+      if (name.includes('사이렌') && name.includes('확산') && name.includes('2인치')) return 2;
+      if (name.includes('컷오프') && name.includes('2인치')) return 3;
+      if (name.includes('컷오프') && name.includes('3인치')) return 4;
+      return 100;
+    };
+    return getOrder(a) - getOrder(b);
   });
   renderFixtureLibrary();
 }
