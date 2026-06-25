@@ -553,6 +553,7 @@ function mapSupabaseProduct(p) {
     price: p.price,
     image: p.image_url,
     link: null,
+    sizeMM: p.size_mm || null,
     heads,
     lengthMM,
     widthMM,
