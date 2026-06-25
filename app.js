@@ -3159,13 +3159,17 @@ window.deleteBOMFixture = function(typeId) {
 // ==================== CANVAS LAYERS RENDERING ====================
 // 이미지 대각선 기준으로 fixture 표시 크기 보정
 // 기준 대각선: 2000px → scale 1.0 / 소형 이미지일수록 작아짐
-function getFixtureRenderSize(baseSize) {
-  if (!state.uploadedImage) return baseSize;
-  const imgDiag = Math.sqrt(
-    state.uploadedImage.width ** 2 + state.uploadedImage.height ** 2
-  );
+function getFixtureRenderSize(sizeMM) {
+  // sizeMM = 실제 홀 직경(mm). pixelsPerMeter 기반으로 도면 비율에 맞게 렌더링
+  if (state.pixelsPerMeter > 0 && sizeMM > 0) {
+    const px = (sizeMM / 1000) * state.pixelsPerMeter;
+    return Math.max(14, px); // 최소 14px (가시성 보장)
+  }
+  // 캘리브레이션 전 폴백: 이미지 대각선 기반
+  if (!state.uploadedImage) return sizeMM * (2 / 3);
+  const imgDiag = Math.sqrt(state.uploadedImage.width ** 2 + state.uploadedImage.height ** 2);
   const scale = Math.max(0.2, Math.min(4, imgDiag / 2000));
-  return baseSize * scale * (2 / 3);
+  return sizeMM * scale * (2 / 3);
 }
 
 function renderAll() {
@@ -3515,20 +3519,48 @@ function renderInteractionLayer() {
       const len = Math.sqrt(dx*dx + dy*dy);
       const wM = spec.widthMM ? (spec.widthMM / 1000) : 0.03;
       const wPx = wM * state.pixelsPerMeter;
+      const isHorizontal = Math.abs(dx) >= Math.abs(dy);
       const angle = Math.atan2(dy, dx);
-      
+
+      // H/V 가이드 라인 (십자선)
       ctx.save();
-      ctx.globalAlpha = 0.6;
+      ctx.setLineDash([6, 5]);
+      ctx.lineWidth = 1;
+      const sx = state.linebarStart.x, sy = state.linebarStart.y;
+      // 수평 가이드
+      ctx.strokeStyle = isHorizontal ? 'rgba(0,212,255,0.9)' : 'rgba(255,255,255,0.25)';
+      ctx.beginPath(); ctx.moveTo(0, sy); ctx.lineTo(c.width, sy); ctx.stroke();
+      // 수직 가이드
+      ctx.strokeStyle = !isHorizontal ? 'rgba(0,212,255,0.9)' : 'rgba(255,255,255,0.25)';
+      ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx, c.height); ctx.stroke();
+      ctx.setLineDash([]);
+      // 앵커 점
+      ctx.beginPath(); ctx.arc(sx, sy, 5, 0, 2 * Math.PI);
+      ctx.fillStyle = '#ffffff'; ctx.fill();
+      ctx.restore();
+
+      // 방향 레이블
+      ctx.save();
+      ctx.globalAlpha = 1;
+      ctx.font = 'bold 11px sans-serif';
+      ctx.fillStyle = '#00d4ff';
+      ctx.textAlign = 'left';
+      ctx.fillText(isHorizontal ? '→ 수평' : '↓ 수직', sx + 8, sy - 8);
+      ctx.restore();
+
+      // 직사각형 프리뷰
+      ctx.save();
+      ctx.globalAlpha = 0.7;
       ctx.translate(state.linebarStart.x, state.linebarStart.y);
       ctx.rotate(angle);
-      
+
       ctx.fillStyle = spec.color;
       ctx.fillRect(0, -wPx/2, len, wPx);
-      
+
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 1.5;
       ctx.strokeRect(0, -wPx/2, len, wPx);
-      
+
       const heads = spec.heads || 6;
       const headSize = wPx * 0.7;
       ctx.fillStyle = '#ffffff';
@@ -3539,7 +3571,7 @@ function renderInteractionLayer() {
         ctx.fill();
       }
       ctx.restore();
-      
+
       ctx.save();
       ctx.globalAlpha = 1;
       ctx.font = 'bold 12px sans-serif';
@@ -3547,7 +3579,7 @@ function renderInteractionLayer() {
       ctx.fillStyle = '#ffffff';
       const midX = (state.linebarStart.x + state.linebarEnd.x) / 2;
       const midY = (state.linebarStart.y + state.linebarEnd.y) / 2;
-      ctx.fillText(`${spec.name} (${spec.lengthMM}mm x ${spec.widthMM}mm)`, midX, midY - 12);
+      ctx.fillText(`${spec.lengthMM}×${spec.widthMM}mm`, midX, midY - 12);
       ctx.restore();
     } else {
       ctx.beginPath();
