@@ -1,5 +1,10 @@
+// ==================== SUPABASE CONFIG ====================
+const SUPABASE_URL = 'https://wezywuqfzyyylpxsfdgu.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indlenl3dXFmenl5eWxweHNmZGd1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzNDMxOTgsImV4cCI6MjA5NzkxOTE5OH0.NwqsxnM95LvZQ8Omyc-j9_RsayT5KIJ7QABy2Df43so';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 // ==================== FIXTURE DATABASE ====================
-const fixtureDatabase = [
+let fixtureDatabase = [
   {
     id: 'siren-ch2-spot',
     category: 'downlight',
@@ -490,10 +495,84 @@ const ctxs = {
 // Color definitions
 const zoneColors = ['#007aff', '#34c759', '#ff9500', '#ff3b30', '#af52de', '#5ac8fa', '#ff2d55', '#ffcc00'];
 
+// ==================== SUPABASE PRODUCT LOADER ====================
+function mapSupabaseProduct(p) {
+  const CAT_MAP = {
+    '다운라이트': 'downlight', '라인바': 'linebar', '멀티': 'multi',
+    '컨버터': 'converter', '컨트롤러': 'controller', '레일스포트': 'etc'
+  };
+  const cat = CAT_MAP[p.category] || 'etc';
+  const spec = p.spec_json || {};
+  const beam = spec.beam_angle || null;
+  const holeStr = spec.hole_size;
+  const cutoutMM = holeStr ? parseInt(holeStr.replace('ø', '')) : null;
+
+  let subCategory = null, icon = 'spot', color = '#FF9500';
+  if (cat === 'downlight') {
+    if (beam !== null && beam <= 24) { subCategory = 'spot'; icon = 'spot'; color = '#FF9500'; }
+    else if (beam !== null && beam >= 60) { subCategory = 'diffused'; icon = 'diffused'; color = '#FFCC00'; }
+    else { subCategory = 'deep'; icon = 'spot'; color = '#FF9500'; }
+  } else if (cat === 'linebar') { icon = 'line'; color = '#4CD964'; }
+  else if (cat === 'multi') { icon = 'multi'; color = '#7F00FF'; }
+  else if (cat === 'converter' || cat === 'controller') { icon = 'converter'; color = '#8E8E93'; }
+  else if (cat === 'etc') { icon = 'spot'; color = '#FF9500'; }
+
+  // gridslot 전용 필드
+  let heads = null, lengthMM = null, widthMM = null, length = null;
+  if (p.name && p.name.includes('그리드슬롯')) {
+    const match = p.name.match(/(\d+)구/);
+    heads = match ? parseInt(match[1]) : 6;
+    lengthMM = heads === 6 ? 114 : 228;
+    widthMM = 30;
+    length = lengthMM;
+  }
+  // 라인바 전용 필드
+  if (cat === 'linebar') {
+    length = 5000;
+    lengthMM = 5000;
+    widthMM = 10;
+  }
+
+  return {
+    id: p.id,
+    category: cat,
+    subCategory,
+    name: p.name,
+    model: null,
+    watt: p.watt,
+    lumen: p.lumen,
+    beam,
+    color,
+    icon,
+    size: cutoutMM || (cat === 'downlight' ? 24 : 30),
+    cutoutMM,
+    inch: cutoutMM === 55 ? '2인치' : cutoutMM === 75 ? '3인치' : null,
+    price: p.price,
+    image: p.image_url,
+    link: null,
+    heads,
+    lengthMM,
+    widthMM,
+    length
+  };
+}
+
 // ==================== APP INITIALIZATION ====================
-function init() {
-  renderFixtureLibrary();
+async function init() {
   setupEventListeners();
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('is_active', true)
+      .order('created_at', { ascending: true });
+    if (!error && data && data.length > 0) {
+      fixtureDatabase = data.map(mapSupabaseProduct);
+    }
+  } catch (e) {
+    console.warn('Supabase 로드 실패, 로컬 데이터 사용:', e);
+  }
+  renderFixtureLibrary();
 }
 
 // Render the side library items
