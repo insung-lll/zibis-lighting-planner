@@ -1366,6 +1366,14 @@ body {
   gap: 8px !important;
 }
 
+.horizontal-toolbar .toolbar-divider {
+  width: 1px;
+  height: 16px;
+  background-color: rgba(255, 255, 255, 0.15);
+  margin: 0 4px;
+  align-self: center;
+}
+
 /* Spacer to push bottom buttons down */
 .toolbar-spacer {
   flex: 1;
