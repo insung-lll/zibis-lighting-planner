@@ -749,6 +749,7 @@ function showConfirm(title, msg, onOk) {
 }
 
 function setupEventListeners() {
+  setupHistoryEventListeners();
   // Prevent canvas zoom when scrolling over panels
   if (els.rightPanel) {
     els.rightPanel.addEventListener('wheel', (e) => {
@@ -981,6 +982,7 @@ function setupEventListeners() {
   els.btnNewProject.addEventListener('click', () => {
     showConfirm("홈으로 이동", "현재 작성 중인 모든 데이터가 삭제됩니다. 계속하시겠습니까?", () => {
       clearProjectState();
+      resetHistory();
       els.uploadOverlay.style.display = 'flex';
       els.canvasContainer.style.display = 'none';
       els.canvasToolbar.style.display = 'none';
@@ -1583,6 +1585,11 @@ els.btnApplyCalibrate.addEventListener('click', () => {
   updateZoomAndPan();
   recalculateAllZones();
   updateBackButtonVisibility();
+  resetHistory({
+    lights: [],
+    zones: [],
+    dimensions: []
+  });
   renderAll();
 });
 
@@ -1772,6 +1779,7 @@ function setupCanvasInteractions() {
             state.lights.push(newLight);
             recalculateAllZones();
             updateStats();
+            saveStateToHistory();
           }
           state.isDrawingLinebar = false;
           state.linebarStart = null;
@@ -2010,12 +2018,21 @@ function setupCanvasInteractions() {
 
   window.addEventListener('mouseup', (e) => {
     const wasDraggingCanvas = state._isDraggingCanvas;
+    const wasDraggingLight = state.draggingLightId !== null;
+    const wasDraggingZone = state.draggingZoneId !== null;
+    const wasDraggingDimension = state.draggingDimensionId !== null;
+    
     state._mouseDownOnLayer = false;
     state._isDraggingCanvas = false;
     state.isPanning = false;
     state.draggingLightId = null;
     state.draggingZoneId = null;
     state.draggingDimensionId = null;
+    
+    if (wasDraggingLight || wasDraggingZone || wasDraggingDimension) {
+      saveStateToHistory();
+    }
+    
     if (wasDraggingCanvas) {
       layer.style.cursor = '';
       return; // skip click-action processing (zone finalize, light placement, etc.)
@@ -2260,6 +2277,7 @@ function placeLightAt(x, y) {
   state.lights.push(newLight);
   recalculateAllZones();
   updateStats();
+  saveStateToHistory();
   renderAll();
   
   // Keep placing mode enabled
@@ -2313,6 +2331,7 @@ function handleMeasureClick(x, y) {
     });
     
     resetTools();
+    saveStateToHistory();
     renderAll();
   }
 }
@@ -2384,6 +2403,7 @@ function handleKeyDown(e) {
     if (deletedSomething) {
       recalculateAllZones();
       updateStats();
+      saveStateToHistory();
       renderAll();
     }
   } else if (e.key === 'Escape') {
@@ -2409,6 +2429,7 @@ function handleKeyDown(e) {
     if (deletedSomething) {
       recalculateAllZones();
       updateStats();
+      saveStateToHistory();
       renderAll();
     } else {
       resetTools();
@@ -2436,6 +2457,16 @@ function handleKeyDown(e) {
       updateStats();
       renderAll();
     }
+  } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+    e.preventDefault();
+    if (e.shiftKey) {
+      redo();
+    } else {
+      undo();
+    }
+  } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+    e.preventDefault();
+    redo();
   } else if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
     // duplicate selected lights
     if (state.selectedLightIds.length > 0) {
@@ -2459,12 +2490,17 @@ function handleKeyDown(e) {
       state.selectedLightIds = newSelections;
       recalculateAllZones();
       updateStats();
+      saveStateToHistory();
       renderAll();
     }
   }
 }
 
-function handleKeyUp(e) {}
+function handleKeyUp(e) {
+  if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+    saveStateToHistory();
+  }
+}
 
 // ==================== AREA & ILLUMINANCE (LUX) CALCULATION ====================
 function calculatePolygonArea(pts) {
@@ -2645,6 +2681,7 @@ function finishZoneCreation(switchCount) {
       
       recalculateAllZones();
       updateStats();
+      saveStateToHistory();
     }
     state.editingZoneId = null;
   } else if (state.pendingZoneData) {
@@ -2663,6 +2700,7 @@ function finishZoneCreation(switchCount) {
     
     recalculateAllZones();
     updateStats();
+    saveStateToHistory();
   }
   
   closeSwitchInputModal();
@@ -3152,6 +3190,7 @@ window.deleteBOMFixture = function(typeId) {
     state.selectedLightIds = [];
     recalculateAllZones();
     updateStats();
+    saveStateToHistory();
     renderAll();
   });
 };
@@ -3890,6 +3929,11 @@ function loadProjectData(data) {
     initCanvasDimensions(img.width, img.height);
     recalculateAllZones();
     updateStats();
+    resetHistory({
+      lights: JSON.parse(JSON.stringify(state.lights)),
+      zones: JSON.parse(JSON.stringify(state.zones)),
+      dimensions: JSON.parse(JSON.stringify(state.dimensions))
+    });
     renderAll();
   };
   img.src = data.imageBase64;
@@ -4611,6 +4655,94 @@ async function exportToExcel() {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+
+// ==================== UNDO / REDO HISTORY MANAGER ====================
+const undoStack = [];
+const redoStack = [];
+
+function saveStateToHistory() {
+  const snapshot = {
+    lights: JSON.parse(JSON.stringify(state.lights)),
+    zones: JSON.parse(JSON.stringify(state.zones)),
+    dimensions: JSON.parse(JSON.stringify(state.dimensions))
+  };
+  
+  if (undoStack.length > 0) {
+    const prev = undoStack[undoStack.length - 1];
+    if (JSON.stringify(prev) === JSON.stringify(snapshot)) {
+      return;
+    }
+  }
+  
+  undoStack.push(snapshot);
+  if (undoStack.length > 50) {
+    undoStack.shift();
+  }
+  
+  redoStack.length = 0;
+  updateUndoRedoButtons();
+}
+
+function resetHistory(initialState) {
+  undoStack.length = 0;
+  redoStack.length = 0;
+  if (initialState) {
+    undoStack.push(initialState);
+  } else {
+    undoStack.push({
+      lights: [],
+      zones: [],
+      dimensions: []
+    });
+  }
+  updateUndoRedoButtons();
+}
+
+function updateUndoRedoButtons() {
+  const btnUndo = document.getElementById('btnUndo');
+  const btnRedo = document.getElementById('btnRedo');
+  if (btnUndo) btnUndo.disabled = undoStack.length <= 1;
+  if (btnRedo) btnRedo.disabled = redoStack.length === 0;
+}
+
+function undo() {
+  if (undoStack.length <= 1) return;
+  const current = undoStack.pop();
+  redoStack.push(current);
+  
+  const prevState = undoStack[undoStack.length - 1];
+  state.lights = JSON.parse(JSON.stringify(prevState.lights));
+  state.zones = JSON.parse(JSON.stringify(prevState.zones));
+  state.dimensions = JSON.parse(JSON.stringify(prevState.dimensions));
+  
+  recalculateAllZones();
+  updateStats();
+  renderAll();
+  updateUndoRedoButtons();
+}
+
+function redo() {
+  if (redoStack.length === 0) return;
+  const nextState = redoStack.pop();
+  undoStack.push(nextState);
+  
+  state.lights = JSON.parse(JSON.stringify(nextState.lights));
+  state.zones = JSON.parse(JSON.stringify(nextState.zones));
+  state.dimensions = JSON.parse(JSON.stringify(nextState.dimensions));
+  
+  recalculateAllZones();
+  updateStats();
+  renderAll();
+  updateUndoRedoButtons();
+}
+
+function setupHistoryEventListeners() {
+  const btnUndo = document.getElementById('btnUndo');
+  const btnRedo = document.getElementById('btnRedo');
+  if (btnUndo) btnUndo.addEventListener('click', undo);
+  if (btnRedo) btnRedo.addEventListener('click', redo);
 }
 
 // Start App

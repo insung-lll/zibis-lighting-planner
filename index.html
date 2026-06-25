@@ -182,6 +182,29 @@
             </svg>
           </button>
         </div>
+
+        <!-- 구분선 -->
+        <div class="toolbar-divider" style="width: 1px; height: 18px; background-color: var(--border); margin: 0 4px; align-self: center; opacity: 0.5;"></div>
+
+        <!-- 뒤로가기 -->
+        <div class="toolbar-group">
+          <button class="toolbar-btn" id="btnUndo" data-tooltip="뒤로가기 (Ctrl+Z)" disabled>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 7v6h6"/>
+              <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- 앞으로가기 -->
+        <div class="toolbar-group">
+          <button class="toolbar-btn" id="btnRedo" data-tooltip="앞으로가기 (Ctrl+Y)" disabled>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 7v6h-6"/>
+              <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/>
+            </svg>
+          </button>
+        </div>
       </div>
       
       <!-- Interactive canvas container (Pan & Zoom) -->
