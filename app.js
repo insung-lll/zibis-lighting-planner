@@ -564,10 +564,12 @@ async function init() {
     const { data, error } = await supabaseClient
       .from('products')
       .select('*')
-      .eq('is_active', true)
       .order('created_at', { ascending: true });
-    if (!error && data && data.length > 0) {
+    if (error) {
+      console.error('Supabase 쿼리 에러:', error.message, error.details);
+    } else if (data && data.length > 0) {
       fixtureDatabase = data.map(mapSupabaseProduct);
+      console.log(`Supabase에서 ${data.length}개 제품 로드됨`);
     }
   } catch (e) {
     console.warn('Supabase 로드 실패, 로컬 데이터 사용:', e);
