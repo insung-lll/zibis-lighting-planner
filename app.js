@@ -1719,7 +1719,7 @@ function setupCanvasInteractions() {
         return;
       }
       const spec = fixtureDatabase.find(f => f.id === state.selectedFixtureId);
-      if (spec && (spec.category === 'linebar' || spec.icon === 'line' || spec.id.includes('gridslot'))) {
+      if (spec && (spec.category === 'linebar' || spec.icon === 'line' || spec.id.includes('gridslot') || spec.category === 'multi')) {
         if (!state.isDrawingLinebar) {
           // FIRST CLICK: start drawing linebar
           state.isDrawingLinebar = true;
@@ -1738,7 +1738,7 @@ function setupCanvasInteractions() {
             let calculatedWatt = 0;
             let calculatedLumen = 0;
             
-            if (specCur.id.includes('gridslot')) {
+            if (specCur.id.includes('gridslot') || specCur.category === 'multi') {
               calculatedWatt = specCur.watt;
               calculatedLumen = specCur.lumen;
             } else {
@@ -1934,7 +1934,7 @@ function setupCanvasInteractions() {
       }
     } else if (state.activeTool === 'place' && state.isDrawingLinebar) {
       const specCur = fixtureDatabase.find(f => f.id === state.selectedFixtureId);
-      if (specCur && specCur.id.includes('gridslot')) {
+      if (specCur && (specCur.id.includes('gridslot') || specCur.category === 'multi')) {
         // Force snap to horizontal/vertical for gridslots
         const snappedPt = getSnappedPoint(state.linebarStart, pt, true);
         const dx = snappedPt.x - state.linebarStart.x;
@@ -2151,7 +2151,7 @@ function findLightAt(x, y) {
       const dx = l.x - x;
       const dy = l.y - y;
       const dist = Math.sqrt(dx*dx + dy*dy);
-      return dist <= getFixtureRenderSize(l.size);
+      return dist <= Math.max(15, getFixtureRenderSize(l.size)); // 선택 클릭 영역은 최소 15px 반경 보장
     }
   });
 }
@@ -3157,19 +3157,16 @@ window.deleteBOMFixture = function(typeId) {
 };
 
 // ==================== CANVAS LAYERS RENDERING ====================
-// 이미지 대각선 기준으로 fixture 표시 크기 보정
-// 기준 대각선: 2000px → scale 1.0 / 소형 이미지일수록 작아짐
 function getFixtureRenderSize(sizeMM) {
   // sizeMM = 실제 홀 직경(mm). pixelsPerMeter 기반으로 도면 비율에 맞게 렌더링
   if (state.pixelsPerMeter > 0 && sizeMM > 0) {
     const px = (sizeMM / 1000) * state.pixelsPerMeter;
-    return Math.max(14, px); // 최소 14px (가시성 보장)
+    return Math.max(6, px); // 최소 크기를 6px로 낮추어 실제 축척에 맞춤
   }
   // 캘리브레이션 전 폴백: 이미지 대각선 기반
-  if (!state.uploadedImage) return sizeMM * (2 / 3);
+  if (!state.uploadedImage) return 15;
   const imgDiag = Math.sqrt(state.uploadedImage.width ** 2 + state.uploadedImage.height ** 2);
-  const scale = Math.max(0.2, Math.min(4, imgDiag / 2000));
-  return sizeMM * scale * (2 / 3);
+  return Math.max(12, imgDiag * 0.015);
 }
 
 function renderAll() {
@@ -3376,7 +3373,7 @@ function renderLightsLayer() {
     
     if (l.x2 !== undefined && l.y2 !== undefined) {
       const spec = fixtureDatabase.find(f => f.id === l.typeId);
-      if (spec && spec.id.includes('gridslot')) {
+      if (spec && (spec.id.includes('gridslot') || spec.category === 'multi')) {
         // Draw gridslot as a rectangle
         const dx = l.x2 - l.x;
         const dy = l.y2 - l.y;
@@ -3513,7 +3510,7 @@ function renderInteractionLayer() {
     ctx.globalAlpha = 0.8;
     const spec = fixtureDatabase.find(f => f.id === state.selectedFixtureId);
     
-    if (spec && spec.id.includes('gridslot')) {
+    if (spec && (spec.id.includes('gridslot') || spec.category === 'multi')) {
       const dx = state.linebarEnd.x - state.linebarStart.x;
       const dy = state.linebarEnd.y - state.linebarStart.y;
       const len = Math.sqrt(dx*dx + dy*dy);
@@ -3621,7 +3618,7 @@ function renderInteractionLayer() {
   } else if (state.activeTool === 'place' && state.ghostCursor && state.selectedFixtureId) {
     const spec = fixtureDatabase.find(f => f.id === state.selectedFixtureId);
     if (spec) {
-      if (spec.id.includes('gridslot')) {
+      if (spec.id.includes('gridslot') || spec.category === 'multi') {
         const lenM = (spec.lengthMM || 120) / 1000;
         const lenPx = lenM * state.pixelsPerMeter;
         const wM = spec.widthMM ? (spec.widthMM / 1000) : 0.03;
