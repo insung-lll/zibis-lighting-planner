@@ -577,6 +577,14 @@ async function init() {
   } catch (e) {
     console.warn('Supabase 로드 실패, 로컬 데이터 사용:', e);
   }
+  // 사이렌 집중 조명을 가장 위로 배치
+  fixtureDatabase.sort((a, b) => {
+    const aIsSirenSpot = a.name && a.name.includes('사이렌') && a.name.includes('집중');
+    const bIsSirenSpot = b.name && b.name.includes('사이렌') && b.name.includes('집중');
+    if (aIsSirenSpot && !bIsSirenSpot) return -1;
+    if (!aIsSirenSpot && bIsSirenSpot) return 1;
+    return 0;
+  });
   renderFixtureLibrary();
 }
 
