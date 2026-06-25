@@ -501,7 +501,10 @@ function mapSupabaseProduct(p) {
     '다운라이트': 'downlight', '라인바': 'linebar', '멀티': 'multi',
     '컨버터': 'converter', '컨트롤러': 'controller', '레일스포트': 'etc'
   };
-  const cat = CAT_MAP[p.category] || 'etc';
+  let cat = CAT_MAP[p.category] || 'etc';
+  if (p.name && (p.name.replace(/\s+/g, '').includes('3"회전매립등') || p.name.replace(/\s+/g, '').includes('GR3"매립등'))) {
+    cat = 'etc';
+  }
   const spec = p.spec_json || {};
   const beam = spec.beam_angle || null;
   const holeStr = spec.hole_size;
