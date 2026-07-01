@@ -611,24 +611,6 @@ async function init() {
   } catch (e) {
     console.warn('Supabase 로드 실패, 로컬 데이터 사용:', e);
   }
-
-  // Always append 'magnetic-rail' locally to ensure it is available
-  if (!fixtureDatabase.some(f => f.id === 'magnetic-rail')) {
-    fixtureDatabase.push({
-      id: 'magnetic-rail',
-      category: 'linebar',
-      name: '마그네틱 레일',
-      model: 'Magnetic-Rail',
-      watt: 0,
-      lumen: 0,
-      beam: 120,
-      color: '#0070f3',
-      icon: 'line',
-      size: 24,
-      price: 0,
-      image: ''
-    });
-  }
   // 다운라이트 배치 순서 조정 (사이렌 집중 2인치 -> 사이렌 확산 2인치 -> 컷오프 2인치 -> 컷오프 3인치)
   fixtureDatabase.sort((a, b) => {
     const getOrder = (item) => {
