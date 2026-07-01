@@ -274,8 +274,41 @@ let fixtureDatabase = [
     inch: '3인치',
     price: 19000,
     image: 'products/pa1.png'
+  },
+  {
+    id: 'magnetic-rail',
+    category: 'linebar',
+    name: '마그네틱 레일',
+    model: 'Magnetic-Rail',
+    watt: 0,
+    lumen: 0,
+    beam: 120,
+    color: '#0070f3',
+    icon: 'line',
+    size: 24,
+    price: 0,
+    image: ''
   }
 ];
+
+function getMagneticRailBOM(lengthM) {
+  const ceilL = Math.ceil(lengthM);
+  if (ceilL <= 0) return [];
+  
+  const n2m = Math.floor(ceilL / 2);
+  const n1m = ceilL % 2;
+  const totalRails = n2m + n1m;
+  const nConn = Math.max(0, totalRails - 1);
+  
+  return [
+    { type: 'rail-2m', name: '마그네틱 레일 2M', price: 26100, qty: n2m, watt: 0, lumen: 0, typeLabel: '라인/마그네틱' },
+    { type: 'rail-1m', name: '마그네틱 레일 1M', price: 13900, qty: n1m, watt: 0, lumen: 0, typeLabel: '라인/마그네틱' },
+    { type: 'magnetic-converter', name: '마그네틱 컨버터 150W (유니온)', price: 44100, qty: 1, watt: 0, lumen: 0, typeLabel: '안정기 (SMPS)' },
+    { type: 'magnetic-controller', name: '마그네틱 컨트롤러', price: 35000, qty: 1, watt: 0, lumen: 0, typeLabel: '컨트롤러' },
+    { type: 'magnetic-connector', name: '마그네틱 연결선', price: 5000, qty: nConn, watt: 0, lumen: 0, typeLabel: '부자재' },
+    { type: 'magnetic-endcap', name: '마그네틱 마감캡', price: 1000, qty: 1, watt: 0, lumen: 0, typeLabel: '부자재' }
+  ].filter(item => item.qty > 0);
+}
 
 
 // ==================== APP STATE ====================
@@ -577,6 +610,24 @@ async function init() {
     }
   } catch (e) {
     console.warn('Supabase 로드 실패, 로컬 데이터 사용:', e);
+  }
+
+  // Always append 'magnetic-rail' locally to ensure it is available
+  if (!fixtureDatabase.some(f => f.id === 'magnetic-rail')) {
+    fixtureDatabase.push({
+      id: 'magnetic-rail',
+      category: 'linebar',
+      name: '마그네틱 레일',
+      model: 'Magnetic-Rail',
+      watt: 0,
+      lumen: 0,
+      beam: 120,
+      color: '#0070f3',
+      icon: 'line',
+      size: 24,
+      price: 0,
+      image: ''
+    });
   }
   // 다운라이트 배치 순서 조정 (사이렌 집중 2인치 -> 사이렌 확산 2인치 -> 컷오프 2인치 -> 컷오프 3인치)
   fixtureDatabase.sort((a, b) => {
@@ -3041,24 +3092,48 @@ function renderBOMTable() {
   // Group lights by typeId
   const groups = {};
   filteredLights.forEach(l => {
-    if (!groups[l.typeId]) {
-      const spec = fixtureDatabase.find(f => f.id === l.typeId);
-      const isLine = spec && (spec.category === 'linebar' || spec.icon === 'line');
-      const currentPrice = spec ? spec.price : (l.price || 0); // 항상 최신 가격테이블 기준
-      groups[l.typeId] = {
-        name: l.name,
-        category: spec ? spec.category : '',
-        watt: isLine ? 0 : l.watt,
-        lumen: isLine ? 0 : l.lumen,
-        price: currentPrice,
-        qty: 0,
-        isLinebar: isLine
-      };
-    }
-    groups[l.typeId].qty++;
-    if (groups[l.typeId].isLinebar) {
-      groups[l.typeId].watt += l.watt;
-      groups[l.typeId].lumen += l.lumen;
+    if (l.typeId === 'magnetic-rail' || l.typeId === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57') {
+      const dx = l.x2 - l.x;
+      const dy = l.y2 - l.y;
+      const lenPx = Math.sqrt(dx*dx + dy*dy);
+      const lenM = state.pixelsPerMeter > 0 ? (lenPx / state.pixelsPerMeter) : 0;
+      
+      const subItems = getMagneticRailBOM(lenM);
+      subItems.forEach(item => {
+        const subId = item.type;
+        if (!groups[subId]) {
+          groups[subId] = {
+            name: item.name,
+            category: 'linebar',
+            watt: 0,
+            lumen: 0,
+            price: item.price,
+            qty: 0,
+            isLinebar: true
+          };
+        }
+        groups[subId].qty += item.qty;
+      });
+    } else {
+      if (!groups[l.typeId]) {
+        const spec = fixtureDatabase.find(f => f.id === l.typeId);
+        const isLine = spec && (spec.category === 'linebar' || spec.icon === 'line');
+        const currentPrice = spec ? spec.price : (l.price || 0); // 항상 최신 가격테이블 기준
+        groups[l.typeId] = {
+          name: l.name,
+          category: spec ? spec.category : '',
+          watt: isLine ? 0 : l.watt,
+          lumen: isLine ? 0 : l.lumen,
+          price: currentPrice,
+          qty: 0,
+          isLinebar: isLine
+        };
+      }
+      groups[l.typeId].qty++;
+      if (groups[l.typeId].isLinebar) {
+        groups[l.typeId].watt += l.watt;
+        groups[l.typeId].lumen += l.lumen;
+      }
     }
   });
   
@@ -4137,31 +4212,56 @@ async function exportToExcel() {
   
   // 5.1 Accumulate lights
   state.lights.forEach(l => {
-    if (!allProducts[l.typeId]) {
-      const spec = fixtureDatabase.find(f => f.id === l.typeId);
-      const catLabel = !spec ? '조명'
-        : spec.category === 'downlight' ? '매입 다운라이트'
-        : spec.category === 'linebar'   ? '라인/마그네틱'
-        : spec.category === 'multi'     ? '멀티매입등'
-        : spec.category === 'smarthome' ? '스마트홈 기기'
-        : spec.category === 'etc'       ? '기타'
-        : '조명';
-      const currentPrice = spec ? spec.price : (l.price || 0); // 최신 가격테이블 기준
-      allProducts[l.typeId] = {
-        name: l.name,
-        type: catLabel,
-        color: spec ? spec.color : null,
-        price: currentPrice,
-        qty: 0,
-        isLine: spec && (spec.category === 'linebar' || spec.icon === 'line'),
-        totalWatt: 0,
-        totalLumen: 0
-      };
-    }
-    allProducts[l.typeId].qty++;
-    if (allProducts[l.typeId].isLine) {
-      allProducts[l.typeId].totalWatt += l.watt;
-      allProducts[l.typeId].totalLumen += l.lumen;
+    if (l.typeId === 'magnetic-rail' || l.typeId === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57') {
+      const dx = l.x2 - l.x;
+      const dy = l.y2 - l.y;
+      const lenPx = Math.sqrt(dx*dx + dy*dy);
+      const lenM = state.pixelsPerMeter > 0 ? (lenPx / state.pixelsPerMeter) : 0;
+      
+      const subItems = getMagneticRailBOM(lenM);
+      subItems.forEach(item => {
+        const subId = item.type;
+        if (!allProducts[subId]) {
+          allProducts[subId] = {
+            name: item.name,
+            type: item.typeLabel,
+            color: null,
+            price: item.price,
+            qty: 0,
+            isLine: true,
+            totalWatt: 0,
+            totalLumen: 0
+          };
+        }
+        allProducts[subId].qty += item.qty;
+      });
+    } else {
+      if (!allProducts[l.typeId]) {
+        const spec = fixtureDatabase.find(f => f.id === l.typeId);
+        const catLabel = !spec ? '조명'
+          : spec.category === 'downlight' ? '매입 다운라이트'
+          : spec.category === 'linebar'   ? '라인/마그네틱'
+          : spec.category === 'multi'     ? '멀티매입등'
+          : spec.category === 'smarthome' ? '스마트홈 기기'
+          : spec.category === 'etc'       ? '기타'
+          : '조명';
+        const currentPrice = spec ? spec.price : (l.price || 0); // 최신 가격테이블 기준
+        allProducts[l.typeId] = {
+          name: l.name,
+          type: catLabel,
+          color: spec ? spec.color : null,
+          price: currentPrice,
+          qty: 0,
+          isLine: spec && (spec.category === 'linebar' || spec.icon === 'line'),
+          totalWatt: 0,
+          totalLumen: 0
+        };
+      }
+      allProducts[l.typeId].qty++;
+      if (allProducts[l.typeId].isLine) {
+        allProducts[l.typeId].totalWatt += l.watt;
+        allProducts[l.typeId].totalLumen += l.lumen;
+      }
     }
   });
   
@@ -4429,32 +4529,56 @@ async function exportToExcel() {
     const startRow = currentRowNum;
     const groups = {};
     insideLights.forEach(l => {
-      if (!groups[l.typeId]) {
-        const spec = fixtureDatabase.find(f => f.id === l.typeId);
-        const catLabel = !spec ? '조명'
-          : spec.category === 'downlight' ? '매입 다운라이트'
-          : spec.category === 'linebar'   ? '라인/마그네틱'
-          : spec.category === 'multi'     ? '멀티매입등'
-          : spec.category === 'smarthome' ? '스마트홈 기기'
-          : spec.category === 'etc'       ? '기타'
-          : '조명';
-        const isLine = spec && (spec.category === 'linebar' || spec.icon === 'line');
-        const specCurrent = fixtureDatabase.find(f => f.id === l.typeId);
-        const currentPrice = specCurrent ? specCurrent.price : (l.price || 0); // 최신 가격테이블 기준
-        groups[l.typeId] = {
-          name: l.name,
-          type: catLabel,
-          watt: isLine ? 0 : l.watt,
-          lumen: isLine ? 0 : l.lumen,
-          price: currentPrice,
-          qty: 0,
-          isLinebar: isLine
-        };
-      }
-      groups[l.typeId].qty++;
-      if (groups[l.typeId].isLinebar) {
-        groups[l.typeId].watt += l.watt;
-        groups[l.typeId].lumen += l.lumen;
+      if (l.typeId === 'magnetic-rail' || l.typeId === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57') {
+        const dx = l.x2 - l.x;
+        const dy = l.y2 - l.y;
+        const lenPx = Math.sqrt(dx*dx + dy*dy);
+        const lenM = state.pixelsPerMeter > 0 ? (lenPx / state.pixelsPerMeter) : 0;
+        
+        const subItems = getMagneticRailBOM(lenM);
+        subItems.forEach(item => {
+          const subId = item.type;
+          if (!groups[subId]) {
+            groups[subId] = {
+              name: item.name,
+              type: '라인/마그네틱',
+              watt: 0,
+              lumen: 0,
+              price: item.price,
+              qty: 0,
+              isLinebar: true
+            };
+          }
+          groups[subId].qty += item.qty;
+        });
+      } else {
+        if (!groups[l.typeId]) {
+          const spec = fixtureDatabase.find(f => f.id === l.typeId);
+          const catLabel = !spec ? '조명'
+            : spec.category === 'downlight' ? '매입 다운라이트'
+            : spec.category === 'linebar'   ? '라인/마그네틱'
+            : spec.category === 'multi'     ? '멀티매입등'
+            : spec.category === 'smarthome' ? '스마트홈 기기'
+            : spec.category === 'etc'       ? '기타'
+            : '조명';
+          const isLine = spec && (spec.category === 'linebar' || spec.icon === 'line');
+          const specCurrent = fixtureDatabase.find(f => f.id === l.typeId);
+          const currentPrice = specCurrent ? specCurrent.price : (l.price || 0); // 최신 가격테이블 기준
+          groups[l.typeId] = {
+            name: l.name,
+            type: catLabel,
+            watt: isLine ? 0 : l.watt,
+            lumen: isLine ? 0 : l.lumen,
+            price: currentPrice,
+            qty: 0,
+            isLinebar: isLine
+          };
+        }
+        groups[l.typeId].qty++;
+        if (groups[l.typeId].isLinebar) {
+          groups[l.typeId].watt += l.watt;
+          groups[l.typeId].lumen += l.lumen;
+        }
       }
     });
 
@@ -4550,32 +4674,56 @@ async function exportToExcel() {
     const startRow = currentRowNum;
     const groups = {};
     outsideLights.forEach(l => {
-      if (!groups[l.typeId]) {
-        const spec = fixtureDatabase.find(f => f.id === l.typeId);
-        const catLabel = !spec ? '조명'
-          : spec.category === 'downlight' ? '매입 다운라이트'
-          : spec.category === 'linebar'   ? '라인/마그네틱'
-          : spec.category === 'multi'     ? '멀티매입등'
-          : spec.category === 'smarthome' ? '스마트홈 기기'
-          : spec.category === 'etc'       ? '기타'
-          : '조명';
-        const isLine = spec && (spec.category === 'linebar' || spec.icon === 'line');
-        const specCurrent2 = fixtureDatabase.find(f => f.id === l.typeId);
-        const currentPrice2 = specCurrent2 ? specCurrent2.price : (l.price || 0); // 최신 가격테이블 기준
-        groups[l.typeId] = {
-          name: l.name,
-          type: catLabel,
-          watt: isLine ? 0 : l.watt,
-          lumen: isLine ? 0 : l.lumen,
-          price: currentPrice2,
-          qty: 0,
-          isLinebar: isLine
-        };
-      }
-      groups[l.typeId].qty++;
-      if (groups[l.typeId].isLinebar) {
-        groups[l.typeId].watt += l.watt;
-        groups[l.typeId].lumen += l.lumen;
+      if (l.typeId === 'magnetic-rail' || l.typeId === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57') {
+        const dx = l.x2 - l.x;
+        const dy = l.y2 - l.y;
+        const lenPx = Math.sqrt(dx*dx + dy*dy);
+        const lenM = state.pixelsPerMeter > 0 ? (lenPx / state.pixelsPerMeter) : 0;
+        
+        const subItems = getMagneticRailBOM(lenM);
+        subItems.forEach(item => {
+          const subId = item.type;
+          if (!groups[subId]) {
+            groups[subId] = {
+              name: item.name,
+              type: '라인/마그네틱',
+              watt: 0,
+              lumen: 0,
+              price: item.price,
+              qty: 0,
+              isLinebar: true
+            };
+          }
+          groups[subId].qty += item.qty;
+        });
+      } else {
+        if (!groups[l.typeId]) {
+          const spec = fixtureDatabase.find(f => f.id === l.typeId);
+          const catLabel = !spec ? '조명'
+            : spec.category === 'downlight' ? '매입 다운라이트'
+            : spec.category === 'linebar'   ? '라인/마그네틱'
+            : spec.category === 'multi'     ? '멀티매입등'
+            : spec.category === 'smarthome' ? '스마트홈 기기'
+            : spec.category === 'etc'       ? '기타'
+            : '조명';
+          const isLine = spec && (spec.category === 'linebar' || spec.icon === 'line');
+          const specCurrent2 = fixtureDatabase.find(f => f.id === l.typeId);
+          const currentPrice2 = specCurrent2 ? specCurrent2.price : (l.price || 0); // 최신 가격테이블 기준
+          groups[l.typeId] = {
+            name: l.name,
+            type: catLabel,
+            watt: isLine ? 0 : l.watt,
+            lumen: isLine ? 0 : l.lumen,
+            price: currentPrice2,
+            qty: 0,
+            isLinebar: isLine
+          };
+        }
+        groups[l.typeId].qty++;
+        if (groups[l.typeId].isLinebar) {
+          groups[l.typeId].watt += l.watt;
+          groups[l.typeId].lumen += l.lumen;
+        }
       }
     });
 
