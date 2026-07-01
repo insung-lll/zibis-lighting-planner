@@ -596,12 +596,14 @@ function mapSupabaseProduct(p) {
     else if (beam !== null && beam >= 60) { subCategory = 'diffused'; icon = 'diffused'; color = '#FFCC00'; }
     else { subCategory = 'deep'; icon = 'spot'; color = '#FF9500'; }
   } else if (cat === 'linebar') {
-    icon = 'line';
     if ((p.name && p.name.includes('마그네틱 레일')) || p.id === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57' || p.id === 'magnetic-rail') {
+      icon = 'line';
       color = '#8B5A2B'; // Brown color for magnetic rail
     } else if (p.name && p.name.includes('등기구')) {
+      icon = 'spot'; // Fixed-length modules are placed as points
       color = '#007AFF'; // Blue for magnetic fixtures
     } else {
+      icon = 'line';
       color = '#4CD964';
     }
   } else if (cat === 'multi') { icon = 'multi'; color = '#7F00FF'; }
