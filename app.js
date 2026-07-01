@@ -342,13 +342,13 @@ function getMagneticRailBOM(lengthM) {
   
   const convPrice = getDBConverterPrice(150);
   const ctrlPrice = getDBControllerPrice();
-  const powerLinePrice = getDBProductPrice('마그네틱 전원선', 5000);
-  const connectorPrice = getDBProductPrice('마그네틱 연결선', 5000);
-  const endcapPrice = getDBProductPrice('마그네틱 마감캡', 1000);
+  const powerLinePrice = getDBProductPrice('마그네틱 전원선', 16320);
+  const connectorPrice = getDBProductPrice('마그네틱 연결선', 18720);
+  const endcapPrice = getDBProductPrice('마그네틱 마감캡', 360);
   
   return [
-    { type: 'rail-2m', name: '마그네틱 레일 2M', price: 0, qty: n2, watt: 0, lumen: 0, typeLabel: '라인/마그네틱' },
-    { type: 'rail-3m', name: '마그네틱 레일 3M', price: 0, qty: n3, watt: 0, lumen: 0, typeLabel: '라인/마그네틱' },
+    { type: 'rail-2m', name: '마그네틱 레일 2M', price: 46560, qty: n2, watt: 0, lumen: 0, typeLabel: '라인/마그네틱' },
+    { type: 'rail-3m', name: '마그네틱 레일 3M', price: 70080, qty: n3, watt: 0, lumen: 0, typeLabel: '라인/마그네틱' },
     { type: 'magnetic-converter', name: '마그네틱 컨버터 150W (유니온)', price: convPrice, qty: 1, watt: 0, lumen: 0, typeLabel: '안정기 (SMPS)' },
     { type: 'magnetic-controller', name: '마그네틱 컨트롤러', price: ctrlPrice, qty: 1, watt: 0, lumen: 0, typeLabel: '컨트롤러' },
     { type: 'magnetic-connector', name: '마그네틱 연결선', price: connectorPrice, qty: nConn, watt: 0, lumen: 0, typeLabel: '부자재' },
