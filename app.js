@@ -707,6 +707,18 @@ function renderFixtureLibrary() {
   if (state.activeCategory === 'downlight' && state.activeSubCategory !== 'all') {
     filtered = filtered.filter(f => f.subCategory === state.activeSubCategory);
   }
+
+  // Filter out auto-assigned magnetic accessories from display
+  filtered = filtered.filter(f => {
+    const isAccessory = f.name && (
+      f.name.includes('마그네틱 전원선') || 
+      f.name.includes('마그네틱 마감캡') || 
+      f.name.includes('마그네틱 연결선') ||
+      f.name.includes('마그네틱 컨버터') ||
+      f.name.includes('마그네틱 컨트롤러')
+    );
+    return !isAccessory;
+  });
     
   filtered.forEach(item => {
     const isMagneticOrFixture = item.id === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57' || item.id === 'magnetic-rail' || (item.name && item.name.includes('마그네틱'));
@@ -2656,7 +2668,10 @@ function handleKeyDown(e) {
     
     let deletedSomething = false;
     if (state.selectedLightIds.length > 0) {
-      state.lights = state.lights.filter(l => !state.selectedLightIds.includes(l.id));
+      const targetLights = state.lights.filter(l => state.selectedLightIds.includes(l.id));
+      deleteRelatedLights(targetLights);
+      const targetIds = targetLights.map(l => l.id);
+      state.lights = state.lights.filter(l => !targetIds.includes(l.id));
       state.selectedLightIds = [];
       deletedSomething = true;
     } else if (state.selectedZoneId !== null) {
@@ -2682,7 +2697,10 @@ function handleKeyDown(e) {
   } else if (e.key === 'Escape') {
     let deletedSomething = false;
     if (state.selectedLightIds.length > 0) {
-      state.lights = state.lights.filter(l => !state.selectedLightIds.includes(l.id));
+      const targetLights = state.lights.filter(l => state.selectedLightIds.includes(l.id));
+      deleteRelatedLights(targetLights);
+      const targetIds = targetLights.map(l => l.id);
+      state.lights = state.lights.filter(l => !targetIds.includes(l.id));
       state.selectedLightIds = [];
       deletedSomething = true;
     } else if (state.selectedZoneId !== null) {
@@ -3489,14 +3507,39 @@ function renderBOMTable() {
   els.bomTableBody.appendChild(totalTr);
 }
 
+function deleteRelatedLights(lightsToDelete) {
+  const rails = lightsToDelete.filter(l => l.typeId === 'magnetic-rail' || l.typeId === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57');
+  if (rails.length > 0) {
+    const remainingLights = state.lights.filter(l => !lightsToDelete.some(dl => dl.id === l.id));
+    const modulesToDelete = remainingLights.filter(l => {
+      const spec = fixtureDatabase.find(f => f.id === l.typeId);
+      const isMagneticModule = spec && spec.category === 'linebar' && spec.name.includes('등기구');
+      if (isMagneticModule) {
+        return rails.some(r => {
+          const dist = distToSegment(l, { x: r.x, y: r.y }, { x: r.x2, y: r.y2 });
+          return dist <= 15;
+        });
+      }
+      return false;
+    });
+    lightsToDelete.push(...modulesToDelete);
+  }
+}
+
 // Global scope helper for deleting lights of a certain type
 window.deleteBOMFixture = function(typeId) {
   showConfirm("조명 삭제", "선택하신 모델의 모든 조명을 도면에서 삭제하시겠습니까?", () => {
+    let targetLights = [];
     if (typeId === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57' || typeId === 'magnetic-rail' || typeId === 'rail-2m' || typeId === 'rail-3m') {
-      state.lights = state.lights.filter(l => l.typeId !== 'fe1f7195-3630-49c0-8cda-f5ea732cfe57' && l.typeId !== 'magnetic-rail');
+      targetLights = state.lights.filter(l => l.typeId === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57' || l.typeId === 'magnetic-rail');
     } else {
-      state.lights = state.lights.filter(l => l.typeId !== typeId);
+      targetLights = state.lights.filter(l => l.typeId === typeId);
     }
+    
+    deleteRelatedLights(targetLights);
+    const targetIds = targetLights.map(l => l.id);
+    state.lights = state.lights.filter(l => !targetIds.includes(l.id));
+    
     state.selectedLightIds = [];
     recalculateAllZones();
     updateStats();
