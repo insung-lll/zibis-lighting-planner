@@ -345,10 +345,12 @@ function getMagneticRailBOM(lengthM) {
   const powerLinePrice = getDBProductPrice('마그네틱 전원선', 16320);
   const connectorPrice = getDBProductPrice('마그네틱 연결선', 18720);
   const endcapPrice = getDBProductPrice('마그네틱 마감캡', 360);
+  const rail2mPrice = getDBProductPrice('마그네틱 레일 2M', 46560);
+  const rail3mPrice = getDBProductPrice('마그네틱 레일 3M', 70080);
   
   return [
-    { type: 'rail-2m', name: '마그네틱 레일 2M', price: 46560, qty: n2, watt: 0, lumen: 0, typeLabel: '라인/마그네틱' },
-    { type: 'rail-3m', name: '마그네틱 레일 3M', price: 70080, qty: n3, watt: 0, lumen: 0, typeLabel: '라인/마그네틱' },
+    { type: 'rail-2m', name: '마그네틱 레일 2M', price: rail2mPrice, qty: n2, watt: 0, lumen: 0, typeLabel: '라인/마그네틱' },
+    { type: 'rail-3m', name: '마그네틱 레일 3M', price: rail3mPrice, qty: n3, watt: 0, lumen: 0, typeLabel: '라인/마그네틱' },
     { type: 'magnetic-converter', name: '마그네틱 컨버터 150W (유니온)', price: convPrice, qty: 1, watt: 0, lumen: 0, typeLabel: '안정기 (SMPS)' },
     { type: 'magnetic-controller', name: '마그네틱 컨트롤러', price: ctrlPrice, qty: 1, watt: 0, lumen: 0, typeLabel: '컨트롤러' },
     { type: 'magnetic-connector', name: '마그네틱 연결선', price: connectorPrice, qty: nConn, watt: 0, lumen: 0, typeLabel: '부자재' },
@@ -4303,10 +4305,13 @@ function loadProjectData(data) {
     state.uploadedImage = img;
     state.pixelsPerMeter = data.pixelsPerMeter || 50;
     state.ceilingHeight = data.ceilingHeight || 2.4;
-    // 불러온 조명의 price를 fixtureDatabase 최신 단가로 갱신
+    // 불러온 조명의 price 및 typeId를 fixtureDatabase 최신 단가 및 ID로 갱신
     state.lights = (data.lights || []).map(l => {
-      const spec = fixtureDatabase.find(f => f.id === l.typeId);
-      return spec ? { ...l, price: spec.price } : l;
+      let spec = fixtureDatabase.find(f => f.id === l.typeId);
+      if (!spec && l.name) {
+        spec = fixtureDatabase.find(f => f.name === l.name);
+      }
+      return spec ? { ...l, typeId: spec.id, price: spec.price } : l;
     });
     state.zones = data.zones || [];
     state.bomFilterZoneId = null;
