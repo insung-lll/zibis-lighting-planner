@@ -622,6 +622,12 @@ function mapSupabaseProduct(p) {
       length = null;
       lengthMM = null;
       widthMM = 24;
+    } else if (p.name && p.name.includes('등기구')) {
+      const match = p.name.match(/L(\d+)/);
+      const mm = match ? parseInt(match[1]) : 300;
+      length = mm;
+      lengthMM = mm;
+      widthMM = 22;
     } else {
       length = 5000;
       lengthMM = 5000;
@@ -1825,7 +1831,7 @@ function setupCanvasInteractions() {
         return;
       }
       const spec = fixtureDatabase.find(f => f.id === state.selectedFixtureId);
-      if (spec && (spec.category === 'linebar' || spec.icon === 'line' || spec.id.includes('gridslot') || spec.category === 'multi')) {
+      if (spec && (((spec.category === 'linebar' && !spec.name.includes('등기구')) || spec.icon === 'line' || spec.id.includes('gridslot') || spec.category === 'multi'))) {
         if (!state.isDrawingLinebar) {
           // FIRST CLICK: start drawing linebar
           state.isDrawingLinebar = true;
@@ -2372,10 +2378,56 @@ function placeLightAt(x, y) {
   const spec = fixtureDatabase.find(f => f.id === state.selectedFixtureId);
   if (!spec) return;
 
+  const isMagneticModule = spec.category === 'linebar' && spec.name.includes('등기구');
+  let finalX = x;
+  let finalY = y;
+  let rotation = 0;
+
+  if (isMagneticModule) {
+    let placedOnRail = false;
+    let targetRail = null;
+    
+    for (const l of state.lights) {
+      if (l.typeId === 'magnetic-rail' || l.typeId === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57') {
+        const dist = distToSegment({ x, y }, { x: l.x, y: l.y }, { x: l.x2, y: l.y2 });
+        if (dist <= 15) { // 15px snap tolerance
+          placedOnRail = true;
+          targetRail = l;
+          break;
+        }
+      }
+    }
+    
+    if (!placedOnRail) {
+      alert("마그네틱 레일에 설치해 주세요.");
+      return;
+    }
+    
+    if (targetRail) {
+      const p = { x, y };
+      const p1 = { x: targetRail.x, y: targetRail.y };
+      const p2 = { x: targetRail.x2, y: targetRail.y2 };
+      
+      const A = p.x - p1.x;
+      const B = p.y - p1.y;
+      const C = p2.x - p1.x;
+      const D = p2.y - p1.y;
+      
+      const dot = A * C + B * D;
+      const lenSq = C * C + D * D;
+      let param = lenSq !== 0 ? (dot / lenSq) : 0;
+      param = Math.max(0, Math.min(1, param));
+      
+      finalX = p1.x + param * C;
+      finalY = p1.y + param * D;
+      rotation = Math.atan2(D, C);
+    }
+  }
+
   const isOverlap = state.lights.some(l => {
     if (l.x2 === undefined && l.y2 === undefined) {
-      const dx = l.x - x;
-      const dy = l.y - y;
+      const dx = l.x - finalX;
+      const dy = l.y - finalY;
       return Math.sqrt(dx*dx + dy*dy) < 5;
     }
     return false;
@@ -2386,14 +2438,14 @@ function placeLightAt(x, y) {
     id: state.nextLightId++,
     typeId: spec.id,
     name: spec.name,
-    x: x,
-    y: y,
+    x: finalX,
+    y: finalY,
     watt: spec.watt,
     lumen: spec.lumen,
     color: spec.color,
     size: spec.size,
     price: spec.price,
-    rotation: 0
+    rotation: rotation
   };
 
   state.lights.push(newLight);
@@ -3662,29 +3714,66 @@ function renderLightsLayer() {
         ctx.stroke();
       }
     } else {
-      // Draw selection outer glow
-      const rs = getFixtureRenderSize(l.size);
-      if (isSelected) {
+      const spec = fixtureDatabase.find(f => f.id === l.typeId);
+      const isMagneticModule = spec && spec.category === 'linebar' && spec.name.includes('등기구');
+      
+      if (isMagneticModule) {
+        const lenPx = state.pixelsPerMeter > 0 ? ((spec.length || 300) / 1000) * state.pixelsPerMeter : 15;
+        const wPx = state.pixelsPerMeter > 0 ? (22 / 1000) * state.pixelsPerMeter : 4;
+        
+        ctx.save();
+        ctx.translate(l.x, l.y);
+        ctx.rotate(l.rotation || 0);
+        
+        // Selection glow
+        if (isSelected) {
+          ctx.beginPath();
+          ctx.rect(-lenPx / 2 - 3, -wPx / 2 - 3, lenPx + 6, wPx + 6);
+          ctx.fillStyle = 'rgba(242, 162, 0, 0.3)';
+          ctx.fill();
+        }
+        
+        // Body (black)
         ctx.beginPath();
-        ctx.arc(l.x, l.y, rs + 6, 0, 2 * Math.PI);
-        ctx.fillStyle = 'rgba(242, 162, 0, 0.3)';
+        ctx.rect(-lenPx / 2, -wPx / 2, lenPx, wPx);
+        ctx.fillStyle = '#1a1a1a';
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 4;
+        ctx.fill();
+        ctx.shadowBlur = 0; // reset
+        
+        // Emitting core
+        ctx.beginPath();
+        ctx.rect(-lenPx / 2 + 2, -wPx / 2 + 1, lenPx - 4, wPx - 2);
+        ctx.fillStyle = l.color || '#fff7e6';
+        ctx.fill();
+        
+        ctx.restore();
+      } else {
+        // Draw selection outer glow
+        const rs = getFixtureRenderSize(l.size);
+        if (isSelected) {
+          ctx.beginPath();
+          ctx.arc(l.x, l.y, rs + 6, 0, 2 * Math.PI);
+          ctx.fillStyle = 'rgba(242, 162, 0, 0.3)';
+          ctx.fill();
+        }
+
+        // Outer white rim
+        ctx.beginPath();
+        ctx.arc(l.x, l.y, rs / 2, 0, 2 * Math.PI);
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 6;
+        ctx.fill();
+
+        // Colored inner core
+        ctx.beginPath();
+        ctx.arc(l.x, l.y, rs / 2.5, 0, 2 * Math.PI);
+        ctx.fillStyle = l.color;
+        ctx.shadowBlur = 0;
         ctx.fill();
       }
-
-      // Outer white rim
-      ctx.beginPath();
-      ctx.arc(l.x, l.y, rs / 2, 0, 2 * Math.PI);
-      ctx.fillStyle = '#ffffff';
-      ctx.shadowColor = 'rgba(0,0,0,0.5)';
-      ctx.shadowBlur = 6;
-      ctx.fill();
-
-      // Colored inner core
-      ctx.beginPath();
-      ctx.arc(l.x, l.y, rs / 2.5, 0, 2 * Math.PI);
-      ctx.fillStyle = l.color;
-      ctx.shadowBlur = 0;
-      ctx.fill();
     }
   });
   ctx.restore();
