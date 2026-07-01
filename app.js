@@ -302,6 +302,11 @@ function getDBControllerPrice() {
   return match ? match.price : 35000; // fallback
 }
 
+function getDBProductPrice(namePattern, defaultPrice) {
+  const match = fixtureDatabase.find(f => f.name.includes(namePattern));
+  return match ? match.price : defaultPrice;
+}
+
 function getMagneticRailBOM(lengthM) {
   const ceilL = Math.ceil(lengthM);
   if (ceilL <= 0) return [];
@@ -313,13 +318,15 @@ function getMagneticRailBOM(lengthM) {
   
   const convPrice = getDBConverterPrice(150);
   const ctrlPrice = getDBControllerPrice();
+  const powerLinePrice = getDBProductPrice('마그네틱 전원선', 5000);
   
   return [
-    { type: 'rail-2m', name: '마그네틱 레일 2M', price: 26100, qty: n2m, watt: 0, lumen: 0, typeLabel: '라인/마그네틱' },
-    { type: 'rail-1m', name: '마그네틱 레일 1M', price: 13900, qty: n1m, watt: 0, lumen: 0, typeLabel: '라인/마그네틱' },
+    { type: 'rail-2m', name: '마그네틱 레일 2M', price: 0, qty: n2m, watt: 0, lumen: 0, typeLabel: '라인/마그네틱' },
+    { type: 'rail-1m', name: '마그네틱 레일 1M', price: 0, qty: n1m, watt: 0, lumen: 0, typeLabel: '라인/마그네틱' },
     { type: 'magnetic-converter', name: '마그네틱 컨버터 150W (유니온)', price: convPrice, qty: 1, watt: 0, lumen: 0, typeLabel: '안정기 (SMPS)' },
     { type: 'magnetic-controller', name: '마그네틱 컨트롤러', price: ctrlPrice, qty: 1, watt: 0, lumen: 0, typeLabel: '컨트롤러' },
     { type: 'magnetic-connector', name: '마그네틱 연결선', price: 5000, qty: nConn, watt: 0, lumen: 0, typeLabel: '부자재' },
+    { type: 'magnetic-powerline', name: '마그네틱 전원선', price: powerLinePrice, qty: 1, watt: 0, lumen: 0, typeLabel: '부자재' },
     { type: 'magnetic-endcap', name: '마그네틱 마감캡', price: 1000, qty: 1, watt: 0, lumen: 0, typeLabel: '부자재' }
   ].filter(item => item.qty > 0);
 }
@@ -392,7 +399,7 @@ const state = {
   dragOffsetY: 0,
   
   // Snap & hover
-  snapEnabled: true,
+  snapEnabled: false,
   hoveredZoneId: null,
 
   // Interaction previews
@@ -2850,37 +2857,44 @@ function recalculateAllZones() {
       zone.averageLux = 0;
     }
     
-    // Auto calculate SMPS & Controllers
-    const effectiveWatt = totalWatt > 0 ? totalWatt : 1; // force at least 60W SMPS if totalWatt is 0
-    zone.requiredSMPS = calculateRequiredSMPS(effectiveWatt);
+    // Auto calculate SMPS & Controllers (Exception: only magnetic rails inside zone)
+    const hasOnlyMagneticRails = insideLights.length > 0 && insideLights.every(l => l.typeId === 'magnetic-rail' || l.typeId === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57');
     
-    const uniqueCategories = [...new Set(insideLights.map(l => {
-      const spec = fixtureDatabase.find(f => f.id === l.typeId);
-      return spec ? spec.category : null;
-    }).filter(Boolean))];
-    
-    let categoriesToDistribute = uniqueCategories;
-    if (categoriesToDistribute.length === 0) {
-      categoriesToDistribute = ['downlight']; // default to downlight if no lights are placed
-    }
-    
-    const S = zone.switchCount || 1;
-    const distributed = {};
-    categoriesToDistribute.forEach(cat => { distributed[cat] = 0; });
-    for (let i = 0; i < S; i++) {
-      const cat = categoriesToDistribute[i % categoriesToDistribute.length];
-      distributed[cat]++;
-    }
-    zone.requiredControllers = [];
-    categoriesToDistribute.forEach(cat => {
-      const qty = distributed[cat];
-      if (qty > 0) {
-        let name = '컨트롤러';
-        if (name) {
-          zone.requiredControllers.push({ name, qty });
-        }
+    if (hasOnlyMagneticRails) {
+      zone.requiredSMPS = [];
+      zone.requiredControllers = [];
+    } else {
+      const effectiveWatt = totalWatt > 0 ? totalWatt : 1; // force at least 60W SMPS if totalWatt is 0
+      zone.requiredSMPS = calculateRequiredSMPS(effectiveWatt);
+      
+      const uniqueCategories = [...new Set(insideLights.map(l => {
+        const spec = fixtureDatabase.find(f => f.id === l.typeId);
+        return spec ? spec.category : null;
+      }).filter(Boolean))];
+      
+      let categoriesToDistribute = uniqueCategories;
+      if (categoriesToDistribute.length === 0) {
+        categoriesToDistribute = ['downlight']; // default to downlight if no lights are placed
       }
-    });
+      
+      const S = zone.switchCount || 1;
+      const distributed = {};
+      categoriesToDistribute.forEach(cat => { distributed[cat] = 0; });
+      for (let i = 0; i < S; i++) {
+        const cat = categoriesToDistribute[i % categoriesToDistribute.length];
+        distributed[cat]++;
+      }
+      zone.requiredControllers = [];
+      categoriesToDistribute.forEach(cat => {
+        const qty = distributed[cat];
+        if (qty > 0) {
+          let name = '컨트롤러';
+          if (name) {
+            zone.requiredControllers.push({ name, qty });
+          }
+        }
+      });
+    }
   });
   
   renderZonePanel();
