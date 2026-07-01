@@ -3164,7 +3164,22 @@ function renderBOMTable() {
   // Group lights by typeId
   const groups = {};
   filteredLights.forEach(l => {
-    if (l.typeId === 'magnetic-rail' || l.typeId === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57') {
+    const isMagRail = l.typeId === 'magnetic-rail' || l.typeId === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57';
+    if (isMagRail) {
+      const mainId = 'fe1f7195-3630-49c0-8cda-f5ea732cfe57';
+      if (!groups[mainId]) {
+        groups[mainId] = {
+          name: '마그네틱 레일',
+          category: 'linebar',
+          watt: 0,
+          lumen: 0,
+          price: 0,
+          qty: 0,
+          isLinebar: true
+        };
+      }
+      groups[mainId].qty++;
+
       const dx = l.x2 - l.x;
       const dy = l.y2 - l.y;
       const lenPx = Math.sqrt(dx*dx + dy*dy);
@@ -3258,7 +3273,9 @@ function renderBOMTable() {
       <td>${g.qty}개</td>
       <td><strong>₩${cost.toLocaleString()}</strong></td>
       <td>
-        <button class="btn" style="height:28px; padding:0 8px; font-size:10px; background-color:var(--danger); border-color:var(--danger); color:#fff;" onclick="deleteBOMFixture('${typeId}')">삭제</button>
+        ${['rail-2m', 'rail-3m', 'magnetic-converter', 'magnetic-controller', 'magnetic-connector', 'magnetic-powerline', 'magnetic-endcap'].includes(typeId)
+          ? `<span style="font-size:11px;color:var(--text-dim);">자동 배정</span>`
+          : `<button class="btn" style="height:28px; padding:0 8px; font-size:10px; background-color:var(--danger); border-color:var(--danger); color:#fff;" onclick="deleteBOMFixture('${typeId}')">삭제</button>`}
       </td>
     `;
     els.bomTableBody.appendChild(tr);
@@ -3337,7 +3354,11 @@ function renderBOMTable() {
 // Global scope helper for deleting lights of a certain type
 window.deleteBOMFixture = function(typeId) {
   showConfirm("조명 삭제", "선택하신 모델의 모든 조명을 도면에서 삭제하시겠습니까?", () => {
-    state.lights = state.lights.filter(l => l.typeId !== typeId);
+    if (typeId === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57' || typeId === 'magnetic-rail') {
+      state.lights = state.lights.filter(l => l.typeId !== 'fe1f7195-3630-49c0-8cda-f5ea732cfe57' && l.typeId !== 'magnetic-rail');
+    } else {
+      state.lights = state.lights.filter(l => l.typeId !== typeId);
+    }
     state.selectedLightIds = [];
     recalculateAllZones();
     updateStats();
