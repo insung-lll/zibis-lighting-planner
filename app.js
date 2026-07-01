@@ -1833,6 +1833,14 @@ function setupCanvasInteractions() {
         return;
       }
       const spec = fixtureDatabase.find(f => f.id === state.selectedFixtureId);
+      
+      // Verify start point is inside a zone
+      const isInside = state.zones.some(z => isPointInPolygon(pt, z.points));
+      if (!isInside) {
+        alert("공간 구획 내부 영역에만 설치가 가능합니다.");
+        return;
+      }
+
       if (spec && (((spec.category === 'linebar' && !spec.name.includes('등기구')) || spec.icon === 'line' || spec.id.includes('gridslot') || spec.category === 'multi'))) {
         if (!state.isDrawingLinebar) {
           // FIRST CLICK: start drawing linebar
@@ -1841,6 +1849,11 @@ function setupCanvasInteractions() {
           state.linebarEnd = { x: pt.x, y: pt.y };
         } else {
           // SECOND CLICK: finalize and place linebar
+          const endInside = state.zones.some(z => isPointInPolygon({ x: state.linebarEnd.x, y: state.linebarEnd.y }, z.points));
+          if (!endInside) {
+            alert("공간 구획 내부 영역에만 설치가 가능합니다.");
+            return;
+          }
           const dx = state.linebarEnd.x - state.linebarStart.x;
           const dy = state.linebarEnd.y - state.linebarStart.y;
           const len = Math.sqrt(dx*dx + dy*dy);
@@ -2451,6 +2464,14 @@ function placeLightAt(x, y) {
     }, 50);
     return;
   }
+  
+  // Verify click point is inside a zone
+  const isInside = state.zones.some(z => isPointInPolygon({ x, y }, z.points));
+  if (!isInside) {
+    alert("공간 구획 내부 영역에만 설치가 가능합니다.");
+    return;
+  }
+
   const spec = fixtureDatabase.find(f => f.id === state.selectedFixtureId);
   if (!spec) return;
 
