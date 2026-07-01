@@ -291,6 +291,17 @@ let fixtureDatabase = [
   }
 ];
 
+function getDBConverterPrice(watt) {
+  const w = parseInt(watt, 10);
+  const match = fixtureDatabase.find(f => f.category === 'converter' && f.name.includes(`${w}W`));
+  return match ? match.price : (w === 36 ? 24500 : (w === 60 ? 30100 : 44100)); // fallback
+}
+
+function getDBControllerPrice() {
+  const match = fixtureDatabase.find(f => f.category === 'controller' || f.name.includes('컨트롤러'));
+  return match ? match.price : 35000; // fallback
+}
+
 function getMagneticRailBOM(lengthM) {
   const ceilL = Math.ceil(lengthM);
   if (ceilL <= 0) return [];
@@ -300,11 +311,14 @@ function getMagneticRailBOM(lengthM) {
   const totalRails = n2m + n1m;
   const nConn = Math.max(0, totalRails - 1);
   
+  const convPrice = getDBConverterPrice(150);
+  const ctrlPrice = getDBControllerPrice();
+  
   return [
     { type: 'rail-2m', name: '마그네틱 레일 2M', price: 26100, qty: n2m, watt: 0, lumen: 0, typeLabel: '라인/마그네틱' },
     { type: 'rail-1m', name: '마그네틱 레일 1M', price: 13900, qty: n1m, watt: 0, lumen: 0, typeLabel: '라인/마그네틱' },
-    { type: 'magnetic-converter', name: '마그네틱 컨버터 150W (유니온)', price: 44100, qty: 1, watt: 0, lumen: 0, typeLabel: '안정기 (SMPS)' },
-    { type: 'magnetic-controller', name: '마그네틱 컨트롤러', price: 35000, qty: 1, watt: 0, lumen: 0, typeLabel: '컨트롤러' },
+    { type: 'magnetic-converter', name: '마그네틱 컨버터 150W (유니온)', price: convPrice, qty: 1, watt: 0, lumen: 0, typeLabel: '안정기 (SMPS)' },
+    { type: 'magnetic-controller', name: '마그네틱 컨트롤러', price: ctrlPrice, qty: 1, watt: 0, lumen: 0, typeLabel: '컨트롤러' },
     { type: 'magnetic-connector', name: '마그네틱 연결선', price: 5000, qty: nConn, watt: 0, lumen: 0, typeLabel: '부자재' },
     { type: 'magnetic-endcap', name: '마그네틱 마감캡', price: 1000, qty: 1, watt: 0, lumen: 0, typeLabel: '부자재' }
   ].filter(item => item.qty > 0);
@@ -3182,8 +3196,7 @@ function renderBOMTable() {
   
   // 2. Render automatically calculated SMPS and Controllers per zone
   const getSMPSPrice = (cap) => {
-    const c = parseInt(cap, 10);
-    return c === 36 ? 24500 : (c === 60 ? 30100 : (c === 150 ? 44100 : 0));
+    return getDBConverterPrice(cap);
   };
 
   filteredZones.forEach(zone => {
@@ -3221,7 +3234,7 @@ function renderBOMTable() {
         const tr = document.createElement('tr');
         const name = typeof ctrl === 'string' ? ctrl : ctrl.name;
         const qty = typeof ctrl === 'string' ? 1 : ctrl.qty;
-        const ctrlPrice = 35000;
+        const ctrlPrice = getDBControllerPrice();
         const ctrlCost = ctrlPrice * qty;
         totalCost += ctrlCost;
         
@@ -4276,7 +4289,7 @@ async function exportToExcel() {
       Object.entries(smpsCounts).forEach(([cap, qty]) => {
         const capNum = parseInt(cap, 10);
         const smpsId = `smps-${capNum}`;
-        const smpsPrice = capNum === 36 ? 24500 : (capNum === 60 ? 30100 : (capNum === 150 ? 44100 : 0));
+        const smpsPrice = getDBConverterPrice(capNum);
         if (!allProducts[smpsId]) {
           allProducts[smpsId] = {
             name: `컨버터 ${capNum}W IoT`,
@@ -4301,7 +4314,7 @@ async function exportToExcel() {
             name: ctrlName,
             type: '컨트롤러',
             color: null,
-            price: 35000,
+            price: getDBControllerPrice(),
             qty: 0,
             isLine: false
           };
@@ -4612,7 +4625,7 @@ async function exportToExcel() {
         row.height = 22;
         
         const capNum = parseInt(cap, 10);
-        const smpsPrice = capNum === 36 ? 24500 : (capNum === 60 ? 30100 : (capNum === 150 ? 44100 : 0));
+        const smpsPrice = getDBConverterPrice(capNum);
         const smpsCost = smpsPrice * qty;
         totalCost += smpsCost;
         
@@ -4638,7 +4651,7 @@ async function exportToExcel() {
         
         const ctrlName = typeof ctrl === 'string' ? ctrl : ctrl.name;
         const qty = typeof ctrl === 'string' ? 1 : ctrl.qty;
-        const ctrlPrice = 35000;
+        const ctrlPrice = getDBControllerPrice();
         const ctrlCost = ctrlPrice * qty;
         totalCost += ctrlCost;
         
