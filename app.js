@@ -699,6 +699,7 @@ function renderFixtureLibrary() {
   }
     
   filtered.forEach(item => {
+    const isMagnetic = item.id === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57' || item.id === 'magnetic-rail' || (item.name && item.name.includes('마그네틱 레일'));
     const card = document.createElement('div');
     card.className = 'fixture-card';
     if (state.selectedFixtureId === item.id) {
@@ -721,9 +722,9 @@ function renderFixtureLibrary() {
           <span class="spec-color-dot" style="background-color: ${item.color};"></span>
           <span>${item.watt}W</span>
           ${item.lumen ? `<span>${item.lumen} lm</span>` : ''}
-          ${item.beam ? `<span>${item.beam}°</span>` : ''}
+          ${(item.beam && !isMagnetic) ? `<span>${item.beam}°</span>` : ''}
           ${item.inch ? `<span>${item.inch}</span>` : ''}
-          ${item.category === 'linebar' ? '<span>1m 기준</span>' : (item.length ? `<span>${item.length/1000}m</span>` : '')}
+          ${(item.category === 'linebar' && !isMagnetic) ? '<span>1m 기준</span>' : ((item.length && !isMagnetic) ? `<span>${item.length/1000}m</span>` : '')}
         </div>
         ${item.link ? `
         <div class="fixture-link-wrapper" style="margin-top: 6px;">
