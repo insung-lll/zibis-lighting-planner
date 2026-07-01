@@ -615,11 +615,18 @@ function mapSupabaseProduct(p) {
     widthMM = 30;
     length = lengthMM;
   }
-  // 라인바 전용 필드
+  // 라인바 전용 필드 (마그네틱 레일은 길이 제한 해제)
   if (cat === 'linebar') {
-    length = 5000;
-    lengthMM = 5000;
-    widthMM = 10;
+    const isMagnetic = (p.name && p.name.includes('마그네틱 레일')) || p.id === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57' || p.id === 'magnetic-rail';
+    if (isMagnetic) {
+      length = null;
+      lengthMM = null;
+      widthMM = 24;
+    } else {
+      length = 5000;
+      lengthMM = 5000;
+      widthMM = 10;
+    }
   }
 
   return {
@@ -1852,25 +1859,38 @@ function setupCanvasInteractions() {
               calculatedLumen = Math.round(lengthM * specCur.lumen);
             }
             
-            const newLight = {
-              id: state.nextLightId++,
-              typeId: specCur.id,
-              name: specCur.name,
-              x: state.linebarStart.x,
-              y: state.linebarStart.y,
-              x2: ex,
-              y2: ey,
-              watt: calculatedWatt,
-              lumen: calculatedLumen,
-              color: specCur.color,
-              size: specCur.size,
-              price: specCur.price,
-              rotation: 0
-            };
-            state.lights.push(newLight);
-            recalculateAllZones();
-            updateStats();
-            saveStateToHistory();
+            const isOverlap = state.lights.some(l => {
+              if (l.x2 !== undefined && l.y2 !== undefined) {
+                const dStart = Math.sqrt((l.x - state.linebarStart.x)**2 + (l.y - state.linebarStart.y)**2);
+                const dEnd = Math.sqrt((l.x2 - ex)**2 + (l.y2 - ey)**2);
+                const dStartRev = Math.sqrt((l.x - ex)**2 + (l.y - state.linebarStart.y)**2);
+                const dEndRev = Math.sqrt((l.x2 - state.linebarStart.x)**2 + (l.y2 - ey)**2);
+                return (dStart < 5 && dEnd < 5) || (dStartRev < 5 && dEndRev < 5);
+              }
+              return false;
+            });
+            
+            if (!isOverlap) {
+              const newLight = {
+                id: state.nextLightId++,
+                typeId: specCur.id,
+                name: specCur.name,
+                x: state.linebarStart.x,
+                y: state.linebarStart.y,
+                x2: ex,
+                y2: ey,
+                watt: calculatedWatt,
+                lumen: calculatedLumen,
+                color: specCur.color,
+                size: specCur.size,
+                price: specCur.price,
+                rotation: 0
+              };
+              state.lights.push(newLight);
+              recalculateAllZones();
+              updateStats();
+              saveStateToHistory();
+            }
           }
           state.isDrawingLinebar = false;
           state.linebarStart = null;
@@ -2350,6 +2370,16 @@ function placeLightAt(x, y) {
   }
   const spec = fixtureDatabase.find(f => f.id === state.selectedFixtureId);
   if (!spec) return;
+
+  const isOverlap = state.lights.some(l => {
+    if (l.x2 === undefined && l.y2 === undefined) {
+      const dx = l.x - x;
+      const dy = l.y - y;
+      return Math.sqrt(dx*dx + dy*dy) < 5;
+    }
+    return false;
+  });
+  if (isOverlap) return;
 
   const newLight = {
     id: state.nextLightId++,
