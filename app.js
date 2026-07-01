@@ -548,8 +548,14 @@ function mapSupabaseProduct(p) {
     if (beam !== null && beam <= 24) { subCategory = 'spot'; icon = 'spot'; color = '#FF9500'; }
     else if (beam !== null && beam >= 60) { subCategory = 'diffused'; icon = 'diffused'; color = '#FFCC00'; }
     else { subCategory = 'deep'; icon = 'spot'; color = '#FF9500'; }
-  } else if (cat === 'linebar') { icon = 'line'; color = '#4CD964'; }
-  else if (cat === 'multi') { icon = 'multi'; color = '#7F00FF'; }
+  } else if (cat === 'linebar') {
+    icon = 'line';
+    if ((p.name && p.name.includes('마그네틱 레일')) || p.id === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57' || p.id === 'magnetic-rail') {
+      color = '#8B5A2B'; // Brown color for magnetic rail
+    } else {
+      color = '#4CD964';
+    }
+  } else if (cat === 'multi') { icon = 'multi'; color = '#7F00FF'; }
   else if (cat === 'converter' || cat === 'controller') { icon = 'converter'; color = '#8E8E93'; }
   else if (cat === 'etc') { icon = 'spot'; color = '#FF9500'; }
 
@@ -3538,12 +3544,17 @@ function renderLightsLayer() {
           ctx.stroke();
         }
         
+        
         // 2. Draw line bar (outer white border)
+        const isMagnetic = l.typeId === 'magnetic-rail' || l.typeId === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57';
+        const outerW = isMagnetic ? 5 : 8;
+        const innerW = isMagnetic ? 2.5 : 4;
+        
         ctx.beginPath();
         ctx.moveTo(l.x, l.y);
         ctx.lineTo(l.x2, l.y2);
         ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 8;
+        ctx.lineWidth = outerW;
         ctx.lineCap = 'round';
         ctx.shadowColor = 'rgba(0,0,0,0.5)';
         ctx.shadowBlur = 6;
@@ -3554,7 +3565,7 @@ function renderLightsLayer() {
         ctx.moveTo(l.x, l.y);
         ctx.lineTo(l.x2, l.y2);
         ctx.strokeStyle = l.color;
-        ctx.lineWidth = 4;
+        ctx.lineWidth = innerW;
         ctx.lineCap = 'round';
         ctx.shadowBlur = 0; // reset shadow
         ctx.stroke();
@@ -3680,11 +3691,15 @@ function renderInteractionLayer() {
       ctx.fillText(`${spec.lengthMM}×${spec.widthMM}mm`, midX, midY - 12);
       ctx.restore();
     } else {
+      const isMagnetic = state.selectedFixtureId === 'magnetic-rail' || state.selectedFixtureId === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57';
+      const outerW = isMagnetic ? 5 : 8;
+      const innerW = isMagnetic ? 2.5 : 4;
+
       ctx.beginPath();
       ctx.moveTo(state.linebarStart.x, state.linebarStart.y);
       ctx.lineTo(state.linebarEnd.x, state.linebarEnd.y);
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 8;
+      ctx.lineWidth = outerW;
       ctx.lineCap = 'round';
       ctx.stroke();
       
@@ -3692,7 +3707,7 @@ function renderInteractionLayer() {
       ctx.moveTo(state.linebarStart.x, state.linebarStart.y);
       ctx.lineTo(state.linebarEnd.x, state.linebarEnd.y);
       ctx.strokeStyle = spec ? spec.color : '#22cc22';
-      ctx.lineWidth = 4;
+      ctx.lineWidth = innerW;
       ctx.lineCap = 'round';
       ctx.stroke();
       
