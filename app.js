@@ -3340,7 +3340,7 @@ function renderBOMTable() {
 // Global scope helper for deleting lights of a certain type
 window.deleteBOMFixture = function(typeId) {
   showConfirm("조명 삭제", "선택하신 모델의 모든 조명을 도면에서 삭제하시겠습니까?", () => {
-    if (typeId === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57' || typeId === 'magnetic-rail') {
+    if (typeId === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57' || typeId === 'magnetic-rail' || typeId === 'rail-2m' || typeId === 'rail-3m') {
       state.lights = state.lights.filter(l => l.typeId !== 'fe1f7195-3630-49c0-8cda-f5ea732cfe57' && l.typeId !== 'magnetic-rail');
     } else {
       state.lights = state.lights.filter(l => l.typeId !== typeId);
