@@ -3832,19 +3832,19 @@ function renderLightsLayer() {
           ctx.fill();
         }
         
-        // Body (black)
+        // Body (blue)
         ctx.beginPath();
         ctx.rect(-lenPx / 2, -wPx / 2, lenPx, wPx);
-        ctx.fillStyle = '#1a1a1a';
+        ctx.fillStyle = l.color || '#007AFF';
         ctx.shadowColor = 'rgba(0,0,0,0.5)';
         ctx.shadowBlur = 4;
         ctx.fill();
         ctx.shadowBlur = 0; // reset
         
-        // Emitting core
+        // Emitting core (white)
         ctx.beginPath();
-        ctx.rect(-lenPx / 2 + 2, -wPx / 2 + 1, lenPx - 4, wPx - 2);
-        ctx.fillStyle = l.color || '#fff7e6';
+        ctx.rect(-lenPx / 2 + 2, -wPx / 2 + 1.5, lenPx - 4, wPx - 3);
+        ctx.fillStyle = '#ffffff';
         ctx.fill();
         
         ctx.restore();
