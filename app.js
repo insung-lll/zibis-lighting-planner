@@ -599,6 +599,8 @@ function mapSupabaseProduct(p) {
     icon = 'line';
     if ((p.name && p.name.includes('마그네틱 레일')) || p.id === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57' || p.id === 'magnetic-rail') {
       color = '#8B5A2B'; // Brown color for magnetic rail
+    } else if (p.name && p.name.includes('등기구')) {
+      color = '#007AFF'; // Blue for magnetic fixtures
     } else {
       color = '#4CD964';
     }
@@ -705,7 +707,7 @@ function renderFixtureLibrary() {
   }
     
   filtered.forEach(item => {
-    const isMagnetic = item.id === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57' || item.id === 'magnetic-rail' || (item.name && item.name.includes('마그네틱 레일'));
+    const isMagneticOrFixture = item.id === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57' || item.id === 'magnetic-rail' || (item.name && item.name.includes('마그네틱'));
     const card = document.createElement('div');
     card.className = 'fixture-card';
     if (state.selectedFixtureId === item.id) {
@@ -728,9 +730,9 @@ function renderFixtureLibrary() {
           <span class="spec-color-dot" style="background-color: ${item.color};"></span>
           <span>${item.watt}W</span>
           ${item.lumen ? `<span>${item.lumen} lm</span>` : ''}
-          ${(item.beam && !isMagnetic) ? `<span>${item.beam}°</span>` : ''}
+          ${(item.beam && !isMagneticOrFixture) ? `<span>${item.beam}°</span>` : ''}
           ${item.inch ? `<span>${item.inch}</span>` : ''}
-          ${(item.category === 'linebar' && !isMagnetic) ? '<span>1m 기준</span>' : ((item.length && !isMagnetic) ? `<span>${item.length/1000}m</span>` : '')}
+          ${(item.category === 'linebar' && !isMagneticOrFixture) ? '<span>1m 기준</span>' : ((item.length && !isMagneticOrFixture) ? `<span>${item.length/1000}m</span>` : '')}
         </div>
         ${item.link ? `
         <div class="fixture-link-wrapper" style="margin-top: 6px;">
@@ -1961,13 +1963,52 @@ function setupCanvasInteractions() {
     // Place tool: compute snap for point fixtures (not linebar)
     if (state.activeTool === 'place' && state.selectedFixtureId && !state.isDrawingLinebar) {
       const spec = fixtureDatabase.find(f => f.id === state.selectedFixtureId);
-      if (spec && spec.category !== 'linebar' && spec.icon !== 'line') {
-        const zone = state.zones.find(z => isPointInPolygon(pt, z.points));
-        if (zone) {
-          const zoneLights = state.lights.filter(l => isLightInPolygon(l, zone.points));
-          const snap = getPlacementSnap(pt, zoneLights);
-          state.ghostCursor = { x: snap.x, y: snap.y };
-          state.snapGuides = snap.guides;
+      if (spec) {
+        const isMagneticModule = spec.category === 'linebar' && spec.name.includes('등기구');
+        if (isMagneticModule) {
+          let nearestRail = null;
+          let minDistance = Infinity;
+          
+          for (const l of state.lights) {
+            if (l.typeId === 'magnetic-rail' || l.typeId === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57') {
+              const dist = distToSegment(pt, { x: l.x, y: l.y }, { x: l.x2, y: l.y2 });
+              if (dist < minDistance) {
+                minDistance = dist;
+                nearestRail = l;
+              }
+            }
+          }
+          
+          if (nearestRail && minDistance <= 30) {
+            const p1 = { x: nearestRail.x, y: nearestRail.y };
+            const p2 = { x: nearestRail.x2, y: nearestRail.y2 };
+            const A = pt.x - p1.x;
+            const B = pt.y - p1.y;
+            const C = p2.x - p1.x;
+            const D = p2.y - p1.y;
+            const lenSq = C * C + D * D;
+            let param = lenSq !== 0 ? (A * C + B * D) / lenSq : 0;
+            param = Math.max(0, Math.min(1, param));
+            
+            state.ghostCursor = {
+              x: p1.x + param * C,
+              y: p1.y + param * D
+            };
+            state.ghostCursorRotation = Math.atan2(D, C);
+            state.ghostCursorOnRail = true;
+          } else {
+            state.ghostCursor = pt;
+            state.ghostCursorRotation = 0;
+            state.ghostCursorOnRail = false;
+          }
+        } else if (spec.category !== 'linebar' && spec.icon !== 'line') {
+          const zone = state.zones.find(z => isPointInPolygon(pt, z.points));
+          if (zone) {
+            const zoneLights = state.lights.filter(l => isLightInPolygon(l, zone.points));
+            const snap = getPlacementSnap(pt, zoneLights);
+            state.ghostCursor = { x: snap.x, y: snap.y };
+            state.snapGuides = snap.guides;
+          }
         }
       }
     }
@@ -2005,15 +2046,50 @@ function setupCanvasInteractions() {
         const dx = pt.x - state.dragOffsetX - mainLight.x;
         const dy = pt.y - state.dragOffsetY - mainLight.y;
         
-        // drag all selected
+        // drag all selected (restricting magnetic module fixtures to slide along the nearest rail)
         state.selectedLightIds.forEach(id => {
           const l = state.lights.find(lt => lt.id === id);
           if (l) {
-            l.x += dx;
-            l.y += dy;
-            if (l.x2 !== undefined && l.y2 !== undefined) {
-              l.x2 += dx;
-              l.y2 += dy;
+            const spec = fixtureDatabase.find(f => f.id === l.typeId);
+            const isMagneticModule = spec && spec.category === 'linebar' && spec.name.includes('등기구');
+            
+            if (isMagneticModule) {
+              let nearestRail = null;
+              let minDistance = Infinity;
+              const dragPt = { x: pt.x - state.dragOffsetX, y: pt.y - state.dragOffsetY };
+              
+              for (const r of state.lights) {
+                if (r.typeId === 'magnetic-rail' || r.typeId === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57') {
+                  const dist = distToSegment(dragPt, { x: r.x, y: r.y }, { x: r.x2, y: r.y2 });
+                  if (dist < minDistance) {
+                    minDistance = dist;
+                    nearestRail = r;
+                  }
+                }
+              }
+              
+              if (nearestRail && minDistance <= 30) {
+                const p1 = { x: nearestRail.x, y: nearestRail.y };
+                const p2 = { x: nearestRail.x2, y: nearestRail.y2 };
+                const A = dragPt.x - p1.x;
+                const B = dragPt.y - p1.y;
+                const C = p2.x - p1.x;
+                const D = p2.y - p1.y;
+                const lenSq = C * C + D * D;
+                let param = lenSq !== 0 ? (A * C + B * D) / lenSq : 0;
+                param = Math.max(0, Math.min(1, param));
+                
+                l.x = p1.x + param * C;
+                l.y = p1.y + param * D;
+                l.rotation = Math.atan2(D, C);
+              }
+            } else {
+              l.x += dx;
+              l.y += dy;
+              if (l.x2 !== undefined && l.y2 !== undefined) {
+                l.x2 += dx;
+                l.y2 += dy;
+              }
             }
           }
         });
