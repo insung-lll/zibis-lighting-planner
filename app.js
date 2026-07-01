@@ -311,9 +311,33 @@ function getMagneticRailBOM(lengthM) {
   const ceilL = Math.ceil(lengthM);
   if (ceilL <= 0) return [];
   
-  const n2m = Math.floor(ceilL / 2);
-  const n1m = ceilL % 2;
-  const totalRails = n2m + n1m;
+  let n2 = 0;
+  let n3 = 0;
+  let minRails = Infinity;
+  let minLength = Infinity;
+  
+  for (let c3 = 0; c3 <= Math.ceil(ceilL / 3) + 1; c3++) {
+    for (let c2 = 0; c2 <= Math.ceil(ceilL / 2) + 1; c2++) {
+      const totalLen = c2 * 2 + c3 * 3;
+      if (totalLen >= ceilL) {
+        const totalRails = c2 + c3;
+        if (totalRails < minRails) {
+          minRails = totalRails;
+          minLength = totalLen;
+          n2 = c2;
+          n3 = c3;
+        } else if (totalRails === minRails) {
+          if (totalLen < minLength) {
+            minLength = totalLen;
+            n2 = c2;
+            n3 = c3;
+          }
+        }
+      }
+    }
+  }
+  
+  const totalRails = n2 + n3;
   const nConn = Math.max(0, totalRails - 1);
   
   const convPrice = getDBConverterPrice(150);
@@ -323,8 +347,8 @@ function getMagneticRailBOM(lengthM) {
   const endcapPrice = getDBProductPrice('마그네틱 마감캡', 1000);
   
   return [
-    { type: 'rail-2m', name: '마그네틱 레일 2M', price: 0, qty: n2m, watt: 0, lumen: 0, typeLabel: '라인/마그네틱' },
-    { type: 'rail-1m', name: '마그네틱 레일 1M', price: 0, qty: n1m, watt: 0, lumen: 0, typeLabel: '라인/마그네틱' },
+    { type: 'rail-2m', name: '마그네틱 레일 2M', price: 0, qty: n2, watt: 0, lumen: 0, typeLabel: '라인/마그네틱' },
+    { type: 'rail-3m', name: '마그네틱 레일 3M', price: 0, qty: n3, watt: 0, lumen: 0, typeLabel: '라인/마그네틱' },
     { type: 'magnetic-converter', name: '마그네틱 컨버터 150W (유니온)', price: convPrice, qty: 1, watt: 0, lumen: 0, typeLabel: '안정기 (SMPS)' },
     { type: 'magnetic-controller', name: '마그네틱 컨트롤러', price: ctrlPrice, qty: 1, watt: 0, lumen: 0, typeLabel: '컨트롤러' },
     { type: 'magnetic-connector', name: '마그네틱 연결선', price: connectorPrice, qty: nConn, watt: 0, lumen: 0, typeLabel: '부자재' },
