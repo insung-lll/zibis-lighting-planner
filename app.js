@@ -2384,15 +2384,24 @@ function distToSegment(p, v, w) {
 }
 
 function findLightAt(x, y) {
-  return state.lights.find(l => {
-    if (l.x2 !== undefined && l.y2 !== undefined) {
-      return distToSegment({ x, y }, { x: l.x, y: l.y }, { x: l.x2, y: l.y2 }) <= 12;
-    } else {
+  // 1. Prioritize point lights (fixtures placed on rails)
+  const pointLight = state.lights.slice().reverse().find(l => {
+    if (l.x2 === undefined || l.y2 === undefined) {
       const dx = l.x - x;
       const dy = l.y - y;
       const dist = Math.sqrt(dx*dx + dy*dy);
-      return dist <= Math.max(15, getFixtureRenderSize(l.size)); // 선택 클릭 영역은 최소 15px 반경 보장
+      return dist <= Math.max(15, getFixtureRenderSize(l.size));
     }
+    return false;
+  });
+  if (pointLight) return pointLight;
+
+  // 2. Fallback to line lights (rails)
+  return state.lights.slice().reverse().find(l => {
+    if (l.x2 !== undefined && l.y2 !== undefined) {
+      return distToSegment({ x, y }, { x: l.x, y: l.y }, { x: l.x2, y: l.y2 }) <= 12;
+    }
+    return false;
   });
 }
 
