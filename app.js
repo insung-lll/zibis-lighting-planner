@@ -2055,7 +2055,18 @@ function setupCanvasInteractions() {
     if (hoveredLight) {
       const spec = fixtureDatabase.find(f => f.id === hoveredLight.typeId);
       if (spec) {
-        els.lightTooltip.innerHTML = `<strong>${hoveredLight.name}</strong><br><span style="color:var(--text-dim);">${spec.model} | ${hoveredLight.watt}W | ${hoveredLight.lumen}lm | ${spec.beam}°</span>`;
+        const imgHTML = spec.image
+          ? `<img src="${spec.image}" style="width:36px; height:36px; object-fit:contain; border-radius:4px; margin-right:8px; border:1px solid var(--border); background:#fff;">`
+          : '';
+        els.lightTooltip.innerHTML = `
+          <div style="display:flex; align-items:center;">
+            ${imgHTML}
+            <div>
+              <strong style="font-size:12px; color:var(--text);">${hoveredLight.name}</strong><br>
+              <span style="font-size:10px; color:var(--text-dim);">${spec.model || ''} | ${hoveredLight.watt}W${hoveredLight.lumen ? ` | ${hoveredLight.lumen}lm` : ''}${spec.beam ? ` | ${spec.beam}°` : ''}</span>
+            </div>
+          </div>
+        `;
         els.lightTooltip.style.display = 'block';
         const rect = els.canvasArea.getBoundingClientRect();
         els.lightTooltip.style.left = (e.clientX - rect.left + 15) + 'px';
