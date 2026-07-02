@@ -3859,7 +3859,7 @@ function renderLightsLayer() {
       }
     } else {
       const spec = fixtureDatabase.find(f => f.id === l.typeId);
-      const isMagneticModule = spec && spec.category === 'linebar' && spec.name.includes('등기구');
+      const isMagneticModule = spec && spec.category === 'linebar' && spec.name.includes('등기구') && /L\d+/.test(spec.name);
       
       if (isMagneticModule) {
         const lenPx = state.pixelsPerMeter > 0 ? ((spec.length || 300) / 1000) * state.pixelsPerMeter : 15;
@@ -4072,6 +4072,35 @@ function renderInteractionLayer() {
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 1.5;
         ctx.strokeRect(-lenPx / 2, -wPx / 2, lenPx, wPx);
+        ctx.restore();
+      } else if (spec.category === 'linebar' && spec.name.includes('등기구')) {
+        const isModule = /L\d+/.test(spec.name);
+        
+        ctx.save();
+        ctx.globalAlpha = 0.6;
+        ctx.translate(state.ghostCursor.x, state.ghostCursor.y);
+        ctx.rotate(state.ghostCursorRotation || 0);
+        
+        if (isModule) {
+          const lenPx = state.pixelsPerMeter > 0 ? ((spec.length || 300) / 1000) * state.pixelsPerMeter : 15;
+          const wPx = state.pixelsPerMeter > 0 ? (22 / 1000) * state.pixelsPerMeter : 4;
+          ctx.beginPath();
+          ctx.rect(-lenPx / 2, -wPx / 2, lenPx, wPx);
+          ctx.fillStyle = state.ghostCursorOnRail ? (spec.color || '#007AFF') : 'rgba(255, 59, 48, 0.7)';
+          ctx.fill();
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        } else {
+          const rs = getFixtureRenderSize(spec.size || 30);
+          ctx.beginPath();
+          ctx.arc(0, 0, rs / 2, 0, 2 * Math.PI);
+          ctx.fillStyle = state.ghostCursorOnRail ? (spec.color || '#007AFF') : 'rgba(255, 59, 48, 0.7)';
+          ctx.fill();
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
         ctx.restore();
       } else if (spec.category !== 'linebar' && spec.icon !== 'line') {
         // Draw snap guide lines
