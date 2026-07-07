@@ -647,6 +647,7 @@ function mapSupabaseProduct(p) {
     subCategory,
     name: p.name,
     model: null,
+    ecountProdCd: p.ecount_prod_cd || null,
     watt: p.watt,
     lumen: p.lumen,
     beam,
@@ -873,6 +874,7 @@ function showConfirm(title, msg, onOk) {
 
 function setupEventListeners() {
   setupHistoryEventListeners();
+  setupAuthEventListeners();
   // Prevent canvas zoom when scrolling over panels
   if (els.rightPanel) {
     els.rightPanel.addEventListener('wheel', (e) => {
@@ -1132,7 +1134,14 @@ function setupEventListeners() {
   });
   
   // Excel Export
-  els.btnExport.addEventListener('click', exportToExcel);
+  els.btnExport.addEventListener('click', () => {
+    if (!authUser) {
+      alert('견적서를 다운로드하려면 로그인이 필요합니다.');
+      document.getElementById('loginOverlay').style.display = 'flex';
+      return;
+    }
+    exportToExcel();
+  });
 
   // Keyboard controls for layout canvas (Backspace/Delete to clear selected, arrow keys to nudge)
   window.addEventListener('keydown', handleKeyDown);
@@ -1740,12 +1749,12 @@ function setupCanvasInteractions() {
   // Wheel scroll Zoom handler
   els.canvasArea.addEventListener('wheel', (e) => {
     e.preventDefault();
-    const zoomIntensity = 0.1;
+    const zoomIntensity = 0.0015; // 자연스러운 줌 속도를 조절하는 감도 변수
     const mouseX = e.clientX - els.canvasArea.getBoundingClientRect().left;
     const mouseY = e.clientY - els.canvasArea.getBoundingClientRect().top;
     
-    const wheel = e.deltaY < 0 ? 1 : -1;
-    const zoomFactor = Math.exp(wheel * zoomIntensity);
+    // 이진화(+1/-1) 대신 실제 스크롤 이동량(deltaY)을 반영하여 스크롤 속도에 맞추어 확대/축소
+    const zoomFactor = Math.exp(-e.deltaY * zoomIntensity);
     
     // Zoom centered at cursor pos
     const newZoom = Math.min(Math.max(state.zoom * zoomFactor, 0.2), 4.0);
@@ -1756,7 +1765,7 @@ function setupCanvasInteractions() {
     
     updateZoomAndPan();
     renderAll();
-  });
+  }, { passive: false });
 
   // Double click to edit zone
   layer.addEventListener('dblclick', (e) => {
@@ -2144,10 +2153,23 @@ function setupCanvasInteractions() {
         const dx = pt.x - state.dragOffsetX;
         const dy = pt.y - state.dragOffsetY;
         
+        // 구획 이동 전에 현재 구획 영역 내에 있는 조명들을 먼저 필터링
+        const insideLights = state.lights.filter(l => isLightInPolygon(l, zone.points));
+        
         // Move all points of the zone polygon
         zone.points.forEach(point => {
           point.x += dx;
           point.y += dy;
+        });
+        
+        // 구획 내의 조명들도 구획의 이동량(dx, dy)만큼 동시 이동
+        insideLights.forEach(l => {
+          l.x += dx;
+          l.y += dy;
+          if (l.x2 !== undefined && l.y2 !== undefined) {
+            l.x2 += dx;
+            l.y2 += dy;
+          }
         });
         
         state.dragOffsetX = pt.x;
@@ -5270,6 +5292,714 @@ function setupHistoryEventListeners() {
   if (btnUndo) btnUndo.addEventListener('click', undo);
   if (btnRedo) btnRedo.addEventListener('click', redo);
 }
+
+// ==================== AUTHENTICATION WORKFLOWS ====================
+let authUser = null;
+let authProfile = null;
+
+function setupAuthEventListeners() {
+  // Modal Overlays
+  const signupOverlay = document.getElementById('signupOverlay');
+  const loginOverlay = document.getElementById('loginOverlay');
+  const forgotPasswordOverlay = document.getElementById('forgotPasswordOverlay');
+  const onboardingOverlay = document.getElementById('onboardingOverlay');
+  const profileEditOverlay = document.getElementById('profileEditOverlay');
+  const myEstimatesOverlay = document.getElementById('myEstimatesOverlay');
+  const feedbackOverlay = document.getElementById('feedbackOverlay');
+
+  // Header Links
+  const btnHeaderSignup = document.getElementById('btnHeaderSignup');
+  const btnHeaderLogin = document.getElementById('btnHeaderLogin');
+  const btnProfileMenu = document.getElementById('btnProfileMenu');
+  const profileDropdown = document.getElementById('profileDropdown');
+
+  // Close Buttons
+  const btnCloseSignup = document.getElementById('btnCloseSignup');
+  const btnCloseLogin = document.getElementById('btnCloseLogin');
+  const btnCloseForgotPassword = document.getElementById('btnCloseForgotPassword');
+  const btnCloseProfileEdit = document.getElementById('btnCloseProfileEdit');
+  const btnCloseMyEstimates = document.getElementById('btnCloseMyEstimates');
+  const btnCloseFeedback = document.getElementById('btnCloseFeedback');
+
+  // Modal Transitions
+  const linkToLogin = document.getElementById('linkToLogin');
+  const linkToSignup = document.getElementById('linkToSignup');
+  const linkToForgotPassword = document.getElementById('linkToForgotPassword');
+  const linkBackToLogin = document.getElementById('linkBackToLogin');
+
+  // Password Toggles
+  setupPasswordToggle('btnToggleSignupPassword', 'signupPassword');
+  setupPasswordToggle('btnToggleSignupPasswordConfirm', 'signupPasswordConfirm');
+  setupPasswordToggle('btnToggleLoginPassword', 'loginPassword');
+
+  // Info Tooltip
+  const btnDownloadInfo = document.getElementById('btnDownloadInfo');
+  const downloadTooltip = document.getElementById('downloadTooltip');
+  if (btnDownloadInfo && downloadTooltip) {
+    btnDownloadInfo.onclick = (e) => {
+      e.stopPropagation();
+      const isVisible = downloadTooltip.style.display === 'block';
+      downloadTooltip.style.display = isVisible ? 'none' : 'block';
+    };
+  }
+
+  // Hamburger Menu Dialog
+  const btnHamburgerMenu = document.getElementById('btnHamburgerMenu');
+  const hamburgerDropdown = document.getElementById('hamburgerDropdown');
+  
+  const hamburgerSvg = `
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  `;
+  const closeSvg = `
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18"></line>
+      <line x1="6" y1="6" x2="18" y2="18"></line>
+    </svg>
+  `;
+
+  if (btnHamburgerMenu && hamburgerDropdown) {
+    btnHamburgerMenu.onclick = (e) => {
+      e.stopPropagation();
+      const isVisible = hamburgerDropdown.style.display === 'flex';
+      if (isVisible) {
+        hamburgerDropdown.style.display = 'none';
+        btnHamburgerMenu.innerHTML = hamburgerSvg;
+      } else {
+        hamburgerDropdown.style.display = 'flex';
+        btnHamburgerMenu.innerHTML = closeSvg;
+      }
+    };
+  }
+
+  // Hamburger Item Clicks
+  const btnMenuHome = document.getElementById('btnMenuHome');
+  const btnMenuSaveFile = document.getElementById('btnMenuSaveFile');
+  const btnMenuOpenFile = document.getElementById('btnMenuOpenFile');
+  const btnMenuDownloadEstimate = document.getElementById('btnMenuDownloadEstimate');
+
+  if (btnMenuHome) {
+    btnMenuHome.onclick = () => {
+      hamburgerDropdown.style.display = 'none';
+      if (btnHamburgerMenu) btnHamburgerMenu.innerHTML = hamburgerSvg;
+      const btnNew = document.getElementById('btnNewProject');
+      if (btnNew) btnNew.click();
+    };
+  }
+  if (btnMenuSaveFile) {
+    btnMenuSaveFile.onclick = () => {
+      hamburgerDropdown.style.display = 'none';
+      if (btnHamburgerMenu) btnHamburgerMenu.innerHTML = hamburgerSvg;
+      const btnSave = document.getElementById('btnSaveProject');
+      if (btnSave) btnSave.click();
+    };
+  }
+  if (btnMenuOpenFile) {
+    btnMenuOpenFile.onclick = () => {
+      hamburgerDropdown.style.display = 'none';
+      if (btnHamburgerMenu) btnHamburgerMenu.innerHTML = hamburgerSvg;
+      const btnLoad = document.getElementById('btnLoadProject');
+      if (btnLoad) btnLoad.click();
+    };
+  }
+  if (btnMenuDownloadEstimate) {
+    btnMenuDownloadEstimate.onclick = () => {
+      hamburgerDropdown.style.display = 'none';
+      if (btnHamburgerMenu) btnHamburgerMenu.innerHTML = hamburgerSvg;
+      const btnExp = document.getElementById('btnExport');
+      if (btnExp) btnExp.click();
+    };
+  }
+
+  // Document Click (dismiss dropdown/tooltip)
+  document.addEventListener('click', (e) => {
+    if (downloadTooltip && !downloadTooltip.contains(e.target) && e.target !== btnDownloadInfo) {
+      downloadTooltip.style.display = 'none';
+    }
+    if (profileDropdown && !profileDropdown.contains(e.target) && !e.target.closest('#btnProfileMenu')) {
+      profileDropdown.style.display = 'none';
+    }
+    if (hamburgerDropdown && !hamburgerDropdown.contains(e.target) && !e.target.closest('#btnHamburgerMenu')) {
+      hamburgerDropdown.style.display = 'none';
+      if (btnHamburgerMenu) btnHamburgerMenu.innerHTML = hamburgerSvg;
+    }
+  });
+
+  // Modal Show Handlers
+  if (btnHeaderSignup) btnHeaderSignup.onclick = () => signupOverlay.style.display = 'flex';
+  if (btnHeaderLogin) btnHeaderLogin.onclick = () => loginOverlay.style.display = 'flex';
+  if (btnProfileMenu) btnProfileMenu.onclick = (e) => {
+    e.stopPropagation();
+    profileDropdown.style.display = profileDropdown.style.display === 'block' ? 'none' : 'block';
+  };
+
+  // Close Modal Handlers
+  if (btnCloseSignup) btnCloseSignup.onclick = () => signupOverlay.style.display = 'none';
+  if (btnCloseLogin) btnCloseLogin.onclick = () => loginOverlay.style.display = 'none';
+  if (btnCloseForgotPassword) btnCloseForgotPassword.onclick = () => forgotPasswordOverlay.style.display = 'none';
+  if (btnCloseProfileEdit) btnCloseProfileEdit.onclick = () => profileEditOverlay.style.display = 'none';
+  if (btnCloseMyEstimates) btnCloseMyEstimates.onclick = () => myEstimatesOverlay.style.display = 'none';
+  if (btnCloseFeedback) btnCloseFeedback.onclick = () => feedbackOverlay.style.display = 'none';
+
+  const btnCloseConfirm = document.getElementById('btnCloseConfirm');
+  const btnCloseZoneSelect = document.getElementById('btnCloseZoneSelect');
+  const btnCloseSwitchInput = document.getElementById('btnCloseSwitchInput');
+  if (btnCloseConfirm) btnCloseConfirm.onclick = () => document.getElementById('confirmOverlay').style.display = 'none';
+  if (btnCloseZoneSelect) btnCloseZoneSelect.onclick = () => document.getElementById('zoneSelectOverlay').style.display = 'none';
+  if (btnCloseSwitchInput) btnCloseSwitchInput.onclick = () => document.getElementById('switchInputOverlay').style.display = 'none';
+
+  // Toggle between screens
+  if (linkToLogin) linkToLogin.onclick = () => {
+    signupOverlay.style.display = 'none';
+    loginOverlay.style.display = 'flex';
+  };
+  if (linkToSignup) linkToSignup.onclick = () => {
+    loginOverlay.style.display = 'none';
+    signupOverlay.style.display = 'flex';
+  };
+  if (linkToForgotPassword) linkToForgotPassword.onclick = () => {
+    loginOverlay.style.display = 'none';
+    forgotPasswordOverlay.style.display = 'flex';
+  };
+  if (linkBackToLogin) linkBackToLogin.onclick = () => {
+    forgotPasswordOverlay.style.display = 'none';
+    loginOverlay.style.display = 'flex';
+  };
+
+  // Dropdown Menu Actions
+  const btnMenuProfile = document.getElementById('btnMenuProfile');
+  const btnMenuEstimates = document.getElementById('btnMenuEstimates');
+  const btnMenuFeedback = document.getElementById('btnMenuFeedback');
+  const btnMenuLogout = document.getElementById('btnMenuLogout');
+
+  if (btnMenuProfile) btnMenuProfile.onclick = () => {
+    profileDropdown.style.display = 'none';
+    if (authProfile) {
+      document.getElementById('profileEditEmail').value = authUser.email;
+      document.getElementById('profileEditName').value = authProfile.contact_name || '';
+      document.getElementById('profileEditCompany').value = authProfile.company_name || '';
+      profileEditOverlay.style.display = 'flex';
+    }
+  };
+
+  if (btnMenuEstimates) btnMenuEstimates.onclick = () => {
+    profileDropdown.style.display = 'none';
+    myEstimatesOverlay.style.display = 'flex';
+    loadMyEstimatesList();
+  };
+
+  if (btnMenuFeedback) btnMenuFeedback.onclick = () => {
+    profileDropdown.style.display = 'none';
+    feedbackOverlay.style.display = 'flex';
+    loadFeedbackHistory();
+  };
+
+  if (btnMenuLogout) btnMenuLogout.onclick = async () => {
+    profileDropdown.style.display = 'none';
+    const { error } = await supabaseClient.auth.signOut();
+    if (error) alert('로그아웃 에러: ' + error.message);
+  };
+
+  // Signup Submit
+  const btnSignupSubmit = document.getElementById('btnSignupSubmit');
+  
+  const signupNameInput = document.getElementById('signupName');
+  const signupCompanyInput = document.getElementById('signupCompany');
+  const signupEmailInput = document.getElementById('signupEmail');
+  const signupPasswordInput = document.getElementById('signupPassword');
+  const signupPasswordConfirmInput = document.getElementById('signupPasswordConfirm');
+  const signupConsentCheckbox = document.getElementById('signupConsent');
+
+  function updateSignupSubmitBtnState() {
+    if (!btnSignupSubmit) return;
+    const name = signupNameInput ? signupNameInput.value.trim() : '';
+    const company = signupCompanyInput ? signupCompanyInput.value.trim() : '';
+    const email = signupEmailInput ? signupEmailInput.value.trim() : '';
+    const password = signupPasswordInput ? signupPasswordInput.value : '';
+    const passwordConfirm = signupPasswordConfirmInput ? signupPasswordConfirmInput.value : '';
+    const consent = signupConsentCheckbox ? signupConsentCheckbox.checked : false;
+
+    const isValid = name && company && email && password && (password === passwordConfirm) && password.length >= 8 && consent;
+    if (isValid) {
+      btnSignupSubmit.classList.add('active-btn');
+      btnSignupSubmit.disabled = false;
+    } else {
+      btnSignupSubmit.classList.remove('active-btn');
+      btnSignupSubmit.disabled = true;
+    }
+  }
+
+  [signupNameInput, signupCompanyInput, signupEmailInput, signupPasswordInput, signupPasswordConfirmInput].forEach(el => {
+    if (el) el.addEventListener('input', updateSignupSubmitBtnState);
+  });
+  if (signupConsentCheckbox) {
+    signupConsentCheckbox.addEventListener('change', updateSignupSubmitBtnState);
+  }
+  // Initialize state
+  setTimeout(updateSignupSubmitBtnState, 100);
+
+  if (btnSignupSubmit) btnSignupSubmit.onclick = async () => {
+    const name = document.getElementById('signupName').value.trim();
+    const company = document.getElementById('signupCompany').value.trim();
+    const email = document.getElementById('signupEmail').value.trim();
+    const password = document.getElementById('signupPassword').value;
+    const passwordConfirm = document.getElementById('signupPasswordConfirm').value;
+    const consent = document.getElementById('signupConsent').checked;
+
+    if (!name || !company || !email || !password) {
+      alert('모든 필수 항목을 입력해 주세요.');
+      return;
+    }
+    if (password !== passwordConfirm) {
+      alert('비밀번호가 일치하지 않습니다.');
+      return;
+    }
+    if (password.length < 8) {
+      alert('비밀번호는 8자리 이상이어야 합니다.');
+      return;
+    }
+    if (!consent) {
+      alert('약관 동의가 필요합니다.');
+      return;
+    }
+
+    btnSignupSubmit.disabled = true;
+    btnSignupSubmit.innerText = '가입 중...';
+
+    const { data, error } = await supabaseClient.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          contact_name: name,
+          company_name: company
+        }
+      }
+    });
+
+    if (error) {
+      alert('회원가입 실패: ' + error.message);
+      btnSignupSubmit.disabled = false;
+      btnSignupSubmit.innerText = '회원가입';
+      return;
+    }
+
+    if (data.user) {
+      // Upsert profile
+      await supabaseClient.from('profiles').upsert({
+        id: data.user.id,
+        contact_name: name,
+        company_name: company,
+        consent_agreed: true
+      });
+      alert('회원가입이 완료되었습니다. 이메일 인증이 필요한 경우 이메일을 확인해 주세요.');
+      signupOverlay.style.display = 'none';
+    }
+    btnSignupSubmit.disabled = false;
+    btnSignupSubmit.innerText = '회원가입';
+  };
+
+  // Login Submit
+  const btnLoginSubmit = document.getElementById('btnLoginSubmit');
+  
+  const loginEmailInput = document.getElementById('loginEmail');
+  const loginPasswordInput = document.getElementById('loginPassword');
+
+  function updateLoginSubmitBtnState() {
+    if (!btnLoginSubmit) return;
+    const email = loginEmailInput ? loginEmailInput.value.trim() : '';
+    const password = loginPasswordInput ? loginPasswordInput.value : '';
+
+    const isValid = email && password;
+    if (isValid) {
+      btnLoginSubmit.classList.add('active-btn');
+      btnLoginSubmit.disabled = false;
+    } else {
+      btnLoginSubmit.classList.remove('active-btn');
+      btnLoginSubmit.disabled = true;
+    }
+  }
+
+  [loginEmailInput, loginPasswordInput].forEach(el => {
+    if (el) el.addEventListener('input', updateLoginSubmitBtnState);
+  });
+  // Initialize state
+  setTimeout(updateLoginSubmitBtnState, 100);
+
+  if (btnLoginSubmit) btnLoginSubmit.onclick = async () => {
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+
+    if (!email || !password) {
+      alert('이메일과 비밀번호를 입력해 주세요.');
+      return;
+    }
+
+    btnLoginSubmit.disabled = true;
+    btnLoginSubmit.innerText = '로그인 중...';
+
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (error) {
+      alert('로그인 실패: ' + error.message);
+      btnLoginSubmit.disabled = false;
+      btnLoginSubmit.innerText = '로그인';
+      return;
+    }
+
+    loginOverlay.style.display = 'none';
+    btnLoginSubmit.disabled = false;
+    btnLoginSubmit.innerText = '로그인';
+  };
+
+  // Google Authentication Trigger
+  const triggerGoogleAuth = async () => {
+    const { error } = await supabaseClient.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin + window.location.pathname
+      }
+    });
+    if (error) alert('Google 로그인 실패: ' + error.message);
+  };
+
+  const btnGoogleSignup = document.getElementById('btnGoogleSignup');
+  const btnGoogleLoginAction = document.getElementById('btnGoogleLoginAction');
+  if (btnGoogleSignup) btnGoogleSignup.onclick = triggerGoogleAuth;
+  if (btnGoogleLoginAction) btnGoogleLoginAction.onclick = triggerGoogleAuth;
+
+  // Forgot Password Submit
+  const btnForgotPasswordSubmit = document.getElementById('btnForgotPasswordSubmit');
+  if (btnForgotPasswordSubmit) btnForgotPasswordSubmit.onclick = async () => {
+    const email = document.getElementById('forgotPasswordEmail').value.trim();
+    if (!email) {
+      alert('이메일을 입력해 주세요.');
+      return;
+    }
+
+    btnForgotPasswordSubmit.disabled = true;
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + window.location.pathname + '#reset-password'
+    });
+
+    if (error) {
+      alert('링크 전송 실패: ' + error.message);
+    } else {
+      alert('비밀번호 재설정 이메일이 발송되었습니다.');
+      forgotPasswordOverlay.style.display = 'none';
+    }
+    btnForgotPasswordSubmit.disabled = false;
+  };
+
+  // Onboarding Submit (Google OAuth users without full_name/company)
+  const btnOnboardingSubmit = document.getElementById('btnOnboardingSubmit');
+  if (btnOnboardingSubmit) btnOnboardingSubmit.onclick = async () => {
+    const name = document.getElementById('onboardingName').value.trim();
+    const company = document.getElementById('onboardingCompany').value.trim();
+    const consent = document.getElementById('onboardingConsent').checked;
+
+    if (!name || !company) {
+      alert('모든 필수 항목을 입력해 주세요.');
+      return;
+    }
+    if (!consent) {
+      alert('약관 동의가 필요합니다.');
+      return;
+    }
+
+    btnOnboardingSubmit.disabled = true;
+    const { error } = await supabaseClient.from('profiles').upsert({
+      id: authUser.id,
+      contact_name: name,
+      company_name: company,
+      consent_agreed: true
+    });
+
+    if (error) {
+      alert('정보 저장 실패: ' + error.message);
+    } else {
+      authProfile = { contact_name: name, company_name: company, consent_agreed: true };
+      onboardingOverlay.style.display = 'none';
+      updateAuthUI(authUser, authProfile);
+    }
+    btnOnboardingSubmit.disabled = false;
+  };
+
+  // Profile Edit Save
+  const btnProfileEditSave = document.getElementById('btnProfileEditSave');
+  if (btnProfileEditSave) btnProfileEditSave.onclick = async () => {
+    const name = document.getElementById('profileEditName').value.trim();
+    const company = document.getElementById('profileEditCompany').value.trim();
+
+    if (!name || !company) {
+      alert('이름과 업체명을 입력해 주세요.');
+      return;
+    }
+
+    btnProfileEditSave.disabled = true;
+    const { error } = await supabaseClient.from('profiles').upsert({
+      id: authUser.id,
+      contact_name: name,
+      company_name: company
+    });
+
+    if (error) {
+      alert('수정 실패: ' + error.message);
+    } else {
+      authProfile.contact_name = name;
+      authProfile.company_name = company;
+      alert('회원 정보가 수정되었습니다.');
+      profileEditOverlay.style.display = 'none';
+      updateAuthUI(authUser, authProfile);
+    }
+    btnProfileEditSave.disabled = false;
+  };
+
+  // Feedback Submit
+  const btnFeedbackSubmit = document.getElementById('btnFeedbackSubmit');
+  if (btnFeedbackSubmit) btnFeedbackSubmit.onclick = async () => {
+    const title = document.getElementById('feedbackTitle').value.trim();
+    const content = document.getElementById('feedbackContent').value.trim();
+
+    if (!title || !content) {
+      alert('제목과 내용을 모두 입력해 주세요.');
+      return;
+    }
+
+    btnFeedbackSubmit.disabled = true;
+    const { error } = await supabaseClient.from('feedbacks').insert({
+      user_id: authUser.id,
+      title,
+      content
+    });
+
+    if (error) {
+      alert('의견 제출 실패: ' + error.message);
+    } else {
+      alert('소중한 의견이 등록되었습니다.');
+      document.getElementById('feedbackTitle').value = '';
+      document.getElementById('feedbackContent').value = '';
+      loadFeedbackHistory();
+    }
+    btnFeedbackSubmit.disabled = false;
+  };
+
+  // Listen to Auth State Changes
+  supabaseClient.auth.onAuthStateChange(async (event, session) => {
+    if (session && session.user) {
+      authUser = session.user;
+      // Fetch profile
+      const { data, error } = await supabaseClient
+        .from('profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .single();
+
+      if (error || !data || !data.consent_agreed) {
+        // Trigger onboarding
+        authProfile = data;
+        onboardingOverlay.style.display = 'flex';
+        document.getElementById('onboardingName').value = data?.contact_name || authUser.user_metadata?.full_name || '';
+        document.getElementById('onboardingCompany').value = data?.company_name || '';
+      } else {
+        authProfile = data;
+        updateAuthUI(authUser, authProfile);
+      }
+    } else {
+      authUser = null;
+      authProfile = null;
+      updateAuthUI(null, null);
+    }
+  });
+}
+
+function setupPasswordToggle(btnId, inputId) {
+  const btn = document.getElementById(btnId);
+  const input = document.getElementById(inputId);
+  
+  const svgOpen = `<svg viewBox="0 0 21.5 15.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px; height:18px; display:block;"><path d="M10.75 0.75C4.38636 0.75 0.75 7.75 0.75 7.75C0.75 7.75 4.38636 14.75 10.75 14.75C17.1136 14.75 20.75 7.75 20.75 7.75C20.75 7.75 17.1136 0.75 10.75 0.75Z"/><path d="M10.75 10.75C12.4069 10.75 13.75 9.40685 13.75 7.75C13.75 6.09315 12.4069 4.75 10.75 4.75C9.09315 4.75 7.75 6.09315 7.75 7.75C7.75 9.40685 9.09315 10.75 10.75 10.75Z"/></svg>`;
+  const svgClosed = `<svg viewBox="0 0 21.5 19.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px; height:18px; display:block;"><path d="M18.75 12.5835C20.0582 11.0817 20.75 9.75 20.75 9.75C20.75 9.75 17.1136 2.75 10.75 2.75C10.4088 2.75 10.0754 2.77013 9.75 2.80822C9.40778 2.84828 9.0744 2.90822 8.75 2.98552M10.75 6.75C11.1006 6.75 11.4372 6.81015 11.75 6.92071C12.6024 7.22199 13.278 7.89759 13.5793 8.75C13.6898 9.06278 13.75 9.39936 13.75 9.75M1.75 0.75L19.75 18.75M10.75 12.75C10.3994 12.75 10.0628 12.6898 9.74999 12.5793C8.89758 12.278 8.22198 11.6024 7.9207 10.75C7.86386 10.5892 7.82034 10.4221 7.79147 10.25M2.89701 6.75C2.58877 7.09451 2.31234 7.43241 2.06864 7.75C1.20286 8.87824 0.75 9.75 0.75 9.75C0.75 9.75 4.38636 16.75 10.75 16.75C11.0912 16.75 11.4246 16.7299 11.75 16.6918"/></svg>`;
+
+  if (btn && input) {
+    btn.innerHTML = svgClosed;
+    btn.onclick = () => {
+      if (input.type === 'password') {
+        input.type = 'text';
+        btn.innerHTML = svgOpen;
+      } else {
+        input.type = 'password';
+        btn.innerHTML = svgClosed;
+      }
+    };
+  }
+}
+
+function updateAuthUI(user, profile) {
+  const headerAuthLinks = document.getElementById('headerAuthLinks');
+  const profileMenuContainer = document.getElementById('profileMenuContainer');
+  const projectFileActions = document.getElementById('projectFileActions');
+
+  if (user && profile) {
+    if (headerAuthLinks) headerAuthLinks.style.display = 'none';
+    if (profileMenuContainer) profileMenuContainer.style.display = 'block';
+    if (projectFileActions) projectFileActions.style.display = 'flex';
+
+    // Populate profile menu
+    const initial = profile.contact_name ? profile.contact_name.charAt(0) : 'G';
+    document.getElementById('profileInitial').innerText = initial;
+    document.getElementById('dropdownUserName').innerText = profile.contact_name || '사용자';
+    document.getElementById('dropdownUserEmail').innerText = user.email;
+  } else {
+    if (headerAuthLinks) headerAuthLinks.style.display = 'flex';
+    if (profileMenuContainer) profileMenuContainer.style.display = 'none';
+    if (projectFileActions) projectFileActions.style.display = 'none';
+  }
+}
+
+// Load My Estimates List
+async function loadMyEstimatesList() {
+  const listContainer = document.getElementById('estimatesListContainer');
+  if (!listContainer) return;
+
+  listContainer.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-dim);">견적서 로드 중...</div>';
+
+  if (!authUser) return;
+
+  const { data, error } = await supabaseClient
+    .from('quotes')
+    .select('id, project_name, created_at, excel_url')
+    .eq('user_id', authUser.id)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    listContainer.innerHTML = '<div style="text-align:center; padding:20px; color:#ff453a;">로드 오류: ' + error.message + '</div>';
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    listContainer.innerHTML = '<div class="empty-estimates-msg" style="text-align: center; color: var(--text-dim); padding: 40px 0; font-size: 13px;">저장된 견적서가 없습니다.</div>';
+    return;
+  }
+
+  listContainer.innerHTML = '';
+  data.forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'estimate-item';
+    const dateStr = new Date(item.created_at).toLocaleString();
+
+    el.innerHTML = `
+      <div class="estimate-info">
+        <div class="estimate-name">${item.project_name || '이름 없음'}</div>
+        <div class="estimate-date">${dateStr}</div>
+      </div>
+      <div class="estimate-actions">
+        <button class="btn-est-action load" data-id="${item.id}">불러오기</button>
+        ${item.excel_url ? `<button class="btn-est-action excel-dl" onclick="window.open('${item.excel_url}', '_blank')">엑셀</button>` : ''}
+        <button class="btn-est-action delete" data-id="${item.id}">삭제</button>
+      </div>
+    `;
+
+    // Load action
+    el.querySelector('.load').onclick = async () => {
+      const confirmLoad = confirm('현재 작업 중인 도면이 덮어씌워집니다. 불러오시겠습니까?');
+      if (!confirmLoad) return;
+      
+      const { data: quote, error: getErr } = await supabaseClient
+        .from('quotes')
+        .select('project_data')
+        .eq('id', item.id)
+        .single();
+        
+      if (getErr || !quote) {
+        alert('도면 정보를 불러오지 못했습니다.');
+        return;
+      }
+
+      if (quote.project_data) {
+        // Restore project data
+        const restored = quote.project_data;
+        if (restored.lights) state.lights = restored.lights;
+        if (restored.zones) state.zones = restored.zones;
+        if (restored.dimensions) state.dimensions = restored.dimensions;
+        if (restored.ceilingHeight) state.ceilingHeight = restored.ceilingHeight;
+        
+        recalculateAllZones();
+        updateStats();
+        renderAll();
+        alert('도면을 성공적으로 불러왔습니다.');
+        document.getElementById('myEstimatesOverlay').style.display = 'none';
+      }
+    };
+
+    // Delete action
+    el.querySelector('.delete').onclick = async () => {
+      const confirmDel = confirm('견적서를 삭제하시겠습니까?');
+      if (!confirmDel) return;
+
+      const { error: delErr } = await supabaseClient
+        .from('quotes')
+        .delete()
+        .eq('id', item.id);
+
+      if (delErr) {
+        alert('삭제 실패: ' + delErr.message);
+      } else {
+        loadMyEstimatesList();
+      }
+    };
+
+    listContainer.appendChild(el);
+  });
+}
+
+// Load Feedback History
+async function loadFeedbackHistory() {
+  const listContainer = document.getElementById('feedbackList');
+  if (!listContainer) return;
+
+  listContainer.innerHTML = '<div style="text-align:center; padding:10px; color:var(--text-dim);">로드 중...</div>';
+
+  if (!authUser) return;
+
+  const { data, error } = await supabaseClient
+    .from('feedbacks')
+    .select('title, content, created_at')
+    .eq('user_id', authUser.id)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    listContainer.innerHTML = '<div style="text-align:center; padding:10px; color:#ff453a;">오류: ' + error.message + '</div>';
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    listContainer.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-dim);">제출한 피드백이 없습니다.</div>';
+    return;
+  }
+
+  listContainer.innerHTML = '';
+  data.forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'feedback-item';
+    const dateStr = new Date(item.created_at).toLocaleDateString();
+
+    el.innerHTML = `
+      <div class="feedback-item-header">
+        <span class="feedback-item-title">${item.title}</span>
+        <span class="feedback-item-date">${dateStr}</span>
+      </div>
+      <div class="feedback-item-content">${item.content}</div>
+    `;
+    listContainer.appendChild(el);
+  });
+}
+
 
 // Start App
 init();

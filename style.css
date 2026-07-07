@@ -159,7 +159,7 @@ body {
 .topbar-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 0px;
 }
 
 /* Common Button Styles */
@@ -560,16 +560,39 @@ body {
 
 /* Snap Toggle */
 .snap-toggle-row {
+  position: absolute !important;
+  right: 20px !important;
+  bottom: 20px !important;
+  top: auto !important;
+  background-color: #111;
+  border: 1px solid #2e2e2e;
+  border-radius: 8px;
+  padding: 10px 17px 9px 16px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
+  gap: 14px;
+  box-shadow: var(--shadow);
+  z-index: 10;
+  user-select: none;
 }
 .snap-toggle-label {
-  font-size: 12px;
-  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 400;
+  color: #b6b6b6;
+}
+.snap-toggle-row .apple-switch {
+  width: 34px;
+  height: 16px;
+}
+.snap-toggle-row .apple-switch-handle {
+  top: 1px;
+  left: 1px;
+  width: 14px;
+  height: 14px;
+  background-color: #d9d9d9;
+}
+.snap-toggle-row .apple-switch.active .apple-switch-handle {
+  transform: translateX(18px);
 }
 .snap-toggle-btn {
   display: flex;
@@ -1138,6 +1161,26 @@ body {
 }
 
 /* Dialog Overlay */
+@keyframes overlayFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dialogReveal {
+  from {
+    opacity: 0.7;
+    transform: translateY(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .confirm-overlay, .export-overlay {
   position: absolute;
   left: 0;
@@ -1145,11 +1188,18 @@ body {
   width: 100%;
   height: 100%;
   background-color: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px);
   display: none;
   align-items: center;
   justify-content: center;
   z-index: 200;
+  opacity: 0;
+  animation: overlayFadeIn 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.confirm-overlay[style*="display: none"], .export-overlay[style*="display: none"] {
+  animation: none;
+  opacity: 0;
 }
 
 .confirm-overlay.visible, .export-overlay.visible {
@@ -1163,6 +1213,8 @@ body {
   padding: 24px;
   width: 360px;
   box-shadow: var(--shadow);
+  transform-origin: center bottom;
+  animation: dialogReveal 0.6s cubic-bezier(0.25, 1, 0.5, 1) forwards;
 }
 
 .confirm-title, .export-header h3 {
@@ -2098,6 +2150,439 @@ body {
 .apple-switch.active .apple-switch-handle {
   transform: translateX(18px);
 }
+
+.profile-dropdown a.dropdown-item:hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Authentication / Modals & Dropdown Styles */
+.profile-dropdown-item:hover {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+.profile-dropdown-item.logout:hover {
+  background-color: rgba(255, 69, 58, 0.15) !important;
+}
+
+/* Backdrop Filter for Modals */
+.confirm-overlay {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  background-color: rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Modal styling matching Figma dark theme */
+.auth-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin-top: 0;
+  margin-bottom: 6px;
+}
+.auth-subtitle {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 20px;
+}
+.modal-close-btn {
+  position: absolute !important;
+  right: 20px !important;
+  top: 20px !important;
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 50% !important;
+  background-color: #2a2a2a !important;
+  border: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  padding: 0 !important;
+  transition: background-color 0.2s ease;
+  z-index: 99;
+}
+
+.modal-close-btn:hover {
+  background-color: #3a3a3a !important;
+}
+
+.modal-close-btn svg {
+  width: 14px;
+  height: 14px;
+  color: #ffffff;
+}
+
+/* Estimates List Item Styling */
+.estimate-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.estimate-item:hover {
+  border-color: var(--accent);
+}
+.estimate-info {
+  flex: 1;
+  min-width: 0;
+  margin-right: 12px;
+}
+.estimate-name {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.estimate-date {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 3px;
+}
+.estimate-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.btn-est-action {
+  padding: 6px 10px;
+  font-size: 11px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text-dim);
+  transition: all 0.15s;
+}
+.btn-est-action.load {
+  background-color: rgba(0, 112, 243, 0.1);
+  border-color: rgba(0, 112, 243, 0.3);
+  color: var(--accent);
+}
+.btn-est-action.load:hover {
+  background-color: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.btn-est-action.excel-dl {
+  background-color: rgba(52, 168, 83, 0.1);
+  border-color: rgba(52, 168, 83, 0.3);
+  color: #34a853;
+}
+.btn-est-action.excel-dl:hover {
+  background-color: #34a853;
+  color: #fff;
+  border-color: #34a853;
+}
+.btn-est-action.delete {
+  color: #ff453a;
+  border-color: rgba(255, 69, 58, 0.2);
+}
+.btn-est-action.delete:hover {
+  background-color: #ff453a;
+  color: #fff;
+  border-color: #ff453a;
+}
+
+/* Feedback List Item Styling */
+.feedback-item {
+  padding: 10px 12px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.feedback-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.feedback-item-title {
+  font-weight: 700;
+  color: var(--text);
+  font-size: 12px;
+}
+.feedback-item-date {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.feedback-item-content {
+  color: var(--text-dim);
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+.hamburger-dropdown-item:hover {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+.hamburger-dropdown {
+  width: 170px;
+  height: auto;
+  padding: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: #1E1E1E;
+  box-shadow: 6px 6px 10px 0 rgba(0, 0, 0, 0.25);
+  box-sizing: border-box;
+  border: none !important;
+  overflow: hidden;
+}
+
+.hamburger-dropdown-item {
+  width: 100%;
+  height: 40px;
+  border: none;
+  background: none;
+  padding: 10px 16px !important;
+  text-align: left;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-size: 12px !important;
+  color: #d3d3d3 !important;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: background-color 0.15s;
+  box-sizing: border-box;
+}
+
+.hamburger-dropdown-item svg {
+  color: #d3d3d3;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hamburger-dropdown-item:hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  color: #FFFFFF !important;
+}
+
+.hamburger-dropdown-item:hover svg {
+  color: #FFFFFF;
+}
+
+.header-auth-links {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 16px;
+}
+
+.auth-link {
+  color: #b6b6b6;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-size: 13px !important;
+  cursor: pointer;
+  font-weight: 300 !important;
+  padding: 6px 12px;
+  transition: all 0.2s ease;
+  display: inline-block;
+  line-height: 1;
+}
+
+.auth-link:hover {
+  border-radius: 4px;
+  background: var(--menu-box, #1E1E1E);
+  color: #ffffff;
+}
+
+.download-tooltip {
+  position: absolute;
+  right: 0px;
+  top: 38px;
+  width: 260px;
+  padding: 10px 12px;
+  background-color: rgba(18, 18, 18, 0.95);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: var(--shadow);
+  z-index: 100;
+  font-family: 'Pretendard', sans-serif;
+  font-size: 11px;
+  color: rgb(182, 182, 182);
+  line-height: 1.4;
+  box-sizing: border-box;
+}
+
+.btn-download:hover {
+  background-color: #00549B !important;
+}
+
+/* Auth Cards styling matching Figma 21:394 & 37:1235 */
+.auth-card {
+  width: 505px !important;
+  max-width: 95vw;
+  padding: 28px 36px 36px 36px !important;
+  background-color: #1e1e1e !important;
+  border: 1px solid #3a3a3a !important;
+  border-radius: 40px !important;
+  box-sizing: border-box;
+}
+
+.auth-title {
+  font-family: 'Pretendard', 'Inter', sans-serif;
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  text-align: center;
+  margin-bottom: 20px !important;
+  color: #ffffff !important;
+}
+
+.btn-google-login {
+  width: 100%;
+  height: 60px !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background-color: #2a2a2a !important;
+  border: 1px solid #3a3a3a !important;
+  border-radius: 40px !important;
+  color: #ffffff !important;
+  font-family: 'Pretendard', 'Inter', sans-serif;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+  cursor: pointer;
+  margin-bottom: 16px;
+  transition: all 0.2s ease-in-out !important;
+}
+
+.btn-google-login:hover {
+  background-color: #ffffff !important;
+  color: #121212 !important;
+}
+
+.auth-card .form-input {
+  width: 100%;
+  height: 60px !important;
+  background-color: #2a2a2a !important;
+  border: 1px solid #3a3a3a !important;
+  border-radius: 40px !important;
+  padding: 0 34px !important;
+  color: #ffffff !important;
+  font-family: 'Pretendard', sans-serif;
+  font-size: 14px !important;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.auth-card .form-input:focus {
+  border-color: #036cc5 !important;
+}
+
+.auth-card .form-input::placeholder {
+  color: #666666 !important;
+}
+
+.auth-card .form-label {
+  display: none !important;
+}
+
+.auth-agreement-box {
+  background-color: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  margin-top: 8px !important;
+  margin-bottom: 20px !important;
+}
+
+.auth-checkbox-label {
+  display: flex;
+  gap: 16px;
+  cursor: pointer;
+  align-items: flex-start;
+}
+
+.auth-checkbox-label input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  border: 1px solid #373737;
+  border-radius: 4px;
+  background-color: #272727;
+  cursor: pointer;
+  display: inline-block;
+  position: relative;
+  flex-shrink: 0;
+  margin-top: 2px;
+  transition: all 0.2s;
+}
+
+.auth-checkbox-label input[type="checkbox"]:checked {
+  background-color: #036cc5;
+  border-color: #036cc5;
+}
+
+.auth-checkbox-label input[type="checkbox"]:checked::after {
+  content: '✓';
+  position: absolute;
+  color: #fff;
+  font-size: 14px;
+  font-weight: bold;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.auth-checkbox-label .checkbox-text {
+  font-family: 'Pretendard', sans-serif;
+  font-size: 14px !important;
+  line-height: 18px !important;
+  color: #b6b6b6 !important;
+}
+
+.password-toggle-btn {
+  position: absolute !important;
+  right: 24px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  color: #666666 !important;
+  cursor: pointer;
+  width: 18px !important;
+  height: 18px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 10;
+  box-sizing: border-box;
+}
+
+#btnSignupSubmit, #btnLoginSubmit, #btnForgotPasswordSubmit {
+  width: 100%;
+  height: 60px !important;
+  border: 1px solid #3a3a3a !important;
+  background-color: #2a2a2a !important;
+  color: #666666 !important;
+  border-radius: 40px !important;
+  font-family: 'Pretendard', sans-serif;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  cursor: not-allowed;
+  transition: all 0.2s ease;
+}
+
+#btnSignupSubmit.active-btn, #btnLoginSubmit.active-btn, #btnForgotPasswordSubmit.active-btn {
+  background-color: #036cc5 !important;
+  border-color: #036cc5 !important;
+  color: #ffffff !important;
+  cursor: pointer !important;
+}
+
 
 
 

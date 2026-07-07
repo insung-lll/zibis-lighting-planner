@@ -30,55 +30,145 @@
 
   <!-- Top Navigation Bar -->
   <div class="topbar">
-    <div class="topbar-left" style="display:flex; align-items:center; gap:12px;">
-      <button class="btn" id="btnBackToCalibrate" title="스케일 보정 화면으로 가기" style="background: none; border: none; color: var(--text-dim); cursor: pointer; display: none; align-items: center; justify-content: center; padding: 6px; border-radius: 6px; transition: all 0.2s;">
+    <div class="topbar-left" style="display:flex; align-items:center; gap:12px; position: relative;">
+      <button class="btn" id="btnHamburgerMenu" title="메뉴" style="background: none; border: none; color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 6px; border-radius: 6px; transition: all 0.2s;">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="19" y1="12" x2="5" y2="12"></line>
-          <polyline points="12 19 5 12 12 5"></polyline>
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
         </svg>
       </button>
+      
+      <!-- Hamburger Dropdown Menu -->
+      <div class="hamburger-dropdown" id="hamburgerDropdown" style="display: none; position: absolute; left: 0; top: 40px; z-index: 1000;">
+        <button class="hamburger-dropdown-item" id="btnMenuHome" style="width: 100%; border: none; background: none; padding: 10px 16px; text-align: left; font-size: 13px; color: var(--text); cursor: pointer; display: flex; align-items: center; gap: 16px; transition: background-color 0.15s;">
+          <svg width="14" height="14" viewBox="0 0 11 12" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M0.5 5.02941L5.5 0.5L10.5 5.02941L10.5 11.5H7.375V8.91176C7.375 8.39693 7.17746 7.90319 6.82583 7.53915C6.4742 7.1751 5.99728 6.97059 5.5 6.97059C5.00272 6.97059 4.52581 7.1751 4.17418 7.53915C3.82255 7.90319 3.625 8.39693 3.625 8.91176V11.5H0.500003L0.5 5.02941Z"/>
+          </svg>
+          홈으로
+        </button>
+        <button class="hamburger-dropdown-item" id="btnMenuSaveFile" style="width: 100%; border: none; background: none; padding: 10px 16px; text-align: left; font-size: 13px; color: var(--text); cursor: pointer; display: flex; align-items: center; gap: 16px; transition: background-color 0.15s;">
+          <svg width="14" height="14" viewBox="0 0 11 12" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.5 8.26471V10.2059C10.5 10.9206 9.94036 11.5 9.25 11.5H1.75C1.05964 11.5 0.5 10.9206 0.5 10.2059L0.5 8.26471M8 5.67647L5.5 8.26471L3 5.67647M5.5 8.26471V0.5"/>
+          </svg>
+          파일 저장
+        </button>
+        <button class="hamburger-dropdown-item" id="btnMenuOpenFile" style="width: 100%; border: none; background: none; padding: 10px 16px; text-align: left; font-size: 13px; color: var(--text); cursor: pointer; display: flex; align-items: center; gap: 16px; transition: background-color 0.15s;">
+          <svg width="14" height="14" viewBox="0 0 10 12" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5.64286 0.5H0.5V11.5H9.5V4.16667M5.64286 0.5H6.28571L9.5 3.55556V4.16667M5.64286 0.5V2.94444C5.64286 3.55556 6.28571 4.16667 6.92857 4.16667H9.5"/>
+          </svg>
+          파일 열기
+        </button>
+        <button class="hamburger-dropdown-item" id="btnMenuDownloadEstimate" style="width: 100%; border: none; background: none; padding: 10px 16px; text-align: left; font-size: 13px; color: var(--text); cursor: pointer; display: flex; align-items: center; gap: 16px; transition: background-color 0.15s;">
+          <svg width="14" height="14" viewBox="0 0 12 11" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8.2647 0.5H10.2059C10.9206 0.5 11.5 1.05964 11.5 1.75L11.5 9.25C11.5 9.94036 10.9206 10.5 10.2059 10.5H8.2647M5.67647 3L8.2647 5.5L5.67647 8M8.2647 5.5H0.5"/>
+          </svg>
+          견적 다운로드
+        </button>
+      </div>
+
       <div class="logo" id="logoHome">
         <img src="logo.png" alt="zibis logo">
       </div>
     </div>
-    
 
-    
-    <div class="topbar-actions">
-      <button class="btn" id="btnNewProject" title="홈으로">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-          <polyline points="9 22 9 12 15 12 15 22"/>
-        </svg>
-        홈으로
-      </button>
-      <button class="btn" id="btnLoadProject" title="프로젝트 불러오기 (.zbs)">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-          <line x1="12" y1="11" x2="12" y2="17"/>
-          <polyline points="9 14 12 11 15 14"/>
-        </svg>
-        열기
-      </button>
-      <input type="file" id="loadProjectInput" accept=".zbs" style="display:none;">
-      <button class="btn" id="btnSaveProject" title="프로젝트 저장 (.zbs)">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-          <polyline points="17 21 17 13 7 13 7 21"/>
-          <polyline points="7 3 7 8 15 8"/>
-        </svg>
-        저장
-      </button>
-      <button class="btn btn-primary" id="btnExport" title="이미지로 저장 (PNG)">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-          <polyline points="7 10 12 15 17 10"/>
-          <line x1="12" y1="15" x2="12" y2="3"/>
-        </svg>
-        결과 저장
-      </button>
+    <div class="topbar-actions" style="display: flex; align-items: center; gap: 0px;">
+      <!-- Project File Actions (로그인 완료 시 노출) -->
+      <div class="project-file-actions" id="projectFileActions" style="display: none; align-items: center; gap: 8px; margin-right: 12px;">
+        <button class="btn" id="btnNewProject" title="홈으로">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            <polyline points="9 22 9 12 15 12 15 22"/>
+          </svg>
+          홈으로
+        </button>
+        <button class="btn" id="btnLoadProject" title="프로젝트 불러오기 (.zbs)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+            <line x1="12" y1="11" x2="12" y2="17"/>
+            <polyline points="9 14 12 11 15 14"/>
+          </svg>
+          열기
+        </button>
+        <input type="file" id="loadProjectInput" accept=".zbs" style="display:none;">
+        <button class="btn" id="btnSaveProject" title="프로젝트 저장 (.zbs)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+            <polyline points="17 21 17 13 7 13 7 21"/>
+            <polyline points="7 3 7 8 15 8"/>
+          </svg>
+          저장
+        </button>
+      </div>
+
+      <!-- 로그인 전 화면용 Signup / Login 링크 -->
+      <div class="header-auth-links" id="headerAuthLinks">
+        <span class="auth-link" id="btnHeaderSignup">Signup</span>
+        <span class="auth-link" id="btnHeaderLogin">Login</span>
+      </div>
+
+      <!-- 견적 다운로드 버튼 및 툴팁 영역 -->
+      <div class="download-container" style="position: relative; display: flex; align-items: center; gap: 8px;">
+        <button class="btn btn-primary btn-download" id="btnExport" title="견적 다운로드 (엑셀)" style="background-color: #036cc5; border: none; color: #fff; display: flex; align-items: center; gap: 8px; padding: 7px 16px 8px 16px; border-radius: 60px; font-weight: 500; font-size: 12px; height: 34px; box-sizing: border-box; font-family: 'Pretendard', sans-serif;">
+          <svg width="14" height="14" viewBox="0 0 12 11" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="margin-top: -1px;">
+            <path d="M8.2647 0.5H10.2059C10.9206 0.5 11.5 1.05964 11.5 1.75L11.5 9.25C11.5 9.94036 10.9206 10.5 10.2059 10.5H8.2647M5.67647 3L8.2647 5.5L5.67647 8M8.2647 5.5H0.5"/>
+          </svg>
+          견적 다운로드
+        </button>
+        <div class="info-btn" id="btnDownloadInfo" style="width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer; user-select: none; flex-shrink: 0; margin-left: 2px;">
+          <img src="img/i.svg" alt="info" style="width: 18px; height: 18px; display: block;">
+        </div>
+        
+        <!-- 다운로드 정보 툴팁 말풍선 -->
+        <div class="download-tooltip" id="downloadTooltip" style="display: none;">
+          다운로드 시 견적 검토를 위해 서버에 자동 저장됩니다.
+        </div>
+      </div>
+
+      <!-- User Profile Dropdown (로그인 완료 시 노출) -->
+      <div class="profile-menu-container" id="profileMenuContainer" style="display: none; position: relative; margin-left: 12px;">
+        <div class="profile-avatar" id="btnProfileMenu" style="width: 32px; height: 32px; border-radius: 50%; background-color: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; cursor: pointer; user-select: none;">
+          <span id="profileInitial">G</span>
+        </div>
+        <div class="profile-dropdown" id="profileDropdown" style="display: none; position: absolute; right: 0; top: 38px; background-color: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; width: 220px; box-shadow: var(--shadow); z-index: 100; padding: 8px 0;">
+          <div class="profile-dropdown-header" style="padding: 10px 16px;">
+            <div class="profile-name" id="dropdownUserName" style="font-weight: 700; font-size: 13px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">홍길동</div>
+            <div class="profile-email" id="dropdownUserEmail" style="font-size: 11px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px;">user@example.com</div>
+          </div>
+          <div style="height: 1px; background-color: var(--border); margin: 6px 0;"></div>
+          <button class="profile-dropdown-item" id="btnMenuProfile" style="width: 100%; border: none; background: none; padding: 10px 16px; text-align: left; font-size: 13px; color: var(--text); cursor: pointer; display: flex; align-items: center; gap: 16px; transition: background-color 0.15s;">
+            <svg width="14" height="14" viewBox="0 0 11 12" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M8 7.83333H3C1.61929 7.83333 0.5 8.92775 0.5 10.2778V11.5H10.5V10.2778C10.5 8.92775 9.38071 7.83333 8 7.83333Z"/>
+              <path d="M5.5 5.38889C6.88071 5.38889 8 4.29447 8 2.94444C8 1.59441 6.88071 0.5 5.5 0.5C4.11929 0.5 3 1.59441 3 2.94444C3 4.29447 4.11929 5.38889 5.5 5.38889Z"/>
+            </svg>
+            회원 정보 수정
+          </button>
+          <button class="profile-dropdown-item" id="btnMenuEstimates" style="width: 100%; border: none; background: none; padding: 10px 16px; text-align: left; font-size: 13px; color: var(--text); cursor: pointer; display: flex; align-items: center; gap: 16px; transition: background-color 0.15s;">
+            <svg width="14" height="14" viewBox="0 0 11 12" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2.64286 6.61111H6.92857M2.64286 9.05556H8.35714M6.21429 0.5H0.5V11.5H10.5V4.16667M6.21429 0.5H6.92857L10.5 3.55556V4.16667M6.21429 0.5V2.94444C6.21429 3.55556 6.92857 4.16667 7.64286 4.16667H10.5"/>
+            </svg>
+            내 견적서
+          </button>
+          <button class="profile-dropdown-item" id="btnMenuFeedback" style="width: 100%; border: none; background: none; padding: 10px 16px; text-align: left; font-size: 13px; color: var(--text); cursor: pointer; display: flex; align-items: center; gap: 16px; transition: background-color 0.15s;">
+            <svg width="14" height="14" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.5 10.5L7.33334 9.44445C7.33334 9.44445 6.65816 9.94442 5.22222 9.94442C2.61421 9.94442 0.5 7.83021 0.5 5.22221C0.5 2.61421 2.61421 0.5 5.22222 0.5C7.83022 0.5 9.94443 2.61421 9.94443 5.22221C9.94443 6.61109 9.44445 7.33334 9.44445 7.33334L10.5 10.5Z"/>
+            </svg>
+            의견 남기기
+          </button>
+          <div style="height: 1px; background-color: var(--border); margin: 6px 0;"></div>
+          <button class="profile-dropdown-item logout" id="btnMenuLogout" style="width: 100%; border: none; background: none; padding: 10px 16px; text-align: left; font-size: 13px; color: #ff453a; cursor: pointer; display: flex; align-items: center; gap: 16px; transition: background-color 0.15s;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+            로그아웃
+          </button>
+        </div>
+      </div>
     </div>
   </div>
+
 
   <!-- Main Layout -->
   <div class="main-layout">
@@ -243,6 +333,14 @@
       <!-- Hover Tooltip for Placed Lights -->
       <div class="light-tooltip" id="lightTooltip"></div>
 
+      <!-- 스냅 토글 스위치 (캔버스 내부 배치) -->
+      <div class="snap-toggle-row">
+        <span class="snap-toggle-label">스냅</span>
+        <div class="apple-switch" id="snapToggleBtn">
+          <div class="apple-switch-handle"></div>
+        </div>
+      </div>
+
     </div>
 
     <!-- Right Sidebar: Analytics & Zone List -->
@@ -259,12 +357,6 @@
         </div>
         <div class="zone-list" id="zoneList" style="flex: 1; overflow-y: auto;">
           <!-- Populated dynamically -->
-        </div>
-        <div class="snap-toggle-row">
-          <span class="snap-toggle-label">스냅</span>
-          <div class="apple-switch" id="snapToggleBtn">
-            <div class="apple-switch-handle"></div>
-          </div>
         </div>
       </div>
     </div>
@@ -465,7 +557,12 @@
 
   <!-- Custom Confirm Dialog -->
   <div class="confirm-overlay" id="confirmOverlay">
-    <div class="confirm-dialog">
+    <div class="confirm-dialog" style="position: relative;">
+      <button class="modal-close-btn" id="btnCloseConfirm">
+        <svg viewBox="0 0 15.5 15.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14.75 0.75L0.75 14.75M0.750014 0.75L14.75 14.75"/>
+        </svg>
+      </button>
       <h3 id="confirmTitle">경고</h3>
       <p class="confirm-msg" id="confirmMsg">진행하시겠습니까?</p>
       <div class="confirm-actions">
@@ -477,7 +574,12 @@
 
   <!-- Custom Zone Selection Dialog -->
   <div class="confirm-overlay" id="zoneSelectOverlay">
-    <div class="confirm-dialog" style="width: 380px;">
+    <div class="confirm-dialog" style="width: 380px; position: relative;">
+      <button class="modal-close-btn" id="btnCloseZoneSelect">
+        <svg viewBox="0 0 15.5 15.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14.75 0.75L0.75 14.75M0.750014 0.75L14.75 14.75"/>
+        </svg>
+      </button>
       <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 8px; color: var(--text);">공간 타입 선택</h3>
       <p class="confirm-msg" style="margin-bottom: 16px; font-size: 13px; color: var(--text-dim);">그려진 공간 구획의 종류를 선택해주세요.</p>
       
@@ -506,7 +608,12 @@
 
   <!-- Custom Switch Input Dialog -->
   <div class="confirm-overlay" id="switchInputOverlay" style="display: none;">
-    <div class="confirm-dialog" style="width: 300px;">
+    <div class="confirm-dialog" style="width: 300px; position: relative;">
+      <button class="modal-close-btn" id="btnCloseSwitchInput">
+        <svg viewBox="0 0 15.5 15.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14.75 0.75L0.75 14.75M0.750014 0.75L14.75 14.75"/>
+        </svg>
+      </button>
       <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 8px; color: var(--text);">스위치 구수 설정</h3>
       <p class="confirm-msg" id="switchInputMsg" style="margin-bottom: 16px; font-size: 13px; color: var(--text-dim);">이 공간의 스위치 구수를 입력해주세요.</p>
       
@@ -528,6 +635,257 @@
       </div>
     </div>
   </div>
+
+  <!-- Signup / Create an Account Modal -->
+  <div class="confirm-overlay" id="signupOverlay" style="display: none; z-index: 1000;">
+    <div class="confirm-dialog auth-card" style="position: relative;">
+      <button class="modal-close-btn" id="btnCloseSignup" style="position: absolute; right: 28px; top: 24px; background: none; border: none; font-size: 20px; color: var(--text-dim); cursor: pointer;">×</button>
+      <h2 class="auth-title">Create an account</h2>
+      
+      <!-- Google Sign In Button -->
+      <button class="btn btn-google-login" id="btnGoogleSignup">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink: 0;">
+          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285f4"/>
+          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34a853"/>
+          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#fbbc05"/>
+          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#ea4335"/>
+        </svg>
+        Sign in with Google
+      </button>
+ 
+      <div style="display: flex; align-items: center; justify-content: center; margin-top: 4px; margin-bottom: 16px;">
+        <div style="flex: 1; height: 1px; background-color: #3a3a3a;"></div>
+        <span style="font-size: 13px; color: #888888; margin: 0 12px; font-family: 'Pretendard', sans-serif;">or</span>
+        <div style="flex: 1; height: 1px; background-color: #3a3a3a;"></div>
+      </div>
+ 
+      <!-- Email Sign Up Fields -->
+      <div class="form-row-group" style="display: flex; gap: 12px; margin-bottom: 16px;">
+        <div class="form-row" style="flex: 1;">
+          <input type="text" class="form-input" id="signupName" placeholder="이름">
+        </div>
+        <div class="form-row" style="flex: 1;">
+          <input type="text" class="form-input" id="signupCompany" placeholder="업체명">
+        </div>
+      </div>
+ 
+      <div class="form-row" style="margin-bottom: 16px;">
+        <input type="email" class="form-input" id="signupEmail" placeholder="이메일">
+      </div>
+ 
+      <div class="form-row" style="margin-bottom: 16px; position: relative;">
+        <input type="password" class="form-input" id="signupPassword" placeholder="비밀번호" style="padding-right: 56px !important;">
+        <span class="password-toggle-btn" id="btnToggleSignupPassword">👁️</span>
+      </div>
+      <div style="margin-top: -8px; margin-bottom: 16px; padding: 0 4px;">
+        <p style="font-size: 13px; color: #6c6c6c; margin: 0; font-family: 'Pretendard', sans-serif; text-align: left;">영문, 숫자, 특수문자를 조합하여 8자리 이상 입력해 주세요.</p>
+      </div>
+ 
+      <div class="form-row" style="margin-bottom: 16px; position: relative;">
+        <input type="password" class="form-input" id="signupPasswordConfirm" placeholder="비밀번호 확인" style="padding-right: 56px !important;">
+        <span class="password-toggle-btn" id="btnToggleSignupPasswordConfirm">👁️</span>
+      </div>
+ 
+      <div class="auth-agreement-box">
+        <label class="auth-checkbox-label">
+          <input type="checkbox" id="signupConsent">
+          <span class="checkbox-text">(필수) 가입 시 작성하신 도면 및 견적은 로컬 보관 및 기기 동기화를 위해 지비스 서버에 저장되며, 견적 저장 외 타 용도로 사용되지 않는데 동의합니다.</span>
+        </label>
+      </div>
+ 
+      <button class="btn btn-primary" id="btnSignupSubmit">회원가입</button>
+      <div style="text-align: center; font-size: 13px; color: #888888; font-family: 'Pretendard', sans-serif; margin-top: 16px;">
+        이미 가입하셨나요? <span id="linkToLogin" style="color: #036cc5; cursor: pointer; font-weight: 600;">로그인하기</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Login Modal -->
+  <div class="confirm-overlay" id="loginOverlay" style="display: none; z-index: 1000;">
+    <div class="confirm-dialog auth-card" style="position: relative;">
+      <button class="modal-close-btn" id="btnCloseLogin" style="position: absolute; right: 28px; top: 24px; background: none; border: none; font-size: 20px; color: var(--text-dim); cursor: pointer;">×</button>
+      <h2 class="auth-title">Login here</h2>
+      
+      <!-- Google Sign In Button -->
+      <button class="btn btn-google-login" id="btnGoogleLoginAction">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink: 0;">
+          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285f4"/>
+          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34a853"/>
+          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#fbbc05"/>
+          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#ea4335"/>
+        </svg>
+        Sign in with Google
+      </button>
+ 
+      <div style="display: flex; align-items: center; justify-content: center; margin-top: 4px; margin-bottom: 16px;">
+        <div style="flex: 1; height: 1px; background-color: #3a3a3a;"></div>
+        <span style="font-size: 13px; color: #888888; margin: 0 12px; font-family: 'Pretendard', sans-serif;">or</span>
+        <div style="flex: 1; height: 1px; background-color: #3a3a3a;"></div>
+      </div>
+ 
+      <!-- Email Login Fields -->
+      <div class="form-row" style="margin-bottom: 16px;">
+        <input type="email" class="form-input" id="loginEmail" placeholder="이메일">
+      </div>
+ 
+      <div class="form-row" style="margin-bottom: 16px; position: relative;">
+        <input type="password" class="form-input" id="loginPassword" placeholder="비밀번호" style="padding-right: 56px !important;">
+        <span class="password-toggle-btn" id="btnToggleLoginPassword">👁️</span>
+      </div>
+      <div style="margin-top: -8px; margin-bottom: 16px; padding: 0 4px;">
+        <p style="font-size: 13px; color: #6c6c6c; margin: 0; font-family: 'Pretendard', sans-serif; text-align: left;">영문, 숫자, 특수문자를 조합하여 8자리 이상 입력해 주세요.</p>
+      </div>
+ 
+      <button class="btn btn-primary" id="btnLoginSubmit">로그인</button>
+      
+      <div style="text-align: center; font-size: 13px; color: #888888; font-family: 'Pretendard', sans-serif; margin-top: 16px; margin-bottom: 8px;">
+        비밀번호를 잃어버리셨나요? <span id="linkToForgotPassword" style="color: #036cc5; cursor: pointer; font-weight: 600;">새로운 비밀번호 설정하기</span>
+      </div>
+      <div style="text-align: center; font-size: 13px; color: #888888; font-family: 'Pretendard', sans-serif;">
+        아직 가입 안 하셨나요? <span id="linkToSignup" style="color: #036cc5; cursor: pointer; font-weight: 600;">회원가입하기</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Forgot Password Modal -->
+  <div class="confirm-overlay" id="forgotPasswordOverlay" style="display: none; z-index: 1000;">
+    <div class="confirm-dialog auth-card" style="position: relative; text-align: center;">
+      <button class="modal-close-btn" id="btnCloseForgotPassword">
+        <svg viewBox="0 0 15.5 15.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14.75 0.75L0.75 14.75M0.750014 0.75L14.75 14.75"/>
+        </svg>
+      </button>
+      
+      <!-- Key/Lock Icon -->
+      <div style="margin: 16px auto; width: 60px; height: 60px; background-color: rgba(255,255,255,0.05); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent);">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+      </div>
+
+      <h2 class="auth-title" style="font-size: 18px; font-weight: 700; margin-bottom: 6px; color: var(--text);">Forgot your password?</h2>
+      <p class="auth-subtitle" style="font-size: 11px; color: var(--text-dim); margin-bottom: 20px; line-height: 1.4;">이메일을 입력하시면 비밀번호 재설정 링크를 보내드립니다.</p>
+
+      <div class="form-row" style="margin-bottom: 20px; text-align: left;">
+        <label class="form-label" style="display: block; margin-bottom: 6px; font-size: 11px; color: var(--text-dim);">이메일</label>
+        <input type="email" class="form-input" id="forgotPasswordEmail" placeholder="이메일" style="width: 100%; box-sizing: border-box; background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; color: var(--text);">
+      </div>
+
+      <button class="btn btn-primary" id="btnForgotPasswordSubmit" style="width: 100%; height: 42px; font-weight: 700; font-size: 13px; background-color: var(--accent); border: none; border-radius: 6px; color: #fff; cursor: pointer; margin-bottom: 16px;">링크 보내기</button>
+      <div style="text-align: center; font-size: 11px;">
+        <span id="linkBackToLogin" style="color: var(--accent); cursor: pointer; text-decoration: underline;">로그인으로 돌아가기</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Onboarding / Google Signup Additional Info Modal -->
+  <div class="confirm-overlay" id="onboardingOverlay" style="display: none; z-index: 1000;">
+    <div class="confirm-dialog auth-card" style="position: relative;">
+      <h2 class="auth-title">추가 정보를 입력해주세요</h2>
+      <p class="auth-subtitle" style="font-size: 12px; color: var(--text-dim); margin-bottom: 20px; text-align: center;">성함, 업체명 그리고 약관 동의를 완료해 주세요.</p>
+      
+      <div class="form-row-group" style="display: flex; gap: 12px; margin-bottom: 16px;">
+        <div class="form-row" style="flex: 1;">
+          <label class="form-label" style="display: block; margin-bottom: 6px; font-size: 11px; color: var(--text-dim);">이름 *</label>
+          <input type="text" class="form-input" id="onboardingName" placeholder="이름" style="width: 100%; box-sizing: border-box; background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; color: var(--text);">
+        </div>
+        <div class="form-row" style="flex: 1;">
+          <label class="form-label" style="display: block; margin-bottom: 6px; font-size: 11px; color: var(--text-dim);">업체명 *</label>
+          <input type="text" class="form-input" id="onboardingCompany" placeholder="업체명" style="width: 100%; box-sizing: border-box; background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; color: var(--text);">
+        </div>
+      </div>
+      
+      <div class="auth-agreement-box" style="margin-bottom: 24px; background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-size: 10px; line-height: 1.5; color: var(--text-dim);">
+        <label class="auth-checkbox-label" style="display: flex; gap: 8px; cursor: pointer; align-items: flex-start;">
+          <input type="checkbox" id="onboardingConsent" style="margin-top: 2px;">
+          <span class="checkbox-text">[필수] 가입 시 작성하신 도면 및 견적은 로컬 보관 및 기기 동기화를 위해 지비스 서버에 저장되며, 견적 저장 외 타 용도로 사용되지 않음에 동의합니다.</span>
+        </label>
+      </div>
+      
+      <button class="btn btn-primary" id="btnOnboardingSubmit" style="width: 100%; height: 42px; font-weight: 700; font-size: 13px; background-color: var(--accent); border: none; border-radius: 6px; color: #fff; cursor: pointer;">회원등록</button>
+    </div>
+  </div>
+
+  <!-- Profile Edit Modal -->
+  <div class="confirm-overlay" id="profileEditOverlay" style="display: none; z-index: 999;">
+    <div class="confirm-dialog auth-card" style="position: relative;">
+      <button class="modal-close-btn" id="btnCloseProfileEdit">
+        <svg viewBox="0 0 15.5 15.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14.75 0.75L0.75 14.75M0.750014 0.75L14.75 14.75"/>
+        </svg>
+      </button>
+      <h2 class="auth-title" style="text-align: left; margin-bottom: 16px !important;">회원 정보 수정</h2>
+      <div class="badge-account-type" id="badgeAccountType" style="display: inline-block; background-color: rgba(66, 133, 244, 0.15); color: #4285f4; font-size: 10px; font-weight: 700; padding: 4px 8px; border-radius: 4px; margin-bottom: 16px;">Google 계정 연동</div>
+      
+      <div class="form-row" style="margin-bottom: 16px;">
+        <label class="form-label" style="display: block; margin-bottom: 6px; font-size: 11px; color: var(--text-dim);">이메일</label>
+        <input type="email" class="form-input" id="profileEditEmail" readonly disabled style="width: 100%; box-sizing: border-box; background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; color: var(--text); opacity: 0.6; cursor: not-allowed;">
+      </div>
+      
+      <div class="form-row-group" style="display: flex; gap: 12px; margin-bottom: 20px;">
+        <div class="form-row" style="flex: 1;">
+          <label class="form-label" style="display: block; margin-bottom: 6px; font-size: 11px; color: var(--text-dim);">이름 *</label>
+          <input type="text" class="form-input" id="profileEditName" placeholder="이름" style="width: 100%; box-sizing: border-box; background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; color: var(--text);">
+        </div>
+        <div class="form-row" style="flex: 1;">
+          <label class="form-label" style="display: block; margin-bottom: 6px; font-size: 11px; color: var(--text-dim);">업체명 *</label>
+          <input type="text" class="form-input" id="profileEditCompany" placeholder="업체명" style="width: 100%; box-sizing: border-box; background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; color: var(--text);">
+        </div>
+      </div>
+      
+      <button class="btn btn-primary" id="btnProfileEditSave" style="width: 100%; height: 42px; font-weight: 700; font-size: 13px; background-color: var(--accent); border: none; border-radius: 6px; color: #fff; cursor: pointer;">저장하기</button>
+    </div>
+  </div>
+
+  <!-- My Estimates Modal -->
+  <div class="confirm-overlay" id="myEstimatesOverlay" style="display: none; z-index: 998;">
+    <div class="confirm-dialog auth-card" style="max-height: 80vh; display: flex; flex-direction: column; position: relative;">
+      <button class="modal-close-btn" id="btnCloseMyEstimates">
+        <svg viewBox="0 0 15.5 15.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14.75 0.75L0.75 14.75M0.750014 0.75L14.75 14.75"/>
+        </svg>
+      </button>
+      <h2 class="auth-title" style="flex-shrink: 0; text-align: left; margin-bottom: 16px !important;">내 견적서 목록</h2>
+      <div class="estimates-list-container" id="estimatesListContainer" style="flex: 1; overflow-y: auto; margin-bottom: 8px;">
+        <!-- Estimates list items populated dynamically -->
+        <div class="empty-estimates-msg" style="text-align: center; color: var(--text-dim); padding: 40px 0; font-size: 13px;">저장된 견적서가 없습니다.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Feedback / Request Modal -->
+  <div class="confirm-overlay" id="feedbackOverlay" style="display: none; z-index: 997;">
+    <div class="confirm-dialog auth-card" style="max-height: 85vh; display: flex; flex-direction: column; position: relative;">
+      <button class="modal-close-btn" id="btnCloseFeedback">
+        <svg viewBox="0 0 15.5 15.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14.75 0.75L0.75 14.75M0.750014 0.75L14.75 14.75"/>
+        </svg>
+      </button>
+      <h2 class="auth-title" style="flex-shrink: 0; text-align: left; margin-bottom: 16px !important;">의견 남기기</h2>
+      <p style="font-size: 12px; color: var(--text-dim); margin-bottom: 16px; line-height: 1.5; flex-shrink: 0;">
+        지비스 플래너를 사용하시면서 개선하면 좋을 기능이나 아이디어를 남겨주세요.
+      </p>
+      
+      <div class="form-row" style="margin-bottom: 16px; flex-shrink: 0;">
+        <label class="form-label" style="display: block; margin-bottom: 6px; font-size: 11px; color: var(--text-dim);">의견 제목 *</label>
+        <input type="text" class="form-input" id="feedbackTitle" placeholder="제목을 입력하세요" style="width: 100%; box-sizing: border-box; background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; color: var(--text);">
+      </div>
+      
+      <div class="form-row" style="margin-bottom: 20px; flex-shrink: 0;">
+        <label class="form-label" style="display: block; margin-bottom: 6px; font-size: 11px; color: var(--text-dim);">내용 *</label>
+        <textarea class="form-input" id="feedbackContent" rows="4" placeholder="개선 의견을 자유롭게 적어주세요" style="width: 100%; box-sizing: border-box; background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; color: var(--text); resize: vertical; font-family: inherit; font-size: 13px;"></textarea>
+      </div>
+      
+      <button class="btn btn-primary" id="btnFeedbackSubmit" style="width: 100%; height: 42px; font-weight: 700; font-size: 13px; background-color: var(--accent); border: none; border-radius: 6px; color: #fff; cursor: pointer; flex-shrink: 0; margin-bottom: 20px;">제출하기</button>
+      
+      <div class="feedback-history-title" style="font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 10px; border-top: 1px solid var(--border); padding-top: 16px; flex-shrink: 0;">이전 피드백 이력</div>
+      <div class="feedback-list" id="feedbackList" style="flex: 1; overflow-y: auto; font-size: 12px; display: flex; flex-direction: column; gap: 8px;">
+        <!-- Dynamically populated feedback list -->
+      </div>
+    </div>
+  </div>
+</div>
 
 </div>
 

@@ -2,3 +2,5 @@ tunnel.log
 *.DS_Store
 .DS_Store
 node_modules/
+ecount_config.py
+이카운트_조회결과.json
