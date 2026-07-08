@@ -4,3 +4,4 @@ tunnel.log
 node_modules/
 ecount_config.py
 이카운트_조회결과.json
+.claude/worktrees/

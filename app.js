@@ -573,6 +573,19 @@ function setTopbarVisible(show) {
   if (els.topbar) els.topbar.style.display = show ? 'flex' : 'none';
 }
 
+// Helper: 짧게 보였다가 자동으로 사라지는 확인 메시지 (예: 로그아웃 완료)
+let toastHideTimeout = null;
+function showToast(message) {
+  const toast = document.getElementById('toast');
+  if (!toast) return;
+  toast.textContent = message;
+  toast.classList.add('show');
+  clearTimeout(toastHideTimeout);
+  toastHideTimeout = setTimeout(() => {
+    toast.classList.remove('show');
+  }, 2200);
+}
+
 // Helper: uploadOverlay 표시 제어 (download-container 동기화 포함)
 function setUploadOverlayVisible(show) {
   const downloadContainer = document.querySelector('.download-container');
@@ -5342,12 +5355,18 @@ async function exportToExcel() {
         base64Image = tempCanvas.toDataURL('image/jpeg', 0.85);
       }
 
+      // 이카운트 ERP 품번 매칭용: 저장 시점 fixtureDatabase 기준으로 각 조명에 품번(ecountProdCd)을 스냅샷으로 포함
+      const lightsWithProductCode = state.lights.map(l => {
+        const spec = fixtureDatabase.find(f => f.id === l.typeId);
+        return { ...l, ecountProdCd: spec ? (spec.ecountProdCd || null) : null };
+      });
+
       const projectData = {
         version: '1.0',
         pixelsPerMeter: state.pixelsPerMeter,
         ceilingHeight: state.ceilingHeight,
         imageBase64: base64Image,
-        lights: state.lights,
+        lights: lightsWithProductCode,
         zones: state.zones,
         dimensions: state.dimensions,
         nextLightId: state.nextLightId,
@@ -5767,6 +5786,7 @@ function setupAuthEventListeners() {
     profileDropdown.style.display = 'none';
     const { error } = await supabaseClient.auth.signOut();
     if (error) alert('로그아웃 에러: ' + error.message);
+    else showToast('정상적으로 로그아웃되었습니다.');
   };
 
   // Signup Submit
