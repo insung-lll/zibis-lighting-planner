@@ -29,7 +29,7 @@
 <div class="app-wrapper" id="appWrapper">
 
   <!-- Top Navigation Bar -->
-  <div class="topbar">
+  <div class="topbar" style="position: relative; z-index: 300; display: none;">
     <div class="topbar-left" style="display:flex; align-items:center; gap:12px; position: relative;">
       <button class="btn" id="btnHamburgerMenu" title="메뉴" style="background: none; border: none; color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 6px; border-radius: 6px; transition: all 0.2s;">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -40,12 +40,21 @@
       </button>
       
       <!-- Hamburger Dropdown Menu -->
-      <div class="hamburger-dropdown" id="hamburgerDropdown" style="display: none; position: absolute; left: 0; top: 40px; z-index: 1000;">
+      <div class="hamburger-dropdown" id="hamburgerDropdown" style="display: none; position: absolute; left: 0; top: 40px; z-index: 1200;">
         <button class="hamburger-dropdown-item" id="btnMenuHome" style="width: 100%; border: none; background: none; padding: 10px 16px; text-align: left; font-size: 13px; color: var(--text); cursor: pointer; display: flex; align-items: center; gap: 16px; transition: background-color 0.15s;">
           <svg width="14" height="14" viewBox="0 0 11 12" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M0.5 5.02941L5.5 0.5L10.5 5.02941L10.5 11.5H7.375V8.91176C7.375 8.39693 7.17746 7.90319 6.82583 7.53915C6.4742 7.1751 5.99728 6.97059 5.5 6.97059C5.00272 6.97059 4.52581 7.1751 4.17418 7.53915C3.82255 7.90319 3.625 8.39693 3.625 8.91176V11.5H0.500003L0.5 5.02941Z"/>
           </svg>
           홈으로
+        </button>
+        <button class="hamburger-dropdown-item" id="btnMenuCalibrate" style="width: 100%; border: none; background: none; padding: 10px 16px; text-align: left; font-size: 13px; color: var(--text); cursor: pointer; display: flex; align-items: center; gap: 16px; transition: background-color 0.15s;">
+          <svg width="14" height="14" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="0.5" y="4" width="11" height="4" rx="0.5"/>
+            <line x1="3" y1="4" x2="3" y2="6"/>
+            <line x1="5.5" y1="4" x2="5.5" y2="6"/>
+            <line x1="8" y1="4" x2="8" y2="6"/>
+          </svg>
+          스케일 보정
         </button>
         <button class="hamburger-dropdown-item" id="btnMenuSaveFile" style="width: 100%; border: none; background: none; padding: 10px 16px; text-align: left; font-size: 13px; color: var(--text); cursor: pointer; display: flex; align-items: center; gap: 16px; transition: background-color 0.15s;">
           <svg width="14" height="14" viewBox="0 0 11 12" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
@@ -60,8 +69,11 @@
           파일 열기
         </button>
         <button class="hamburger-dropdown-item" id="btnMenuDownloadEstimate" style="width: 100%; border: none; background: none; padding: 10px 16px; text-align: left; font-size: 13px; color: var(--text); cursor: pointer; display: flex; align-items: center; gap: 16px; transition: background-color 0.15s;">
-          <svg width="14" height="14" viewBox="0 0 12 11" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M8.2647 0.5H10.2059C10.9206 0.5 11.5 1.05964 11.5 1.75L11.5 9.25C11.5 9.94036 10.9206 10.5 10.2059 10.5H8.2647M5.67647 3L8.2647 5.5L5.67647 8M8.2647 5.5H0.5"/>
+          <svg width="18" height="18" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M23.0659 4.35413L6.84827 4.35413V33.6458H31.1513V12.7747L23.0659 4.35413Z" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"/>
+            <path d="M22.312 5.23242V13.696H30.3982" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"/>
+            <path d="M17.2019 25.8517V16.2102" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"/>
+            <path d="M20.9437 22.9914L17.201 26.75L13.4584 22.9914" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"/>
           </svg>
           견적 다운로드
         </button>
@@ -72,103 +84,73 @@
       </div>
     </div>
 
-    <div class="topbar-actions" style="display: flex; align-items: center; gap: 0px;">
-      <!-- Project File Actions (로그인 완료 시 노출) -->
-      <div class="project-file-actions" id="projectFileActions" style="display: none; align-items: center; gap: 8px; margin-right: 12px;">
-        <button class="btn" id="btnNewProject" title="홈으로">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-            <polyline points="9 22 9 12 15 12 15 22"/>
-          </svg>
-          홈으로
-        </button>
-        <button class="btn" id="btnLoadProject" title="프로젝트 불러오기 (.zbs)">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-            <line x1="12" y1="11" x2="12" y2="17"/>
-            <polyline points="9 14 12 11 15 14"/>
-          </svg>
-          열기
-        </button>
-        <input type="file" id="loadProjectInput" accept=".zbs" style="display:none;">
-        <button class="btn" id="btnSaveProject" title="프로젝트 저장 (.zbs)">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-            <polyline points="17 21 17 13 7 13 7 21"/>
-            <polyline points="7 3 7 8 15 8"/>
-          </svg>
-          저장
-        </button>
-      </div>
-
-      <!-- 로그인 전 화면용 Signup / Login 링크 -->
-      <div class="header-auth-links" id="headerAuthLinks">
+    <div class="topbar-actions" style="display: flex; align-items: center; gap: 10px;">
+      <!-- 로그인 전 화면용 Signup / Login 링크 (견적 다운로드 왼쪽 배치) -->
+      <div class="header-auth-links" id="headerAuthLinks" style="margin-right: 12px; display: flex;">
         <span class="auth-link" id="btnHeaderSignup">Signup</span>
         <span class="auth-link" id="btnHeaderLogin">Login</span>
       </div>
 
-      <!-- 견적 다운로드 버튼 및 툴팁 영역 -->
-      <div class="download-container" style="position: relative; display: flex; align-items: center; gap: 8px;">
-        <button class="btn btn-primary btn-download" id="btnExport" title="견적 다운로드 (엑셀)" style="background-color: #036cc5; border: none; color: #fff; display: flex; align-items: center; gap: 8px; padding: 7px 16px 8px 16px; border-radius: 60px; font-weight: 500; font-size: 12px; height: 34px; box-sizing: border-box; font-family: 'Pretendard', sans-serif;">
-          <svg width="14" height="14" viewBox="0 0 12 11" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="margin-top: -1px;">
-            <path d="M8.2647 0.5H10.2059C10.9206 0.5 11.5 1.05964 11.5 1.75L11.5 9.25C11.5 9.94036 10.9206 10.5 10.2059 10.5H8.2647M5.67647 3L8.2647 5.5L5.67647 8M8.2647 5.5H0.5"/>
+      <!-- User Profile Dropdown (로그인 완료 시 노출, 견적 다운로드 왼쪽 배치) -->
+      <div class="profile-menu-container" id="profileMenuContainer" style="display: none; position: relative; margin-right: 12px;">
+        <!-- Circular grey outline button matching figma node 50-635 (No initials, silhouette only) -->
+        <div class="profile-avatar" id="btnProfileMenu" style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; user-select: none; transition: background-color 0.2s;">
+          <svg width="32" height="32" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M13 1C6.37258 1 1 6.37258 1 13C1 19.6274 6.37258 25 13 25C19.6274 25 25 19.6274 25 13C25 6.37258 19.6274 1 13 1Z" fill="#2A2A2A"/>
+            <path d="M13 13C15.2091 13 17 11.2091 17 9C17 6.79086 15.2091 5 13 5C10.7909 5 9 6.79086 9 9C9 11.2091 10.7909 13 13 13Z" fill="#2A2A2A"/>
+            <path d="M21 21.9444C21 19.7847 19.4377 16.9999 17 17H9C6.56229 16.9999 5 19.7847 5 21.9444M1 13C1 6.37258 6.37258 1 13 1C19.6274 1 25 6.37258 25 13C25 19.6274 19.6274 25 13 25C6.37258 25 1 19.6274 1 13ZM17 9C17 11.2091 15.2091 13 13 13C10.7909 13 9 11.2091 9 9C9 6.79086 10.7909 5 13 5C15.2091 5 17 6.79086 17 9Z" stroke="#D9D9D9"/>
           </svg>
-          견적 다운로드
-        </button>
-        <div class="info-btn" id="btnDownloadInfo" style="width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer; user-select: none; flex-shrink: 0; margin-left: 2px;">
-          <img src="img/i.svg" alt="info" style="width: 18px; height: 18px; display: block;">
         </div>
         
-        <!-- 다운로드 정보 툴팁 말풍선 -->
-        <div class="download-tooltip" id="downloadTooltip" style="display: none;">
-          다운로드 시 견적 검토를 위해 서버에 자동 저장됩니다.
-        </div>
-      </div>
-
-      <!-- User Profile Dropdown (로그인 완료 시 노출) -->
-      <div class="profile-menu-container" id="profileMenuContainer" style="display: none; position: relative; margin-left: 12px;">
-        <div class="profile-avatar" id="btnProfileMenu" style="width: 32px; height: 32px; border-radius: 50%; background-color: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; cursor: pointer; user-select: none;">
-          <span id="profileInitial">G</span>
-        </div>
-        <div class="profile-dropdown" id="profileDropdown" style="display: none; position: absolute; right: 0; top: 38px; background-color: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; width: 220px; box-shadow: var(--shadow); z-index: 100; padding: 8px 0;">
-          <div class="profile-dropdown-header" style="padding: 10px 16px;">
-            <div class="profile-name" id="dropdownUserName" style="font-weight: 700; font-size: 13px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">홍길동</div>
-            <div class="profile-email" id="dropdownUserEmail" style="font-size: 11px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px;">user@example.com</div>
-          </div>
-          <div style="height: 1px; background-color: var(--border); margin: 6px 0;"></div>
-          <button class="profile-dropdown-item" id="btnMenuProfile" style="width: 100%; border: none; background: none; padding: 10px 16px; text-align: left; font-size: 13px; color: var(--text); cursor: pointer; display: flex; align-items: center; gap: 16px; transition: background-color 0.15s;">
+        <!-- profile-dropdown matching hamburger-dropdown style -->
+        <div class="hamburger-dropdown" id="profileDropdown" style="display: none; position: absolute; right: 0; top: 40px; z-index: 1200;">
+          <button class="hamburger-dropdown-item" id="btnMenuProfile">
             <svg width="14" height="14" viewBox="0 0 11 12" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M8 7.83333H3C1.61929 7.83333 0.5 8.92775 0.5 10.2778V11.5H10.5V10.2778C10.5 8.92775 9.38071 7.83333 8 7.83333Z"/>
               <path d="M5.5 5.38889C6.88071 5.38889 8 4.29447 8 2.94444C8 1.59441 6.88071 0.5 5.5 0.5C4.11929 0.5 3 1.59441 3 2.94444C3 4.29447 4.11929 5.38889 5.5 5.38889Z"/>
             </svg>
-            회원 정보 수정
+            회원 정보
           </button>
-          <button class="profile-dropdown-item" id="btnMenuEstimates" style="width: 100%; border: none; background: none; padding: 10px 16px; text-align: left; font-size: 13px; color: var(--text); cursor: pointer; display: flex; align-items: center; gap: 16px; transition: background-color 0.15s;">
+          
+          <button class="hamburger-dropdown-item" id="btnMenuEstimates" style="display: none !important;">
             <svg width="14" height="14" viewBox="0 0 11 12" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M2.64286 6.61111H6.92857M2.64286 9.05556H8.35714M6.21429 0.5H0.5V11.5H10.5V4.16667M6.21429 0.5H6.92857L10.5 3.55556V4.16667M6.21429 0.5V2.94444C6.21429 3.55556 6.92857 4.16667 7.64286 4.16667H10.5"/>
             </svg>
             내 견적서
           </button>
-          <button class="profile-dropdown-item" id="btnMenuFeedback" style="width: 100%; border: none; background: none; padding: 10px 16px; text-align: left; font-size: 13px; color: var(--text); cursor: pointer; display: flex; align-items: center; gap: 16px; transition: background-color 0.15s;">
+          
+          <button class="hamburger-dropdown-item" id="btnMenuFeedback">
             <svg width="14" height="14" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M10.5 10.5L7.33334 9.44445C7.33334 9.44445 6.65816 9.94442 5.22222 9.94442C2.61421 9.94442 0.5 7.83021 0.5 5.22221C0.5 2.61421 2.61421 0.5 5.22222 0.5C7.83022 0.5 9.94443 2.61421 9.94443 5.22221C9.94443 6.61109 9.44445 7.33334 9.44445 7.33334L10.5 10.5Z"/>
             </svg>
             의견 남기기
           </button>
-          <div style="height: 1px; background-color: var(--border); margin: 6px 0;"></div>
-          <button class="profile-dropdown-item logout" id="btnMenuLogout" style="width: 100%; border: none; background: none; padding: 10px 16px; text-align: left; font-size: 13px; color: #ff453a; cursor: pointer; display: flex; align-items: center; gap: 16px; transition: background-color 0.15s;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-              <polyline points="16 17 21 12 16 7"/>
-              <line x1="21" y1="12" x2="9" y2="12"/>
-            </svg>
+          
+          <div style="height: 1px; background-color: #2a2a2a; margin: 4px 0; width: 100%;"></div>
+          
+          <button class="hamburger-dropdown-item logout" id="btnMenuLogout" style="color: #737373 !important; justify-content: center; text-align: center;">
             로그아웃
           </button>
         </div>
       </div>
+
+      <!-- 견적 다운로드 버튼 영역 (프로젝트 로드 후 노출, 가장 우측 배치) -->
+      <div class="download-container" style="position: relative; display: none; align-items: center;">
+        <button class="btn btn-primary btn-download" id="btnExport" title="견적 다운로드 (엑셀)" style="background-color: #036cc5; border: none; color: #fff; display: flex; align-items: center; gap: 8px; padding: 7px 16px 8px 16px; border-radius: 60px; font-weight: 500; font-size: 12px; height: 34px; box-sizing: border-box; font-family: 'Pretendard', sans-serif;">
+          <svg width="18" height="18" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-top: -1px;">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M23.0659 4.35413L6.84827 4.35413V33.6458H31.1513V12.7747L23.0659 4.35413Z" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"/>
+            <path d="M22.312 5.23242V13.696H30.3982" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"/>
+            <path d="M17.2019 25.8517V16.2102" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"/>
+            <path d="M20.9437 22.9914L17.201 26.75L13.4584 22.9914" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"/>
+          </svg>
+          견적 다운로드
+        </button>
+      </div>
     </div>
   </div>
 
+  <!-- Hidden file input for loading project files -->
+  <input type="file" id="loadProjectInput" accept=".zbs" style="display:none;">
 
   <!-- Main Layout -->
   <div class="main-layout">
@@ -738,11 +720,8 @@
  
       <button class="btn btn-primary" id="btnLoginSubmit">로그인</button>
       
-      <div style="text-align: center; font-size: 13px; color: #888888; font-family: 'Pretendard', sans-serif; margin-top: 16px; margin-bottom: 8px;">
+      <div style="text-align: center; font-size: 13px; color: #888888; font-family: 'Pretendard', sans-serif; margin-top: 16px;">
         비밀번호를 잃어버리셨나요? <span id="linkToForgotPassword" style="color: #036cc5; cursor: pointer; font-weight: 600;">새로운 비밀번호 설정하기</span>
-      </div>
-      <div style="text-align: center; font-size: 13px; color: #888888; font-family: 'Pretendard', sans-serif;">
-        아직 가입 안 하셨나요? <span id="linkToSignup" style="color: #036cc5; cursor: pointer; font-weight: 600;">회원가입하기</span>
       </div>
     </div>
   </div>
@@ -756,85 +735,141 @@
         </svg>
       </button>
       
-      <!-- Key/Lock Icon -->
-      <div style="margin: 16px auto; width: 60px; height: 60px; background-color: rgba(255,255,255,0.05); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent);">
-          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-        </svg>
+      <!-- Key/Lock Image -->
+      <img src="img/pass.png" alt="password lock" style="width: 156px; height: auto; margin: 16px auto 24px auto; display: block;">
+
+      <h2 class="auth-title">Forgot your password?</h2>
+      <p class="auth-subtitle" style="font-size: 13px; color: #888888; margin-bottom: 24px; text-align: center; display: block; font-family: 'Pretendard', sans-serif;">이메일을 입력하시면 비밀번호 재설정 링크를 보내드립니다.</p>
+
+      <div class="form-row" style="margin-bottom: 16px; text-align: left;">
+        <input type="email" class="form-input" id="forgotPasswordEmail" placeholder="이메일">
       </div>
 
-      <h2 class="auth-title" style="font-size: 18px; font-weight: 700; margin-bottom: 6px; color: var(--text);">Forgot your password?</h2>
-      <p class="auth-subtitle" style="font-size: 11px; color: var(--text-dim); margin-bottom: 20px; line-height: 1.4;">이메일을 입력하시면 비밀번호 재설정 링크를 보내드립니다.</p>
-
-      <div class="form-row" style="margin-bottom: 20px; text-align: left;">
-        <label class="form-label" style="display: block; margin-bottom: 6px; font-size: 11px; color: var(--text-dim);">이메일</label>
-        <input type="email" class="form-input" id="forgotPasswordEmail" placeholder="이메일" style="width: 100%; box-sizing: border-box; background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; color: var(--text);">
-      </div>
-
-      <button class="btn btn-primary" id="btnForgotPasswordSubmit" style="width: 100%; height: 42px; font-weight: 700; font-size: 13px; background-color: var(--accent); border: none; border-radius: 6px; color: #fff; cursor: pointer; margin-bottom: 16px;">링크 보내기</button>
-      <div style="text-align: center; font-size: 11px;">
-        <span id="linkBackToLogin" style="color: var(--accent); cursor: pointer; text-decoration: underline;">로그인으로 돌아가기</span>
+      <button class="btn btn-primary" id="btnForgotPasswordSubmit">링크 보내기</button>
+      <div style="text-align: center; font-size: 13px; color: #888888; font-family: 'Pretendard', sans-serif; margin-top: 20px;">
+        <span id="linkBackToLogin" style="color: #036cc5; cursor: pointer; font-weight: 600;">로그인으로 돌아가기</span>
       </div>
     </div>
   </div>
 
   <!-- Onboarding / Google Signup Additional Info Modal -->
   <div class="confirm-overlay" id="onboardingOverlay" style="display: none; z-index: 1000;">
-    <div class="confirm-dialog auth-card" style="position: relative;">
+    <div class="confirm-dialog auth-card" style="position: relative; text-align: center;">
+      <button class="modal-close-btn" id="btnCloseOnboarding">
+        <svg viewBox="0 0 15.5 15.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14.75 0.75L0.75 14.75M0.750014 0.75L14.75 14.75"/>
+        </svg>
+      </button>
       <h2 class="auth-title">추가 정보를 입력해주세요</h2>
-      <p class="auth-subtitle" style="font-size: 12px; color: var(--text-dim); margin-bottom: 20px; text-align: center;">성함, 업체명 그리고 약관 동의를 완료해 주세요.</p>
+      <p class="auth-subtitle" style="font-size: 13px; color: #888888; margin-bottom: 24px; text-align: center; display: block; font-family: 'Pretendard', sans-serif;">
+        성함, 업체명 그리고 약관 동의를 완료해 주세요.<br>
+        <span style="color: #ff9f0a; font-size: 12px; font-weight: 600; margin-top: 6px; display: inline-block; font-family: 'Pretendard', sans-serif;">※ 다운로드 시 견적 검토를 위해 서버에 자동 저장됩니다.</span>
+      </p>
       
       <div class="form-row-group" style="display: flex; gap: 12px; margin-bottom: 16px;">
         <div class="form-row" style="flex: 1;">
-          <label class="form-label" style="display: block; margin-bottom: 6px; font-size: 11px; color: var(--text-dim);">이름 *</label>
-          <input type="text" class="form-input" id="onboardingName" placeholder="이름" style="width: 100%; box-sizing: border-box; background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; color: var(--text);">
+          <input type="text" class="form-input" id="onboardingName" placeholder="이름">
         </div>
         <div class="form-row" style="flex: 1;">
-          <label class="form-label" style="display: block; margin-bottom: 6px; font-size: 11px; color: var(--text-dim);">업체명 *</label>
-          <input type="text" class="form-input" id="onboardingCompany" placeholder="업체명" style="width: 100%; box-sizing: border-box; background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; color: var(--text);">
+          <input type="text" class="form-input" id="onboardingCompany" placeholder="업체명">
         </div>
       </div>
       
-      <div class="auth-agreement-box" style="margin-bottom: 24px; background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-size: 10px; line-height: 1.5; color: var(--text-dim);">
+      <div class="auth-agreement-box" style="margin-bottom: 24px; background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-size: 12px; line-height: 1.5; color: var(--text-dim); text-align: left;">
         <label class="auth-checkbox-label" style="display: flex; gap: 8px; cursor: pointer; align-items: flex-start;">
           <input type="checkbox" id="onboardingConsent" style="margin-top: 2px;">
-          <span class="checkbox-text">[필수] 가입 시 작성하신 도면 및 견적은 로컬 보관 및 기기 동기화를 위해 지비스 서버에 저장되며, 견적 저장 외 타 용도로 사용되지 않음에 동의합니다.</span>
+          <span class="checkbox-text">[필수] 가입 및 견적 다운로드 시 작성하신 도면 및 견적은 로컬 보관, 기기 동기화 및 검토를 위해 지비스 서버에 저장되며, 견적 저장 외 타 용도로 사용되지 않음에 동의합니다.</span>
         </label>
       </div>
       
-      <button class="btn btn-primary" id="btnOnboardingSubmit" style="width: 100%; height: 42px; font-weight: 700; font-size: 13px; background-color: var(--accent); border: none; border-radius: 6px; color: #fff; cursor: pointer;">회원등록</button>
+      <button class="btn btn-primary" id="btnOnboardingSubmit">회원등록</button>
     </div>
   </div>
 
   <!-- Profile Edit Modal -->
   <div class="confirm-overlay" id="profileEditOverlay" style="display: none; z-index: 999;">
-    <div class="confirm-dialog auth-card" style="position: relative;">
+    <div class="confirm-dialog auth-card" style="position: relative; padding-top: 90px !important;">
       <button class="modal-close-btn" id="btnCloseProfileEdit">
         <svg viewBox="0 0 15.5 15.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M14.75 0.75L0.75 14.75M0.750014 0.75L14.75 14.75"/>
         </svg>
       </button>
-      <h2 class="auth-title" style="text-align: left; margin-bottom: 16px !important;">회원 정보 수정</h2>
-      <div class="badge-account-type" id="badgeAccountType" style="display: inline-block; background-color: rgba(66, 133, 244, 0.15); color: #4285f4; font-size: 10px; font-weight: 700; padding: 4px 8px; border-radius: 4px; margin-bottom: 16px;">Google 계정 연동</div>
+      
+      <!-- Top header row with logo and badge -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <div id="profileEditHeaderIcon" style="display: flex; align-items: center;">
+          <!-- Google G logo or envelope icon loaded dynamically -->
+        </div>
+        <div id="profileEditBadge" style="background-color: #222222; border: 1px solid #333333; color: #888888; font-size: 11px; font-weight: 500; padding: 6px 12px; border-radius: 20px; font-family: 'Pretendard', sans-serif;">
+          Google 계정 연동
+        </div>
+      </div>
+      
+      <h2 class="auth-title" id="profileEditTitle" style="text-align: left; margin-bottom: 8px !important; font-size: 20px; font-weight: 700; color: #ffffff;">소셜 로그인 회원입니다.</h2>
+      <p class="auth-subtitle" id="profileEditSubtitle" style="font-size: 13px; color: #888888; text-align: left; margin-bottom: 24px; line-height: 1.5; font-family: 'Pretendard', sans-serif;">이메일은 Google 계정에서 관리되며 직접 수정할 수 없습니다.</p>
+      
+      <div class="form-row" style="margin-bottom: 20px; position: relative;">
+        <input type="email" class="form-input" id="profileEditEmail" readonly disabled style="padding-right: 100px; opacity: 0.8; width: 100%; box-sizing: border-box;">
+        <!-- Verified badge aligned to the right inside input -->
+        <div style="position: absolute; right: 16px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 4px; color: #10b981; font-size: 12px; font-family: 'Pretendard', sans-serif; font-weight: 600; background-color: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); padding: 4px 8px; border-radius: 12px;">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="10 3 4.5 8.5 2 6"></polyline>
+          </svg>
+          Verified
+        </div>
+      </div>
+      
+      <div style="height: 1px; background-color: #2a2a2a; margin: 24px 0;"></div>
       
       <div class="form-row" style="margin-bottom: 16px;">
-        <label class="form-label" style="display: block; margin-bottom: 6px; font-size: 11px; color: var(--text-dim);">이메일</label>
-        <input type="email" class="form-input" id="profileEditEmail" readonly disabled style="width: 100%; box-sizing: border-box; background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; color: var(--text); opacity: 0.6; cursor: not-allowed;">
+        <input type="text" class="form-input" id="profileEditName" placeholder="이름" style="width: 100%; box-sizing: border-box;">
       </div>
       
-      <div class="form-row-group" style="display: flex; gap: 12px; margin-bottom: 20px;">
-        <div class="form-row" style="flex: 1;">
-          <label class="form-label" style="display: block; margin-bottom: 6px; font-size: 11px; color: var(--text-dim);">이름 *</label>
-          <input type="text" class="form-input" id="profileEditName" placeholder="이름" style="width: 100%; box-sizing: border-box; background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; color: var(--text);">
-        </div>
-        <div class="form-row" style="flex: 1;">
-          <label class="form-label" style="display: block; margin-bottom: 6px; font-size: 11px; color: var(--text-dim);">업체명 *</label>
-          <input type="text" class="form-input" id="profileEditCompany" placeholder="업체명" style="width: 100%; box-sizing: border-box; background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; color: var(--text);">
-        </div>
+      <div class="form-row" style="margin-bottom: 24px;">
+        <input type="text" class="form-input" id="profileEditCompany" placeholder="업체명" style="width: 100%; box-sizing: border-box;">
       </div>
       
-      <button class="btn btn-primary" id="btnProfileEditSave" style="width: 100%; height: 42px; font-weight: 700; font-size: 13px; background-color: var(--accent); border: none; border-radius: 6px; color: #fff; cursor: pointer;">저장하기</button>
+      <button class="btn btn-primary" id="btnProfileEditSave">저장하기</button>
+      
+      <div id="profileEditResetPasswordLinkContainer" style="text-align: center; margin-top: 20px; display: none;">
+        <span id="linkProfileEditChangePassword" style="color: #036cc5; cursor: pointer; font-size: 13px; font-weight: 600; font-family: 'Pretendard', sans-serif;">비밀번호 변경하기</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Change Password Modal (Email users, from Profile Edit) -->
+  <div class="confirm-overlay" id="changePasswordOverlay" style="display: none; z-index: 1000;">
+    <div class="confirm-dialog auth-card" style="position: relative; text-align: center;">
+      <button class="modal-close-btn" id="btnCloseChangePassword">
+        <svg viewBox="0 0 15.5 15.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14.75 0.75L0.75 14.75M0.750014 0.75L14.75 14.75"/>
+        </svg>
+      </button>
+
+      <img src="img/pass.png" alt="password lock" style="width: 161px; height: auto; margin: 16px auto 24px auto; display: block;">
+
+      <h2 class="auth-title">비밀번호 변경</h2>
+      <p class="auth-subtitle" style="font-size: 13px; color: #888888; margin-bottom: 24px; text-align: center; display: block; font-family: 'Pretendard', sans-serif;">보안을 위해 주기적으로 비밀번호를 변경해주세요.</p>
+
+      <div class="form-row" style="margin-bottom: 16px; position: relative;">
+        <input type="password" class="form-input" id="changePasswordCurrent" placeholder="현재 비밀번호" style="padding-right: 56px !important;">
+        <span class="password-toggle-btn" id="btnToggleChangePasswordCurrent">👁️</span>
+      </div>
+
+      <div class="form-row" style="margin-bottom: 16px; position: relative;">
+        <input type="password" class="form-input" id="changePasswordNew" placeholder="새로운 비밀번호" style="padding-right: 56px !important;">
+        <span class="password-toggle-btn" id="btnToggleChangePasswordNew">👁️</span>
+      </div>
+      <div style="margin-top: -8px; margin-bottom: 16px; padding: 0 4px;">
+        <p style="font-size: 13px; color: #6c6c6c; margin: 0; font-family: 'Pretendard', sans-serif; text-align: left;">영문, 숫자, 특수문자를 조합하여 8자리 이상 입력해 주세요.</p>
+      </div>
+
+      <div class="form-row" style="margin-bottom: 16px; position: relative;">
+        <input type="password" class="form-input" id="changePasswordConfirm" placeholder="새로운 비밀번호 확인" style="padding-right: 56px !important;">
+        <span class="password-toggle-btn" id="btnToggleChangePasswordConfirm">👁️</span>
+      </div>
+
+      <button class="btn btn-primary" id="btnChangePasswordSubmit">변경하기</button>
     </div>
   </div>
 
@@ -856,32 +891,44 @@
 
   <!-- Feedback / Request Modal -->
   <div class="confirm-overlay" id="feedbackOverlay" style="display: none; z-index: 997;">
-    <div class="confirm-dialog auth-card" style="max-height: 85vh; display: flex; flex-direction: column; position: relative;">
+    <div class="confirm-dialog auth-card" style="height: 560px; max-height: 85vh; display: flex; flex-direction: column; position: relative; text-align: center;">
       <button class="modal-close-btn" id="btnCloseFeedback">
         <svg viewBox="0 0 15.5 15.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M14.75 0.75L0.75 14.75M0.750014 0.75L14.75 14.75"/>
         </svg>
       </button>
-      <h2 class="auth-title" style="flex-shrink: 0; text-align: left; margin-bottom: 16px !important;">의견 남기기</h2>
-      <p style="font-size: 12px; color: var(--text-dim); margin-bottom: 16px; line-height: 1.5; flex-shrink: 0;">
-        지비스 플래너를 사용하시면서 개선하면 좋을 기능이나 아이디어를 남겨주세요.
-      </p>
-      
-      <div class="form-row" style="margin-bottom: 16px; flex-shrink: 0;">
-        <label class="form-label" style="display: block; margin-bottom: 6px; font-size: 11px; color: var(--text-dim);">의견 제목 *</label>
-        <input type="text" class="form-input" id="feedbackTitle" placeholder="제목을 입력하세요" style="width: 100%; box-sizing: border-box; background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; color: var(--text);">
+      <!-- Write View -->
+      <div id="feedbackWriteView" style="display: flex; flex-direction: column; min-height: 0;">
+        <h2 class="auth-title" style="flex-shrink: 0; text-align: center; margin-bottom: 20px !important; font-size: 20px; font-weight: 700; color: #ffffff;">의견 남기기</h2>
+
+        <!-- Key Visual Paper Airplane -->
+        <img src="img/feedback.png" style="width: 110px; height: auto; margin: 0 auto 24px auto; display: block; flex-shrink: 0;" alt="Feedback Illustration">
+
+        <div class="form-row" style="margin-bottom: 24px; flex-shrink: 0;">
+          <textarea class="form-input" id="feedbackContent" rows="5" placeholder="소중한 의견을 자유롭게 남겨주세요. 더 나은 서비스를 위해 노력하겠습니다." style="width: 100%; box-sizing: border-box; resize: none; font-family: inherit; font-size: 13px; line-height: 1.6; border-radius: 12px; padding: 16px;"></textarea>
+        </div>
+
+        <button class="btn btn-primary" id="btnFeedbackSubmit" style="flex-shrink: 0;">의견 남기기</button>
+
+        <div style="text-align: center; margin-top: 20px; flex-shrink: 0;">
+          <span id="linkViewMyFeedback" style="color: #036cc5; cursor: pointer; font-size: 13px; font-weight: 600; font-family: 'Pretendard', sans-serif;">내가 남긴 의견 보기</span>
+        </div>
       </div>
-      
-      <div class="form-row" style="margin-bottom: 20px; flex-shrink: 0;">
-        <label class="form-label" style="display: block; margin-bottom: 6px; font-size: 11px; color: var(--text-dim);">내용 *</label>
-        <textarea class="form-input" id="feedbackContent" rows="4" placeholder="개선 의견을 자유롭게 적어주세요" style="width: 100%; box-sizing: border-box; background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; color: var(--text); resize: vertical; font-family: inherit; font-size: 13px;"></textarea>
-      </div>
-      
-      <button class="btn btn-primary" id="btnFeedbackSubmit" style="width: 100%; height: 42px; font-weight: 700; font-size: 13px; background-color: var(--accent); border: none; border-radius: 6px; color: #fff; cursor: pointer; flex-shrink: 0; margin-bottom: 20px;">제출하기</button>
-      
-      <div class="feedback-history-title" style="font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 10px; border-top: 1px solid var(--border); padding-top: 16px; flex-shrink: 0;">이전 피드백 이력</div>
-      <div class="feedback-list" id="feedbackList" style="flex: 1; overflow-y: auto; font-size: 12px; display: flex; flex-direction: column; gap: 8px;">
-        <!-- Dynamically populated feedback list -->
+
+      <!-- List View (shown after clicking "내가 남긴 의견 보기") -->
+      <div id="feedbackListView" style="display: none; flex-direction: column; flex: 1; min-height: 0;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-shrink: 0;">
+          <button id="btnBackToFeedbackWrite" style="background: none; border: none; color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 4px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+          </button>
+          <h2 class="auth-title" style="margin: 0 !important; text-align: left; font-size: 16px;">내가 남긴 의견</h2>
+        </div>
+        <div class="feedback-list" id="feedbackList" style="flex: 1; overflow-y: auto; font-size: 12px; display: flex; flex-direction: column; gap: 8px; text-align: left;">
+          <!-- Dynamically populated feedback list -->
+        </div>
       </div>
     </div>
   </div>

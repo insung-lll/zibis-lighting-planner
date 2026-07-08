@@ -364,6 +364,7 @@ function getMagneticRailBOM(lengthM) {
 const state = {
   // Upload & Calibration
   uploadedImage: null,
+  activeQuoteId: null,
   pixelsPerMeter: 50, // default fallback
   ceilingHeight: 2.4,
   onboardingDismissed: false,
@@ -385,7 +386,8 @@ const state = {
   
   // Calibration steps
   calibrationPoints: [],
-  
+  lastReferenceDistance: null,
+
   // Canvas Transform
   zoom: 1.0,
   panX: 0,
@@ -474,7 +476,8 @@ const els = {
   zoneCanvas: document.getElementById('zoneCanvas'),
   lightOverlay: document.getElementById('lightOverlay'),
   interactionLayer: document.getElementById('interactionLayer'),
-  
+  topbar: document.querySelector('.topbar'),
+
   // Calibration Modal
   calibrateOverlay: document.getElementById('calibrateOverlay'),
   calibrateCanvas: document.getElementById('calibrateCanvas'),
@@ -564,6 +567,19 @@ const els = {
   btnCancelZoneSelect: document.getElementById('btnCancelZoneSelect'),
   btnConfirmZoneSelect: document.getElementById('btnConfirmZoneSelect')
 };
+
+// Helper: 도면 화면 진입 전(업로드/스케일보정)에는 .topbar(회원가입/로그인 포함)를 숨김
+function setTopbarVisible(show) {
+  if (els.topbar) els.topbar.style.display = show ? 'flex' : 'none';
+}
+
+// Helper: uploadOverlay 표시 제어 (download-container 동기화 포함)
+function setUploadOverlayVisible(show) {
+  const downloadContainer = document.querySelector('.download-container');
+  els.uploadOverlay.style.display = show ? 'flex' : 'none';
+  if (downloadContainer) downloadContainer.style.display = show ? 'none' : 'flex';
+  if (show) setTopbarVisible(false);
+}
 
 // Canvas context refs
 const ctxs = {
@@ -668,6 +684,51 @@ function mapSupabaseProduct(p) {
 }
 
 // ==================== APP INITIALIZATION ====================
+function checkAndRestoreOauthTempProject() {
+  const raw = sessionStorage.getItem('temp_project_oauth');
+  if (!raw) return;
+  sessionStorage.removeItem('temp_project_oauth'); // Clear immediately to prevent repeat restores
+  
+  try {
+    const restored = JSON.parse(raw);
+    state.pixelsPerMeter = restored.pixelsPerMeter;
+    state.ceilingHeight = restored.ceilingHeight;
+    state.lights = restored.lights || [];
+    state.zones = restored.zones || [];
+    state.dimensions = restored.dimensions || [];
+    state.nextLightId = restored.nextLightId || 1;
+    state.nextZoneId = restored.nextZoneId || 1;
+    state.nextDimId = restored.nextDimId || 1;
+    state.activeQuoteId = restored.activeQuoteId || null;
+    
+    if (restored.imageBase64) {
+      const img = new Image();
+      img.onload = function() {
+        state.uploadedImage = img;
+        setUploadOverlayVisible(false);
+        initCanvasDimensions(img.width, img.height);
+        setTopbarVisible(true);
+        recalculateAllZones();
+        updateStats();
+        renderAll();
+        // Trigger auto-resume checking in case they just onboarded
+        setTimeout(() => {
+          if (window.pendingOnboardingAction === 'save') {
+            saveProjectFile();
+            window.pendingOnboardingAction = null;
+          } else if (window.pendingOnboardingAction === 'export') {
+            exportToExcel();
+            window.pendingOnboardingAction = null;
+          }
+        }, 800);
+      };
+      img.src = restored.imageBase64;
+    }
+  } catch (e) {
+    console.error('OAuth 임시 복구 에러:', e);
+  }
+}
+
 async function init() {
   setupEventListeners();
   try {
@@ -698,6 +759,7 @@ async function init() {
     return getOrder(a) - getOrder(b);
   });
   renderFixtureLibrary();
+  checkAndRestoreOauthTempProject();
 }
 
 // Render the side library items
@@ -711,14 +773,18 @@ function renderFixtureLibrary() {
     filtered = filtered.filter(f => f.subCategory === state.activeSubCategory);
   }
 
-  // Filter out auto-assigned magnetic accessories from display
+  // Filter out auto-assigned magnetic accessories and 2M/3M rails from display
   filtered = filtered.filter(f => {
     const isAccessory = f.name && (
       f.name.includes('마그네틱 전원선') || 
       f.name.includes('마그네틱 마감캡') || 
       f.name.includes('마그네틱 연결선') ||
       f.name.includes('마그네틱 컨버터') ||
-      f.name.includes('마그네틱 컨트롤러')
+      f.name.includes('마그네틱 컨트롤러') ||
+      f.name.includes('마그네틱 레일 2M') ||
+      f.name.includes('마그네틱 레일2M') ||
+      f.name.includes('마그네틱 레일 3M') ||
+      f.name.includes('마그네틱 레일3M')
     );
     return !isAccessory;
   });
@@ -833,6 +899,7 @@ function clearProjectState() {
   state.lights = [];
   state.zones = [];
   state.dimensions = [];
+  state.activeQuoteId = null;
   state.zoom = 1.0;
   state.panX = 0;
   state.panY = 0;
@@ -1104,24 +1171,49 @@ function setupEventListeners() {
   });
 
   // Project Saves & Loads
-  els.btnNewProject.addEventListener('click', () => {
-    showConfirm("홈으로 이동", "현재 작성 중인 모든 데이터가 삭제됩니다. 계속하시겠습니까?", () => {
-      clearProjectState();
-      resetHistory();
-      els.uploadOverlay.style.display = 'flex';
-      els.canvasContainer.style.display = 'none';
-      els.canvasToolbar.style.display = 'none';
-      updateStats();
-      renderAll();
+  if (els.btnNewProject) {
+    els.btnNewProject.addEventListener('click', () => {
+      showConfirm("홈으로 이동", "현재 작성 중인 모든 데이터가 삭제됩니다. 계속하시겠습니까?", () => {
+        clearProjectState();
+        resetHistory();
+        setUploadOverlayVisible(true);
+        els.canvasContainer.style.display = 'none';
+        els.canvasToolbar.style.display = 'none';
+        updateStats();
+        renderAll();
+      });
     });
-  });
-
-  els.btnSaveProject.addEventListener('click', saveProjectFile);
-  els.btnLoadProject.addEventListener('click', () => els.loadProjectInput.click());
-  if (els.btnLoadProjectFirst) {
-    els.btnLoadProjectFirst.addEventListener('click', () => els.loadProjectInput.click());
   }
-  els.loadProjectInput.addEventListener('change', loadProjectFile);
+
+  if (els.btnSaveProject) {
+    els.btnSaveProject.addEventListener('click', () => {
+      if (!authUser) {
+        alert('파일을 저장하려면 회원가입이 필요합니다.');
+        document.getElementById('signupOverlay').style.display = 'flex';
+        return;
+      }
+      if (!authProfile || !authProfile.consent_agreed) {
+        alert('저장하기 전에 추가 정보 입력과 이용 동의를 완료해 주세요.');
+        window.pendingOnboardingAction = 'save';
+        document.getElementById('onboardingOverlay').style.display = 'flex';
+        return;
+      }
+      saveProjectFile();
+    });
+  }
+  if (els.btnLoadProject) {
+    els.btnLoadProject.addEventListener('click', () => {
+      if (els.loadProjectInput) els.loadProjectInput.click();
+    });
+  }
+  if (els.btnLoadProjectFirst) {
+    els.btnLoadProjectFirst.addEventListener('click', () => {
+      if (els.loadProjectInput) els.loadProjectInput.click();
+    });
+  }
+  if (els.loadProjectInput) {
+    els.loadProjectInput.addEventListener('change', loadProjectFile);
+  }
   
   // Template Click Listeners
   document.querySelectorAll('.template-card-row').forEach(card => {
@@ -1136,8 +1228,14 @@ function setupEventListeners() {
   // Excel Export
   els.btnExport.addEventListener('click', () => {
     if (!authUser) {
-      alert('견적서를 다운로드하려면 로그인이 필요합니다.');
-      document.getElementById('loginOverlay').style.display = 'flex';
+      alert('견적서를 다운로드하려면 회원가입이 필요합니다.');
+      document.getElementById('signupOverlay').style.display = 'flex';
+      return;
+    }
+    if (!authProfile || !authProfile.consent_agreed) {
+      alert('다운로드하기 전에 추가 정보 입력과 이용 동의를 완료해 주세요.');
+      window.pendingOnboardingAction = 'export';
+      document.getElementById('onboardingOverlay').style.display = 'flex';
       return;
     }
     exportToExcel();
@@ -1222,7 +1320,7 @@ function setupEventListeners() {
       els.calibrateCanvas.onwheel = null;
       state.isScanningCalibration = false;
       
-      els.uploadOverlay.style.display = 'flex';
+      setUploadOverlayVisible(true);
     });
   }
 }
@@ -1246,7 +1344,7 @@ function handleUpload(file) {
     const img = new Image();
     img.onload = function() {
       state.uploadedImage = img;
-      els.uploadOverlay.style.display = 'none';
+      setUploadOverlayVisible(false);
       
       // Init canvas size
       initCanvasDimensions(img.width, img.height);
@@ -1382,6 +1480,8 @@ function updateCalibrateZoomText() {
 function startCalibrationFlow() {
   if (!state.uploadedImage) return;
 
+  setTopbarVisible(false);
+
   if (els.btnBackToCalibrate) {
     els.btnBackToCalibrate.style.display = 'none';
   }
@@ -1389,7 +1489,10 @@ function startCalibrationFlow() {
   const modal = els.calibrateOverlay;
   const canvas = els.calibrateCanvas;
 
-  state.calibrationPoints = [];
+  // 이미 적용된 기준선(2점)이 있으면 재진입 시에도 유지, 없으면 초기화
+  if (state.calibrationPoints.length !== 2) {
+    state.calibrationPoints = [];
+  }
   state.calibrateMousePos = null;
 
   // Show modal first so layout is settled before measuring wrap dimensions
@@ -1405,9 +1508,9 @@ function startCalibrationFlow() {
   canvas.width = wrapW;
   canvas.height = wrapH;
 
-  // Set default reference distance to 0.9m
+  // 기준선 길이: 이전에 적용한 값이 있으면 유지, 없으면 기본값 0.9m
   if (els.referenceDistance) {
-    els.referenceDistance.value = "0.9";
+    els.referenceDistance.value = state.lastReferenceDistance || "0.9";
   }
 
   // 평수 입력 초기화
@@ -1416,11 +1519,14 @@ function startCalibrationFlow() {
   const previewEl = document.getElementById('pyeongPreview');
   if (previewEl) previewEl.textContent = '';
 
-  // 버튼 비활성화 (초기 상태)
-  els.btnApplyCalibrate.disabled = true;
+  // 이미 그려진 기준선이 있으면 적용 버튼 활성화 + 안내 문구 갱신
+  const hasExistingLine = state.calibrationPoints.length === 2;
+  els.btnApplyCalibrate.disabled = !hasExistingLine;
 
   if (els.calibrateStatus) {
-    els.calibrateStatus.textContent = "기준선의 시작점을 마우스로 클릭해 주세요.";
+    els.calibrateStatus.textContent = hasExistingLine
+      ? "기준선이 설정되었습니다. 실제 길이를 입력하고 '보정 값 적용' 버튼을 눌러주세요."
+      : "기준선의 시작점을 마우스로 클릭해 주세요.";
   }
 
   // Initialize zoom and pan — fit image centered in the canvas/wrap
@@ -1704,16 +1810,18 @@ els.btnApplyCalibrate.addEventListener('click', () => {
   const p1 = state.calibrationPoints[0];
   const p2 = state.calibrationPoints[1];
   const distPx = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-  
+
   state.pixelsPerMeter = distPx / refDist;
-  
+  state.lastReferenceDistance = refDist;
+
   els.calibrateOverlay.style.display = 'none';
   els.calibrateCanvas.onmousedown = null;
   els.calibrateCanvas.onmousemove = null;
   els.calibrateCanvas.onmouseup = null;
   els.calibrateCanvas.onmouseleave = null;
   els.calibrateCanvas.onwheel = null;
-  
+
+  setTopbarVisible(true);
   updateZoomAndPan();
   recalculateAllZones();
   updateBackButtonVisibility();
@@ -1734,8 +1842,9 @@ els.btnCancelCalibrate.addEventListener('click', () => {
   els.calibrateCanvas.onwheel = null;
   updateBackButtonVisibility();
   if (!state.uploadedImage) {
-    els.uploadOverlay.style.display = 'flex';
+    setUploadOverlayVisible(true);
   } else {
+    setTopbarVisible(true);
     updateZoomAndPan();
     recalculateAllZones();
     renderAll();
@@ -1822,29 +1931,16 @@ function setupCanvasInteractions() {
           state.selectedDimensionId = clickedDim.id;
           state.selectedZoneId = null;
           state.selectedLightIds = [];
-          
+
           state.draggingDimensionId = clickedDim.id;
           state.dragOffsetX = pt.x;
           state.dragOffsetY = pt.y;
           renderAll();
         } else {
-          // Check if clicked inside a zone
-          const clickedZone = findZoneAt(pt.x, pt.y);
-          if (clickedZone) {
-            state.selectedZoneId = clickedZone.id;
-            state.selectedDimensionId = null;
-            state.selectedLightIds = [];
-            
-            state.draggingZoneId = clickedZone.id;
-            state.dragOffsetX = pt.x;
-            state.dragOffsetY = pt.y;
-            renderAll();
-          } else {
-            // Clicked empty space
-            state.selectedZoneId = null;
-            state.selectedDimensionId = null;
-            renderAll();
-          }
+          // Select 도구에서는 공간(zone)은 선택 대상에서 제외 — 제품(조명)만 선택 가능
+          state.selectedZoneId = null;
+          state.selectedDimensionId = null;
+          renderAll();
         }
       }
     } else if (state.activeTool === 'place' && state.selectedFixtureId) {
@@ -4400,8 +4496,9 @@ function loadProjectData(data) {
     if (els.ceilingHeightInput) els.ceilingHeightInput.value = state.ceilingHeight;
     if (els.lblCeilingHeight) els.lblCeilingHeight.textContent = state.ceilingHeight.toFixed(1);
 
-    els.uploadOverlay.style.display = 'none';
+    setUploadOverlayVisible(false);
     initCanvasDimensions(img.width, img.height);
+    setTopbarVisible(true);
     recalculateAllZones();
     updateStats();
     resetHistory({
@@ -4418,6 +4515,13 @@ function loadProjectData(data) {
 // ==================== EXCEL REPORT EXPORT (COMBINED EXCELJS) ====================
 async function exportToExcel() {
   if (!state.uploadedImage) return;
+
+  let projectName = '나의 조명 설계';
+  if (authUser) {
+    const userInput = prompt('저장할 프로젝트/견적 이름을 입력해주세요:', '나의 조명 설계');
+    if (userInput === null) return; // Cancel if user hits cancel
+    projectName = userInput.trim() || '나의 조명 설계';
+  }
 
   // 1. Render everything onto a temporary output canvas at 100% scale
   const w = state.uploadedImage.width;
@@ -5198,11 +5302,99 @@ async function exportToExcel() {
   
   const a = document.createElement('a');
   a.href = url;
-  a.download = `지비스_조명_설계_가견적서_${Date.now()}.xlsx`;
+  a.download = `${projectName}_지비스_가견적서_${Date.now()}.xlsx`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+
+  // Auto-save quote to Supabase
+  if (authUser) {
+    try {
+      // 1. Upload Excel file to Supabase Storage bucket 'estimates'
+      const fileSafeName = projectName.replace(/[^a-zA-Z0-9가-힣-_]/g, '_');
+      const storagePath = `${authUser.id}/${Date.now()}_${fileSafeName}.xlsx`;
+      
+      const { data: uploadData, error: uploadErr } = await supabaseClient.storage
+        .from('estimates')
+        .upload(storagePath, blob, {
+          contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          upsert: true
+        });
+
+      let excelUrl = null;
+      if (uploadErr) {
+        console.error('Supabase 스토리지 업로드 실패:', uploadErr.message);
+      } else {
+        const { data: urlData } = supabaseClient.storage
+          .from('estimates')
+          .getPublicUrl(storagePath);
+        excelUrl = urlData.publicUrl;
+      }
+
+      // 2. Prepare base64 image and project data
+      let base64Image = null;
+      if (state.uploadedImage) {
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = state.uploadedImage.width;
+        tempCanvas.height = state.uploadedImage.height;
+        tempCanvas.getContext('2d').drawImage(state.uploadedImage, 0, 0);
+        base64Image = tempCanvas.toDataURL('image/jpeg', 0.85);
+      }
+
+      const projectData = {
+        version: '1.0',
+        pixelsPerMeter: state.pixelsPerMeter,
+        ceilingHeight: state.ceilingHeight,
+        imageBase64: base64Image,
+        lights: state.lights,
+        zones: state.zones,
+        dimensions: state.dimensions,
+        nextLightId: state.nextLightId,
+        nextZoneId: state.nextZoneId,
+        nextDimId: state.nextDimId
+      };
+
+      // 3. Insert or Update metadata and excel_url in quotes table
+      let query;
+      if (state.activeQuoteId) {
+        query = supabaseClient
+          .from('quotes')
+          .update({
+            project_name: projectName,
+            project_data: projectData,
+            excel_url: excelUrl
+          })
+          .eq('id', state.activeQuoteId)
+          .select();
+      } else {
+        query = supabaseClient
+          .from('quotes')
+          .insert({
+            user_id: authUser.id,
+            project_name: projectName,
+            project_data: projectData,
+            excel_url: excelUrl
+          })
+          .select();
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Supabase 견적 자동 저장 실패:', error.message);
+        alert('견적서 파일 다운로드는 완료되었으나, 서버 자동 저장에 실패했습니다: ' + error.message);
+      } else {
+        console.log('Supabase 견적 자동 저장 성공:', data);
+        if (data && data[0]) {
+          state.activeQuoteId = data[0].id; // Keep track of the active quote ID
+        }
+        loadMyEstimatesList();
+      }
+    } catch (e) {
+      console.warn('Supabase 견적 자동 저장 에러:', e);
+    }
+  }
 }
 
 
@@ -5304,6 +5496,7 @@ function setupAuthEventListeners() {
   const forgotPasswordOverlay = document.getElementById('forgotPasswordOverlay');
   const onboardingOverlay = document.getElementById('onboardingOverlay');
   const profileEditOverlay = document.getElementById('profileEditOverlay');
+  const changePasswordOverlay = document.getElementById('changePasswordOverlay');
   const myEstimatesOverlay = document.getElementById('myEstimatesOverlay');
   const feedbackOverlay = document.getElementById('feedbackOverlay');
 
@@ -5318,6 +5511,7 @@ function setupAuthEventListeners() {
   const btnCloseLogin = document.getElementById('btnCloseLogin');
   const btnCloseForgotPassword = document.getElementById('btnCloseForgotPassword');
   const btnCloseProfileEdit = document.getElementById('btnCloseProfileEdit');
+  const btnCloseChangePassword = document.getElementById('btnCloseChangePassword');
   const btnCloseMyEstimates = document.getElementById('btnCloseMyEstimates');
   const btnCloseFeedback = document.getElementById('btnCloseFeedback');
 
@@ -5331,6 +5525,9 @@ function setupAuthEventListeners() {
   setupPasswordToggle('btnToggleSignupPassword', 'signupPassword');
   setupPasswordToggle('btnToggleSignupPasswordConfirm', 'signupPasswordConfirm');
   setupPasswordToggle('btnToggleLoginPassword', 'loginPassword');
+  setupPasswordToggle('btnToggleChangePasswordCurrent', 'changePasswordCurrent');
+  setupPasswordToggle('btnToggleChangePasswordNew', 'changePasswordNew');
+  setupPasswordToggle('btnToggleChangePasswordConfirm', 'changePasswordConfirm');
 
   // Info Tooltip
   const btnDownloadInfo = document.getElementById('btnDownloadInfo');
@@ -5377,6 +5574,7 @@ function setupAuthEventListeners() {
 
   // Hamburger Item Clicks
   const btnMenuHome = document.getElementById('btnMenuHome');
+  const btnMenuCalibrate = document.getElementById('btnMenuCalibrate');
   const btnMenuSaveFile = document.getElementById('btnMenuSaveFile');
   const btnMenuOpenFile = document.getElementById('btnMenuOpenFile');
   const btnMenuDownloadEstimate = document.getElementById('btnMenuDownloadEstimate');
@@ -5385,24 +5583,47 @@ function setupAuthEventListeners() {
     btnMenuHome.onclick = () => {
       hamburgerDropdown.style.display = 'none';
       if (btnHamburgerMenu) btnHamburgerMenu.innerHTML = hamburgerSvg;
-      const btnNew = document.getElementById('btnNewProject');
-      if (btnNew) btnNew.click();
+      showConfirm("홈으로 이동", "현재 작성 중인 모든 데이터가 삭제됩니다. 계속하시겠습니까?", () => {
+        clearProjectState();
+        resetHistory();
+        setUploadOverlayVisible(true);
+        els.canvasContainer.style.display = 'none';
+        els.canvasToolbar.style.display = 'none';
+        updateStats();
+        renderAll();
+      });
+    };
+  }
+  if (btnMenuCalibrate) {
+    btnMenuCalibrate.onclick = () => {
+      hamburgerDropdown.style.display = 'none';
+      if (btnHamburgerMenu) btnHamburgerMenu.innerHTML = hamburgerSvg;
+      startCalibrationFlow();
     };
   }
   if (btnMenuSaveFile) {
     btnMenuSaveFile.onclick = () => {
       hamburgerDropdown.style.display = 'none';
       if (btnHamburgerMenu) btnHamburgerMenu.innerHTML = hamburgerSvg;
-      const btnSave = document.getElementById('btnSaveProject');
-      if (btnSave) btnSave.click();
+      if (!authUser) {
+        alert('파일을 저장하려면 회원가입이 필요합니다.');
+        document.getElementById('signupOverlay').style.display = 'flex';
+        return;
+      }
+      if (!authProfile || !authProfile.consent_agreed) {
+        alert('저장하기 전에 추가 정보 입력과 이용 동의를 완료해 주세요.');
+        window.pendingOnboardingAction = 'save';
+        document.getElementById('onboardingOverlay').style.display = 'flex';
+        return;
+      }
+      saveProjectFile();
     };
   }
   if (btnMenuOpenFile) {
     btnMenuOpenFile.onclick = () => {
       hamburgerDropdown.style.display = 'none';
       if (btnHamburgerMenu) btnHamburgerMenu.innerHTML = hamburgerSvg;
-      const btnLoad = document.getElementById('btnLoadProject');
-      if (btnLoad) btnLoad.click();
+      if (els.loadProjectInput) els.loadProjectInput.click();
     };
   }
   if (btnMenuDownloadEstimate) {
@@ -5433,16 +5654,29 @@ function setupAuthEventListeners() {
   if (btnHeaderLogin) btnHeaderLogin.onclick = () => loginOverlay.style.display = 'flex';
   if (btnProfileMenu) btnProfileMenu.onclick = (e) => {
     e.stopPropagation();
-    profileDropdown.style.display = profileDropdown.style.display === 'block' ? 'none' : 'block';
+    profileDropdown.style.display = profileDropdown.style.display === 'flex' ? 'none' : 'flex';
   };
 
   // Close Modal Handlers
-  if (btnCloseSignup) btnCloseSignup.onclick = () => signupOverlay.style.display = 'none';
+  if (btnCloseSignup) btnCloseSignup.onclick = () => {
+    signupOverlay.style.display = 'none';
+    if (signupNameInput) signupNameInput.value = '';
+    if (signupCompanyInput) signupCompanyInput.value = '';
+    if (signupEmailInput) signupEmailInput.value = '';
+    if (signupPasswordInput) signupPasswordInput.value = '';
+    if (signupPasswordConfirmInput) signupPasswordConfirmInput.value = '';
+    if (signupConsentCheckbox) signupConsentCheckbox.checked = false;
+    updateSignupSubmitBtnState();
+  };
   if (btnCloseLogin) btnCloseLogin.onclick = () => loginOverlay.style.display = 'none';
   if (btnCloseForgotPassword) btnCloseForgotPassword.onclick = () => forgotPasswordOverlay.style.display = 'none';
   if (btnCloseProfileEdit) btnCloseProfileEdit.onclick = () => profileEditOverlay.style.display = 'none';
+  if (btnCloseChangePassword) btnCloseChangePassword.onclick = () => changePasswordOverlay.style.display = 'none';
   if (btnCloseMyEstimates) btnCloseMyEstimates.onclick = () => myEstimatesOverlay.style.display = 'none';
   if (btnCloseFeedback) btnCloseFeedback.onclick = () => feedbackOverlay.style.display = 'none';
+  
+  const btnCloseOnboarding = document.getElementById('btnCloseOnboarding');
+  if (btnCloseOnboarding) btnCloseOnboarding.onclick = () => document.getElementById('onboardingOverlay').style.display = 'none';
 
   const btnCloseConfirm = document.getElementById('btnCloseConfirm');
   const btnCloseZoneSelect = document.getElementById('btnCloseZoneSelect');
@@ -5477,10 +5711,41 @@ function setupAuthEventListeners() {
 
   if (btnMenuProfile) btnMenuProfile.onclick = () => {
     profileDropdown.style.display = 'none';
-    if (authProfile) {
+    if (authUser) {
       document.getElementById('profileEditEmail').value = authUser.email;
-      document.getElementById('profileEditName').value = authProfile.contact_name || '';
-      document.getElementById('profileEditCompany').value = authProfile.company_name || '';
+      document.getElementById('profileEditName').value = (authProfile && authProfile.contact_name) ? authProfile.contact_name : '';
+      document.getElementById('profileEditCompany').value = (authProfile && authProfile.company_name) ? authProfile.company_name : '';
+      
+      const provider = authUser.app_metadata?.provider || (authUser.identities && authUser.identities[0]?.provider) || 'email';
+      const iconContainer = document.getElementById('profileEditHeaderIcon');
+      const badge = document.getElementById('profileEditBadge');
+      const title = document.getElementById('profileEditTitle');
+      const subtitle = document.getElementById('profileEditSubtitle');
+      const resetLink = document.getElementById('profileEditResetPasswordLinkContainer');
+      
+      if (provider === 'google') {
+        iconContainer.innerHTML = `
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" style="display:block;">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+          </svg>
+        `;
+        badge.innerText = 'Google 계정 연동';
+        title.innerText = '소셜 로그인 회원입니다.';
+        subtitle.innerText = '이메일은 Google 계정에서 관리되며 직접 수정할 수 없습니다.';
+        subtitle.style.display = 'block';
+        resetLink.style.display = 'none';
+      } else {
+        iconContainer.innerHTML = `<img src="img/email.png" width="30" height="24" alt="Email Logo" style="display:block;">`;
+        badge.innerText = 'Email 가입 회원';
+        title.innerText = 'Email 가입 회원입니다.';
+        subtitle.style.display = 'none';
+        resetLink.style.display = 'block';
+      }
+
+      updateProfileEditSubmitBtnState();
       profileEditOverlay.style.display = 'flex';
     }
   };
@@ -5494,7 +5759,8 @@ function setupAuthEventListeners() {
   if (btnMenuFeedback) btnMenuFeedback.onclick = () => {
     profileDropdown.style.display = 'none';
     feedbackOverlay.style.display = 'flex';
-    loadFeedbackHistory();
+    document.getElementById('feedbackListView').style.display = 'none';
+    document.getElementById('feedbackWriteView').style.display = 'flex';
   };
 
   if (btnMenuLogout) btnMenuLogout.onclick = async () => {
@@ -5533,13 +5799,20 @@ function setupAuthEventListeners() {
   }
 
   [signupNameInput, signupCompanyInput, signupEmailInput, signupPasswordInput, signupPasswordConfirmInput].forEach(el => {
-    if (el) el.addEventListener('input', updateSignupSubmitBtnState);
+    if (el) {
+      // 'input' alone misses some browser/password-manager autofills, so also watch 'change' and 'blur'
+      el.addEventListener('input', updateSignupSubmitBtnState);
+      el.addEventListener('change', updateSignupSubmitBtnState);
+      el.addEventListener('blur', updateSignupSubmitBtnState);
+    }
   });
   if (signupConsentCheckbox) {
     signupConsentCheckbox.addEventListener('change', updateSignupSubmitBtnState);
   }
-  // Initialize state
-  setTimeout(updateSignupSubmitBtnState, 100);
+  // Initialize state, and keep re-checking periodically: browser/password-manager autofill doesn't
+  // always fire input/change/blur, so polling is the only reliable way to catch it.
+  updateSignupSubmitBtnState();
+  setInterval(updateSignupSubmitBtnState, 500);
 
   if (btnSignupSubmit) btnSignupSubmit.onclick = async () => {
     const name = document.getElementById('signupName').value.trim();
@@ -5589,12 +5862,18 @@ function setupAuthEventListeners() {
 
     if (data.user) {
       // Upsert profile
-      await supabaseClient.from('profiles').upsert({
+      const { error: profileError } = await supabaseClient.from('profiles').upsert({
         id: data.user.id,
         contact_name: name,
         company_name: company,
         consent_agreed: true
       });
+      if (!profileError) {
+        // onAuthStateChange's own profile fetch can race ahead of this upsert and
+        // capture a stale/empty profile, so update the in-memory copy directly too.
+        authProfile = { contact_name: name, company_name: company, consent_agreed: true };
+        updateAuthUI(authUser, authProfile);
+      }
       alert('회원가입이 완료되었습니다. 이메일 인증이 필요한 경우 이메일을 확인해 주세요.');
       signupOverlay.style.display = 'none';
     }
@@ -5660,6 +5939,33 @@ function setupAuthEventListeners() {
 
   // Google Authentication Trigger
   const triggerGoogleAuth = async () => {
+    // Save current design state to sessionStorage before redirecting for OAuth
+    try {
+      let base64Image = null;
+      if (state.uploadedImage) {
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = state.uploadedImage.width;
+        tempCanvas.height = state.uploadedImage.height;
+        tempCanvas.getContext('2d').drawImage(state.uploadedImage, 0, 0);
+        base64Image = tempCanvas.toDataURL('image/jpeg', 0.85);
+      }
+      const tempState = {
+        pixelsPerMeter: state.pixelsPerMeter,
+        ceilingHeight: state.ceilingHeight,
+        imageBase64: base64Image,
+        lights: state.lights,
+        zones: state.zones,
+        dimensions: state.dimensions,
+        nextLightId: state.nextLightId,
+        nextZoneId: state.nextZoneId,
+        nextDimId: state.nextDimId,
+        activeQuoteId: state.activeQuoteId
+      };
+      sessionStorage.setItem('temp_project_oauth', JSON.stringify(tempState));
+    } catch (e) {
+      console.warn('OAuth 전 임시 저장 실패:', e);
+    }
+
     const { error } = await supabaseClient.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -5676,6 +5982,27 @@ function setupAuthEventListeners() {
 
   // Forgot Password Submit
   const btnForgotPasswordSubmit = document.getElementById('btnForgotPasswordSubmit');
+  const forgotPasswordEmailInput = document.getElementById('forgotPasswordEmail');
+
+  function updateForgotPasswordSubmitBtnState() {
+    if (!btnForgotPasswordSubmit) return;
+    const email = forgotPasswordEmailInput ? forgotPasswordEmailInput.value.trim() : '';
+    const isValid = email !== '';
+    if (isValid) {
+      btnForgotPasswordSubmit.classList.add('active-btn');
+      btnForgotPasswordSubmit.disabled = false;
+    } else {
+      btnForgotPasswordSubmit.classList.remove('active-btn');
+      btnForgotPasswordSubmit.disabled = true;
+    }
+  }
+
+  if (forgotPasswordEmailInput) {
+    forgotPasswordEmailInput.addEventListener('input', updateForgotPasswordSubmitBtnState);
+  }
+  // Initialize state
+  setTimeout(updateForgotPasswordSubmitBtnState, 100);
+
   if (btnForgotPasswordSubmit) btnForgotPasswordSubmit.onclick = async () => {
     const email = document.getElementById('forgotPasswordEmail').value.trim();
     if (!email) {
@@ -5699,19 +6026,38 @@ function setupAuthEventListeners() {
 
   // Onboarding Submit (Google OAuth users without full_name/company)
   const btnOnboardingSubmit = document.getElementById('btnOnboardingSubmit');
-  if (btnOnboardingSubmit) btnOnboardingSubmit.onclick = async () => {
-    const name = document.getElementById('onboardingName').value.trim();
-    const company = document.getElementById('onboardingCompany').value.trim();
-    const consent = document.getElementById('onboardingConsent').checked;
+  const onboardingNameInput = document.getElementById('onboardingName');
+  const onboardingCompanyInput = document.getElementById('onboardingCompany');
+  const onboardingConsentInput = document.getElementById('onboardingConsent');
 
-    if (!name || !company) {
-      alert('모든 필수 항목을 입력해 주세요.');
-      return;
+  function updateOnboardingSubmitBtnState() {
+    if (!btnOnboardingSubmit) return;
+    const name = onboardingNameInput ? onboardingNameInput.value.trim() : '';
+    const company = onboardingCompanyInput ? onboardingCompanyInput.value.trim() : '';
+    const consent = onboardingConsentInput ? onboardingConsentInput.checked : false;
+
+    const isValid = name && company && consent;
+    if (isValid) {
+      btnOnboardingSubmit.classList.add('active-btn');
+      btnOnboardingSubmit.disabled = false;
+    } else {
+      btnOnboardingSubmit.classList.remove('active-btn');
+      btnOnboardingSubmit.disabled = true;
     }
-    if (!consent) {
-      alert('약관 동의가 필요합니다.');
-      return;
-    }
+  }
+
+  [onboardingNameInput, onboardingCompanyInput].forEach(el => {
+    if (el) el.addEventListener('input', updateOnboardingSubmitBtnState);
+  });
+  if (onboardingConsentInput) {
+    onboardingConsentInput.addEventListener('change', updateOnboardingSubmitBtnState);
+  }
+  // Initialize state
+  setTimeout(updateOnboardingSubmitBtnState, 100);
+
+  if (btnOnboardingSubmit) btnOnboardingSubmit.onclick = async () => {
+    const name = onboardingNameInput.value.trim();
+    const company = onboardingCompanyInput.value.trim();
 
     btnOnboardingSubmit.disabled = true;
     const { error } = await supabaseClient.from('profiles').upsert({
@@ -5723,24 +6069,49 @@ function setupAuthEventListeners() {
 
     if (error) {
       alert('정보 저장 실패: ' + error.message);
+      btnOnboardingSubmit.disabled = false;
     } else {
       authProfile = { contact_name: name, company_name: company, consent_agreed: true };
       onboardingOverlay.style.display = 'none';
       updateAuthUI(authUser, authProfile);
+      
+      // Auto-resume pending actions
+      if (window.pendingOnboardingAction === 'save') {
+        saveProjectFile();
+      } else if (window.pendingOnboardingAction === 'export') {
+        exportToExcel();
+      }
+      window.pendingOnboardingAction = null;
     }
-    btnOnboardingSubmit.disabled = false;
   };
 
-  // Profile Edit Save
+  // Profile Edit Save & Input Verification
   const btnProfileEditSave = document.getElementById('btnProfileEditSave');
-  if (btnProfileEditSave) btnProfileEditSave.onclick = async () => {
-    const name = document.getElementById('profileEditName').value.trim();
-    const company = document.getElementById('profileEditCompany').value.trim();
+  const profileEditName = document.getElementById('profileEditName');
+  const profileEditCompany = document.getElementById('profileEditCompany');
 
-    if (!name || !company) {
-      alert('이름과 업체명을 입력해 주세요.');
-      return;
+  function updateProfileEditSubmitBtnState() {
+    if (!btnProfileEditSave) return;
+    const name = profileEditName ? profileEditName.value.trim() : '';
+    const company = profileEditCompany ? profileEditCompany.value.trim() : '';
+    const isValid = name && company;
+
+    if (isValid) {
+      btnProfileEditSave.classList.add('active-btn');
+      btnProfileEditSave.disabled = false;
+    } else {
+      btnProfileEditSave.classList.remove('active-btn');
+      btnProfileEditSave.disabled = true;
     }
+  }
+
+  [profileEditName, profileEditCompany].forEach(el => {
+    if (el) el.addEventListener('input', updateProfileEditSubmitBtnState);
+  });
+
+  if (btnProfileEditSave) btnProfileEditSave.onclick = async () => {
+    const name = profileEditName.value.trim();
+    const company = profileEditCompany.value.trim();
 
     btnProfileEditSave.disabled = true;
     const { error } = await supabaseClient.from('profiles').upsert({
@@ -5751,44 +6122,140 @@ function setupAuthEventListeners() {
 
     if (error) {
       alert('수정 실패: ' + error.message);
+      btnProfileEditSave.disabled = false;
     } else {
+      if (!authProfile) authProfile = {};
       authProfile.contact_name = name;
       authProfile.company_name = company;
       alert('회원 정보가 수정되었습니다.');
       profileEditOverlay.style.display = 'none';
       updateAuthUI(authUser, authProfile);
     }
-    btnProfileEditSave.disabled = false;
   };
 
-  // Feedback Submit
-  const btnFeedbackSubmit = document.getElementById('btnFeedbackSubmit');
-  if (btnFeedbackSubmit) btnFeedbackSubmit.onclick = async () => {
-    const title = document.getElementById('feedbackTitle').value.trim();
-    const content = document.getElementById('feedbackContent').value.trim();
+  // Change Password Action inside Profile Edit Modal (Email users only)
+  const linkProfileEditChangePassword = document.getElementById('linkProfileEditChangePassword');
+  if (linkProfileEditChangePassword) {
+    linkProfileEditChangePassword.onclick = () => {
+      document.getElementById('changePasswordCurrent').value = '';
+      document.getElementById('changePasswordNew').value = '';
+      document.getElementById('changePasswordConfirm').value = '';
+      profileEditOverlay.style.display = 'none';
+      changePasswordOverlay.style.display = 'flex';
+    };
+  }
 
-    if (!title || !content) {
-      alert('제목과 내용을 모두 입력해 주세요.');
-      return;
+  const btnChangePasswordSubmit = document.getElementById('btnChangePasswordSubmit');
+  if (btnChangePasswordSubmit) {
+    btnChangePasswordSubmit.onclick = async () => {
+      if (!authUser || !authUser.email) return;
+      const currentPassword = document.getElementById('changePasswordCurrent').value;
+      const newPassword = document.getElementById('changePasswordNew').value;
+      const newPasswordConfirm = document.getElementById('changePasswordConfirm').value;
+
+      if (!currentPassword || !newPassword || !newPasswordConfirm) {
+        alert('모든 항목을 입력해 주세요.');
+        return;
+      }
+      if (newPassword !== newPasswordConfirm) {
+        alert('새로운 비밀번호가 일치하지 않습니다.');
+        return;
+      }
+      if (newPassword.length < 8) {
+        alert('비밀번호는 8자리 이상이어야 합니다.');
+        return;
+      }
+
+      btnChangePasswordSubmit.disabled = true;
+      btnChangePasswordSubmit.innerText = '변경 중...';
+
+      const { error: verifyError } = await supabaseClient.auth.signInWithPassword({
+        email: authUser.email,
+        password: currentPassword
+      });
+      if (verifyError) {
+        alert('현재 비밀번호가 일치하지 않습니다.');
+        btnChangePasswordSubmit.disabled = false;
+        btnChangePasswordSubmit.innerText = '변경하기';
+        return;
+      }
+
+      const { error } = await supabaseClient.auth.updateUser({ password: newPassword });
+      btnChangePasswordSubmit.disabled = false;
+      btnChangePasswordSubmit.innerText = '변경하기';
+
+      if (error) {
+        alert('비밀번호 변경 실패: ' + error.message);
+      } else {
+        alert('비밀번호가 변경되었습니다.');
+        changePasswordOverlay.style.display = 'none';
+      }
+    };
+  }
+
+  // Feedback Submit & Input Verification
+  const btnFeedbackSubmit = document.getElementById('btnFeedbackSubmit');
+  const feedbackContent = document.getElementById('feedbackContent');
+
+  function updateFeedbackSubmitBtnState() {
+    if (!btnFeedbackSubmit) return;
+    const content = feedbackContent ? feedbackContent.value.trim() : '';
+    const isValid = content.length > 0;
+
+    if (isValid) {
+      btnFeedbackSubmit.classList.add('active-btn');
+      btnFeedbackSubmit.disabled = false;
+    } else {
+      btnFeedbackSubmit.classList.remove('active-btn');
+      btnFeedbackSubmit.disabled = true;
     }
+  }
+
+  if (feedbackContent) {
+    feedbackContent.addEventListener('input', updateFeedbackSubmitBtnState);
+  }
+  // Initialize state
+  setTimeout(updateFeedbackSubmitBtnState, 100);
+
+  if (btnFeedbackSubmit) btnFeedbackSubmit.onclick = async () => {
+    const content = feedbackContent.value.trim();
 
     btnFeedbackSubmit.disabled = true;
     const { error } = await supabaseClient.from('feedbacks').insert({
       user_id: authUser.id,
-      title,
+      title: '지비스 플래너 개선 의견',
       content
     });
 
     if (error) {
       alert('의견 제출 실패: ' + error.message);
+      btnFeedbackSubmit.disabled = false;
     } else {
       alert('소중한 의견이 등록되었습니다.');
-      document.getElementById('feedbackTitle').value = '';
-      document.getElementById('feedbackContent').value = '';
+      feedbackContent.value = '';
+      updateFeedbackSubmitBtnState();
       loadFeedbackHistory();
     }
-    btnFeedbackSubmit.disabled = false;
   };
+
+  // Toggle between feedback write view and my-feedback list view
+  const linkViewMyFeedback = document.getElementById('linkViewMyFeedback');
+  const btnBackToFeedbackWrite = document.getElementById('btnBackToFeedbackWrite');
+  const feedbackWriteView = document.getElementById('feedbackWriteView');
+  const feedbackListView = document.getElementById('feedbackListView');
+  if (linkViewMyFeedback) {
+    linkViewMyFeedback.onclick = () => {
+      feedbackWriteView.style.display = 'none';
+      feedbackListView.style.display = 'flex';
+      loadFeedbackHistory();
+    };
+  }
+  if (btnBackToFeedbackWrite) {
+    btnBackToFeedbackWrite.onclick = () => {
+      feedbackListView.style.display = 'none';
+      feedbackWriteView.style.display = 'flex';
+    };
+  }
 
   // Listen to Auth State Changes
   supabaseClient.auth.onAuthStateChange(async (event, session) => {
@@ -5801,15 +6268,13 @@ function setupAuthEventListeners() {
         .eq('id', authUser.id)
         .single();
 
+      authProfile = data;
+      updateAuthUI(authUser, authProfile);
+
       if (error || !data || !data.consent_agreed) {
-        // Trigger onboarding
-        authProfile = data;
-        onboardingOverlay.style.display = 'flex';
+        // Pre-populate onboarding fields in the background
         document.getElementById('onboardingName').value = data?.contact_name || authUser.user_metadata?.full_name || '';
         document.getElementById('onboardingCompany').value = data?.company_name || '';
-      } else {
-        authProfile = data;
-        updateAuthUI(authUser, authProfile);
       }
     } else {
       authUser = null;
@@ -5843,22 +6308,12 @@ function setupPasswordToggle(btnId, inputId) {
 function updateAuthUI(user, profile) {
   const headerAuthLinks = document.getElementById('headerAuthLinks');
   const profileMenuContainer = document.getElementById('profileMenuContainer');
-  const projectFileActions = document.getElementById('projectFileActions');
-
-  if (user && profile) {
+  if (user) {
     if (headerAuthLinks) headerAuthLinks.style.display = 'none';
-    if (profileMenuContainer) profileMenuContainer.style.display = 'block';
-    if (projectFileActions) projectFileActions.style.display = 'flex';
-
-    // Populate profile menu
-    const initial = profile.contact_name ? profile.contact_name.charAt(0) : 'G';
-    document.getElementById('profileInitial').innerText = initial;
-    document.getElementById('dropdownUserName').innerText = profile.contact_name || '사용자';
-    document.getElementById('dropdownUserEmail').innerText = user.email;
+    if (profileMenuContainer) profileMenuContainer.style.display = 'flex';
   } else {
     if (headerAuthLinks) headerAuthLinks.style.display = 'flex';
     if (profileMenuContainer) profileMenuContainer.style.display = 'none';
-    if (projectFileActions) projectFileActions.style.display = 'none';
   }
 }
 
@@ -5929,6 +6384,7 @@ async function loadMyEstimatesList() {
         if (restored.dimensions) state.dimensions = restored.dimensions;
         if (restored.ceilingHeight) state.ceilingHeight = restored.ceilingHeight;
         
+        state.activeQuoteId = item.id; // Remember this quote for overwriting
         recalculateAllZones();
         updateStats();
         renderAll();
