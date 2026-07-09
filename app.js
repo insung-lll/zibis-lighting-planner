@@ -435,6 +435,9 @@ const state = {
   nextDimId: 1,
   bomFilterZoneId: null,
   editingZoneId: null,
+  vertexEditingZoneId: null,
+  draggingVertexIdx: -1,
+  vertexEditingInsideLightIds: [],
   
   // Dragging states
   selectedLightIds: [],
@@ -1919,17 +1922,30 @@ function setupCanvasInteractions() {
     renderAll();
   }, { passive: false });
 
-  // Double click to edit zone
+  // Double click to enter vertex editing mode
   layer.addEventListener('dblclick', (e) => {
     if (state.activeTool !== 'select') return;
     const pt = getOriginalCoords(e);
     const clickedZone = findZoneAt(pt.x, pt.y);
     if (clickedZone) {
-      editZone(clickedZone);
+      state.vertexEditingZoneId = clickedZone.id;
+      state.draggingVertexIdx = -1;
+      // Cache IDs of all lights currently inside the zone (either point light or line light ends)
+      state.vertexEditingInsideLightIds = state.lights
+        .filter(l => {
+          const inStart = isPointInPolygon(l, clickedZone.points);
+          const inEnd = l.x2 !== undefined && l.y2 !== undefined && isPointInPolygon({ x: l.x2, y: l.y2 }, clickedZone.points);
+          return inStart || inEnd;
+        })
+        .map(l => l.id);
+      state.selectedLightIds = [];
+      state.selectedZoneId = null;
+      state.selectedDimensionId = null;
+      renderAll();
     }
   });
 
-  // Mouse pan triggers
+  // Mouse pan and select triggers
   layer.addEventListener('mousedown', (e) => {
     // Right click or tool settings
     if (e.button === 2) {
@@ -1937,12 +1953,35 @@ function setupCanvasInteractions() {
       return;
     }
 
+    const pt = getOriginalCoords(e);
+
+    // 1. If vertex editing is active, check if user clicked a vertex handle of the editing zone
+    if (state.vertexEditingZoneId !== null && state.activeTool === 'select') {
+      const activeZone = state.zones.find(z => z.id === state.vertexEditingZoneId);
+      if (activeZone) {
+        const threshold = 12 / state.zoom; // 12px grab range
+        let foundIdx = -1;
+        for (let i = 0; i < activeZone.points.length; i++) {
+          const v = activeZone.points[i];
+          if (Math.hypot(v.x - pt.x, v.y - pt.y) < threshold) {
+            foundIdx = i;
+            break;
+          }
+        }
+        if (foundIdx !== -1) {
+          state.draggingVertexIdx = foundIdx;
+          state._mouseDownOnLayer = true;
+          state._isDraggingCanvas = false;
+          renderAll();
+          return; // Bypass standard dragging/selecting
+        }
+      }
+    }
+
     // Universal drag-to-pan tracking (calibrate-style)
     state._mouseDownOnLayer = true;
     state._isDraggingCanvas = false;
     state._panDragStart = { x: e.clientX, y: e.clientY, panX: state.panX, panY: state.panY };
-
-    const pt = getOriginalCoords(e);
     
     if (state.activeTool === 'select') {
       // Check if clicked a light dot
@@ -1983,6 +2022,19 @@ function setupCanvasInteractions() {
           // Select 도구에서는 공간(zone)은 선택 대상에서 제외 — 제품(조명)만 선택 가능
           state.selectedZoneId = null;
           state.selectedDimensionId = null;
+
+          // Clicked outside active zone or handles: reset vertex editing mode
+          if (state.vertexEditingZoneId !== null) {
+            const activeZone = state.zones.find(z => z.id === state.vertexEditingZoneId);
+            if (activeZone) {
+              const inside = isPointInPolygon(pt, activeZone.points);
+              if (!inside) {
+                state.vertexEditingZoneId = null;
+              }
+            } else {
+              state.vertexEditingZoneId = null;
+            }
+          }
           renderAll();
         }
       }
@@ -2118,6 +2170,86 @@ function setupCanvasInteractions() {
   });
 
   layer.addEventListener('mousemove', (e) => {
+    const pt = getOriginalCoords(e);
+
+    // 1. If vertex editing is active and dragging a vertex, update coordinate
+    if (state.vertexEditingZoneId !== null && state.draggingVertexIdx !== -1) {
+      const activeZone = state.zones.find(z => z.id === state.vertexEditingZoneId);
+      if (activeZone) {
+        const targetPt = pt;
+        
+        // Check if rectangle (axis-aligned, 4 points)
+        const isRect = activeZone.points.length === 4 && activeZone.isRect !== false;
+        if (isRect) {
+          const i = state.draggingVertexIdx;
+          if (i === 0) {
+            activeZone.points[0].x = targetPt.x;
+            activeZone.points[0].y = targetPt.y;
+            activeZone.points[3].x = targetPt.x;
+            activeZone.points[1].y = targetPt.y;
+          } else if (i === 1) {
+            activeZone.points[1].x = targetPt.x;
+            activeZone.points[1].y = targetPt.y;
+            activeZone.points[2].x = targetPt.x;
+            activeZone.points[0].y = targetPt.y;
+          } else if (i === 2) {
+            activeZone.points[2].x = targetPt.x;
+            activeZone.points[2].y = targetPt.y;
+            activeZone.points[1].x = targetPt.x;
+            activeZone.points[3].y = targetPt.y;
+          } else if (i === 3) {
+            activeZone.points[3].x = targetPt.x;
+            activeZone.points[3].y = targetPt.y;
+            activeZone.points[0].x = targetPt.x;
+            activeZone.points[2].y = targetPt.y;
+          }
+        } else {
+          // Free polygon
+          activeZone.points[state.draggingVertexIdx].x = targetPt.x;
+          activeZone.points[state.draggingVertexIdx].y = targetPt.y;
+        }
+
+        // Clamp associated lights to the updated boundary
+        if (state.vertexEditingInsideLightIds && state.vertexEditingInsideLightIds.length > 0) {
+          state.lights.forEach(l => {
+            if (state.vertexEditingInsideLightIds.includes(l.id)) {
+              if (l.x2 === undefined || l.y2 === undefined) {
+                // Point light
+                const lPt = { x: l.x, y: l.y };
+                if (!isPointInPolygon(lPt, activeZone.points)) {
+                  const clamped = clampPointToPolygon(lPt, activeZone.points);
+                  l.x = clamped.x;
+                  l.y = clamped.y;
+                }
+              } else {
+                // Linebar light
+                const startPt = { x: l.x, y: l.y };
+                const endPt = { x: l.x2, y: l.y2 };
+                if (!isPointInPolygon(startPt, activeZone.points)) {
+                  const clampedStart = clampPointToPolygon(startPt, activeZone.points);
+                  l.x = clampedStart.x;
+                  l.y = clampedStart.y;
+                }
+                if (!isPointInPolygon(endPt, activeZone.points)) {
+                  const clampedEnd = clampPointToPolygon(endPt, activeZone.points);
+                  l.x2 = clampedEnd.x;
+                  l.y2 = clampedEnd.y;
+                }
+              }
+            }
+          });
+        }
+
+        // Recalculate area
+        activeZone.areaM2 = calculatePolygonArea(activeZone.points) / (state.pixelsPerMeter * state.pixelsPerMeter);
+        
+        recalculateAllZones();
+        updateStats();
+        renderAll();
+        return; // Bypass normal hover/drag processing
+      }
+    }
+
     // Universal drag-to-pan (calibrate-style) — active when not dragging a light, zone, or dimension, or drawing a zone
     if (e.buttons === 1 && state._mouseDownOnLayer && !state.draggingLightId && !state.draggingZoneId && !state.draggingDimensionId && !state.isDrawingZoneRect &&
         state.activeTool !== 'draw-zone' && state.activeTool !== 'draw-zone-polygon') {
@@ -2133,7 +2265,6 @@ function setupCanvasInteractions() {
       }
     }
 
-    const pt = getOriginalCoords(e);
     state.ghostCursor = pt;
     state.snapGuides = [];
 
@@ -2416,6 +2547,7 @@ function setupCanvasInteractions() {
     const wasDraggingLight = state.draggingLightId !== null;
     const wasDraggingZone = state.draggingZoneId !== null;
     const wasDraggingDimension = state.draggingDimensionId !== null;
+    const wasDraggingVertex = state.draggingVertexIdx !== -1;
     
     state._mouseDownOnLayer = false;
     state._isDraggingCanvas = false;
@@ -2423,8 +2555,9 @@ function setupCanvasInteractions() {
     state.draggingLightId = null;
     state.draggingZoneId = null;
     state.draggingDimensionId = null;
+    state.draggingVertexIdx = -1;
     
-    if (wasDraggingLight || wasDraggingZone || wasDraggingDimension) {
+    if (wasDraggingLight || wasDraggingZone || wasDraggingDimension || wasDraggingVertex) {
       saveStateToHistory();
     }
     
@@ -2553,6 +2686,92 @@ function distToSegment(p, v, w) {
   let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
   t = Math.max(0, Math.min(1, t));
   return Math.sqrt((p.x - (v.x + t * (w.x - v.x)))**2 + (p.y - (v.y + t * (w.y - v.y)))**2);
+}
+
+function getClosestPointOnSegment(p, v, w) {
+  const l2 = (v.x - w.x)**2 + (v.y - w.y)**2;
+  if (l2 === 0) return { x: v.x, y: v.y };
+  let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+  t = Math.max(0, Math.min(1, t));
+  return {
+    x: v.x + t * (w.x - v.x),
+    y: v.y + t * (w.y - v.y)
+  };
+}
+
+function clampPointToPolygon(p, polygonPoints) {
+  let minDistance = Infinity;
+  let closestPt = { x: p.x, y: p.y };
+  let bestSegIndex = -1;
+
+  for (let i = 0; i < polygonPoints.length; i++) {
+    const v = polygonPoints[i];
+    const w = polygonPoints[(i + 1) % polygonPoints.length];
+    const dist = distToSegment(p, v, w);
+    if (dist < minDistance) {
+      minDistance = dist;
+      bestSegIndex = i;
+      closestPt = getClosestPointOnSegment(p, v, w);
+    }
+  }
+
+  if (bestSegIndex !== -1) {
+    const v = polygonPoints[bestSegIndex];
+    const w = polygonPoints[(bestSegIndex + 1) % polygonPoints.length];
+    
+    const dx = w.x - v.x;
+    const dy = w.y - v.y;
+    const len = Math.hypot(dx, dy);
+    
+    if (len > 0) {
+      const nx = -dy / len;
+      const ny = dx / len;
+      
+      // Try offset 15px inside
+      const testPt = {
+        x: closestPt.x + nx * 15,
+        y: closestPt.y + ny * 15
+      };
+      
+      if (isPointInPolygon(testPt, polygonPoints)) {
+        return testPt;
+      } else {
+        return {
+          x: closestPt.x - nx * 15,
+          y: closestPt.y - ny * 15
+        };
+      }
+    }
+  }
+
+  return closestPt;
+}
+
+function detectOverlappingLights() {
+  // Reset warnings
+  state.lights.forEach(l => l.isWarning = false);
+  
+  // Overlap checking: only warn when 2 or more lights are strictly stacked/overlapping (distance < 2)
+  state.zones.forEach(zone => {
+    const zoneLights = state.lights.filter(l => {
+      if (l.x2 === undefined || l.y2 === undefined) {
+        return isLightInPolygon(l, zone.points);
+      }
+      return false;
+    });
+    
+    for (let i = 0; i < zoneLights.length; i++) {
+      for (let j = i + 1; j < zoneLights.length; j++) {
+        const l1 = zoneLights[i];
+        const l2 = zoneLights[j];
+        const dist = Math.hypot(l1.x - l2.x, l1.y - l2.y);
+        if (dist < 2) {
+          l1.isWarning = true;
+          l2.isWarning = true;
+        }
+      }
+    }
+  });
 }
 
 function findLightAt(x, y) {
@@ -2806,6 +3025,35 @@ function handleMeasureClick(x, y) {
 
 // Keyboard delete/nudge handlers
 function handleKeyDown(e) {
+  // Exit or delete zone during vertex editing mode
+  if (state.vertexEditingZoneId !== null) {
+    if (e.key === 'Escape' || e.key === 'Enter') {
+      state.vertexEditingZoneId = null;
+      renderAll();
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault();
+      e.stopPropagation();
+      const zoneId = state.vertexEditingZoneId;
+      const zoneToDelete = state.zones.find(z => z.id === zoneId);
+      if (zoneToDelete) {
+        showConfirm("공간 삭제", `"${zoneToDelete.name}" 공간 구획을 삭제하시겠습니까?`, () => {
+          state.lights = state.lights.filter(l => !isLightInPolygon(l, zoneToDelete.points));
+          state.zones = state.zones.filter(z => z.id !== zoneId);
+          state.vertexEditingZoneId = null;
+          recalculateAllZones();
+          updateStats();
+          renderAll();
+          saveStateToHistory();
+        });
+      }
+      return;
+    }
+  }
+
   // Reset calibration points when in calibration mode
   if (els.calibrateOverlay && els.calibrateOverlay.style.display === 'flex') {
     if (e.key === 'Escape' || e.key === 'Delete' || e.key === 'Backspace') {
@@ -3454,6 +3702,9 @@ function recalculateAllZones() {
     }
   });
   
+  // Detect overlapping lights across all zones
+  detectOverlappingLights();
+
   renderZonePanel();
   renderBOMTable();
 }
@@ -3574,15 +3825,23 @@ function renderZonePanel() {
             <option value="6" ${zone.switchCount === 6 ? 'selected' : ''}>6구</option>
           </select>
         </div>
-        <button class="zone-delete-btn" data-zone-id="${zone.id}" title="공간 삭제" style="background:none; border:none; color:var(--text-dim); cursor:pointer; display:inline-flex; align-items:center; padding:2px; border-radius:4px; transition: color 0.15s;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="3 6 5 6 21 6"/>
-            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-            <path d="M10 11v6"/>
-            <path d="M14 11v6"/>
-            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-          </svg>
-        </button>
+        <div style="display: flex; gap: 4px; align-items: center;">
+          <button class="zone-edit-btn" data-zone-id="${zone.id}" title="공간 편집" style="background:none; border:none; color:var(--text-dim); cursor:pointer; display:inline-flex; align-items:center; padding:2px; border-radius:4px; transition: color 0.15s;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </button>
+          <button class="zone-delete-btn" data-zone-id="${zone.id}" title="공간 삭제" style="background:none; border:none; color:var(--text-dim); cursor:pointer; display:inline-flex; align-items:center; padding:2px; border-radius:4px; transition: color 0.15s;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+              <path d="M10 11v6"/>
+              <path d="M14 11v6"/>
+              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+            </svg>
+          </button>
+        </div>
       </div>
     `;
     
@@ -3607,21 +3866,15 @@ function renderZonePanel() {
       renderAll();
     });
 
+    const editBtn = item.querySelector('.zone-edit-btn');
+    editBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      editZone(zone);
+    });
+
     const deleteBtn = item.querySelector('.zone-delete-btn');
     deleteBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      showConfirm("공간 삭제", `"${zone.name}" 공간 구획을 삭제하시겠습니까?`, () => {
-        state.lights = state.lights.filter(l => !isLightInPolygon(l, zone.points));
-        state.zones = state.zones.filter(z => z.id !== zone.id);
-        recalculateAllZones();
-        updateStats();
-        renderAll();
-        saveStateToHistory();
-      });
-    });
-
-    // Add context menu or delete button on dblclick
-    item.addEventListener('dblclick', () => {
       showConfirm("공간 삭제", `"${zone.name}" 공간 구획을 삭제하시겠습니까?`, () => {
         state.lights = state.lights.filter(l => !isLightInPolygon(l, zone.points));
         state.zones = state.zones.filter(z => z.id !== zone.id);
@@ -4041,6 +4294,23 @@ function renderZoneLayer() {
       ctx.fillText(label, cx, pillY + pillH / 2);
       ctx.restore();
     }
+
+    // Draw vertex handles for active editing mode
+    if (state.vertexEditingZoneId === zone.id) {
+      zone.points.forEach((pt, idx) => {
+        ctx.save();
+        ctx.beginPath();
+        const isDraggingThis = state.draggingVertexIdx === idx;
+        const radius = isDraggingThis ? 8 : 6;
+        ctx.arc(pt.x, pt.y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+        ctx.strokeStyle = isDraggingThis ? '#ffffff' : '#007ce4';
+        ctx.lineWidth = isDraggingThis ? 3 : 2;
+        ctx.stroke();
+        ctx.restore();
+      });
+    }
   });
   ctx.restore();
 }
@@ -4247,8 +4517,20 @@ function renderLightsLayer() {
         ctx.restore();
       } else {
         // Draw selection outer glow
+        // Draw selection outer glow or warning glow
         const rs = getFixtureRenderSize(l.size);
-        if (isSelected) {
+        if (l.isWarning) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(l.x, l.y, rs + 8, 0, 2 * Math.PI);
+          ctx.fillStyle = 'rgba(255, 59, 48, 0.25)'; // Red Warning Aura
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(255, 59, 48, 0.7)';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([3, 3]);
+          ctx.stroke();
+          ctx.restore();
+        } else if (isSelected) {
           ctx.beginPath();
           ctx.arc(l.x, l.y, rs + 6, 0, 2 * Math.PI);
           ctx.fillStyle = 'rgba(242, 162, 0, 0.3)';
