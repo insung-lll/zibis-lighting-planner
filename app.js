@@ -693,6 +693,7 @@ function mapSupabaseProduct(p) {
     name: p.name,
     model: null,
     ecountProdCd: p.ecount_prod_cd || null,
+    productLine: p.product_line || 'zibis_iot',
     watt: p.watt,
     lumen: p.lumen,
     beam,
@@ -764,6 +765,7 @@ async function init() {
     const { data, error } = await supabaseClient
       .from('products')
       .select('*')
+      .eq('is_active', true)
       .order('created_at', { ascending: true });
     if (error) {
       console.error('Supabase 쿼리 에러:', error.message, error.details);
@@ -3268,24 +3270,32 @@ function recalculateAllZones() {
     
     // Auto calculate SMPS & Controllers (Exception: only magnetic rails inside zone)
     const hasOnlyMagneticRails = insideLights.length > 0 && insideLights.every(l => l.typeId === 'magnetic-rail' || l.typeId === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57');
-    
-    if (hasOnlyMagneticRails) {
+
+    // 컨버터/컨트롤러는 IoT 제품이 실제로 배치된 경우에만 필요함 — 공간을 막 추가한 시점(조명 0개)에는 추가하지 않음.
+    // (일반 조명은 조명 자체에 컨버터가 내장된 구조라 이 계산에서 제외될 예정 — 그 로직은 일반 조명 추가 시점에 별도 반영)
+    const iotLights = insideLights.filter(l => {
+      const spec = fixtureDatabase.find(f => f.id === l.typeId);
+      return spec && spec.productLine === 'zibis_iot';
+    });
+
+    if (hasOnlyMagneticRails || iotLights.length === 0) {
       zone.requiredSMPS = [];
       zone.requiredControllers = [];
     } else {
-      const effectiveWatt = totalWatt > 0 ? totalWatt : 1; // force at least 60W SMPS if totalWatt is 0
+      const iotWatt = iotLights.reduce((sum, l) => sum + l.watt, 0);
+      const effectiveWatt = iotWatt > 0 ? iotWatt : 1; // IoT 조명은 있는데 watt 합이 0인 예외 상황 대비
       zone.requiredSMPS = calculateRequiredSMPS(effectiveWatt);
-      
-      const uniqueCategories = [...new Set(insideLights.map(l => {
+
+      const uniqueCategories = [...new Set(iotLights.map(l => {
         const spec = fixtureDatabase.find(f => f.id === l.typeId);
         return spec ? spec.category : null;
       }).filter(Boolean))];
-      
+
       let categoriesToDistribute = uniqueCategories;
       if (categoriesToDistribute.length === 0) {
-        categoriesToDistribute = ['downlight']; // default to downlight if no lights are placed
+        categoriesToDistribute = ['downlight']; // IoT 조명은 있는데 카테고리 매칭이 안 된 예외 상황 대비
       }
-      
+
       const S = zone.switchCount || 1;
       const distributed = {};
       categoriesToDistribute.forEach(cat => { distributed[cat] = 0; });
