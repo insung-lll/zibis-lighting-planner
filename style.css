@@ -2882,6 +2882,54 @@ body {
   color: #ffffff !important;
 }
 
+/* 슬라이더 썸(Thumb) 및 트랙 커스터마이징 (수직 정렬 및 투톤 디자인 완벽 정합) */
+#heatmapOpacitySlider {
+  -webkit-appearance: none;
+  margin: 0 8px 0 0 !important;
+  padding: 0 !important;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+#heatmapOpacitySlider::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 6px;
+  cursor: pointer;
+  background: transparent !important;
+  border: none !important;
+}
+
+#heatmapOpacitySlider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+  border: none !important;
+  margin-top: -5px !important; /* Centering: (6px track - 16px thumb)/2 = -5px */
+}
+
+#heatmapOpacitySlider::-moz-range-track {
+  width: 100%;
+  height: 6px;
+  cursor: pointer;
+  background: transparent !important;
+  border: none !important;
+}
+
+#heatmapOpacitySlider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ffffff;
+  cursor: pointer;
+  border: none !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+}
+
 
 
 

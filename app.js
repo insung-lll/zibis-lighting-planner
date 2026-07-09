@@ -476,6 +476,7 @@ const state = {
   // Display settings
   showGrid: false,
   heatmapMode: 'zone', // 'none', 'zone', 'heatmap'
+  heatmapOpacity: (localStorage.getItem('zibis_heatmap_opacity') !== null) ? parseFloat(localStorage.getItem('zibis_heatmap_opacity')) : 0.20,
   showZones: true,
   showDimensions: true
 };
@@ -550,7 +551,7 @@ const els = {
   // Right panel
   rightPanel: document.getElementById('rightPanel'),
   leftPanel: document.getElementById('leftPanel'),
-  btnIllumToggle: document.getElementById('btnIllumToggle'),
+  heatmapOpacitySlider: document.getElementById('heatmapOpacitySlider'),
   chkShowGrid: document.getElementById('chkShowGrid'),
   zoneList: document.getElementById('zoneList'),
   
@@ -1165,10 +1166,14 @@ function setupEventListeners() {
     });
   }
 
-  // Display toggles
-  if (els.btnIllumToggle) {
-    els.btnIllumToggle.addEventListener('click', () => {
-      state.heatmapMode = state.heatmapMode === 'zone' ? 'none' : 'zone';
+
+  // Heatmap Opacity Slider Event
+  if (els.heatmapOpacitySlider) {
+    els.heatmapOpacitySlider.addEventListener('input', (e) => {
+      const val = parseInt(e.target.value) || 0;
+      state.heatmapOpacity = val / 100;
+      localStorage.setItem('zibis_heatmap_opacity', state.heatmapOpacity);
+      updateSliderBackground(val);
       renderAll();
     });
   }
@@ -4179,11 +4184,20 @@ function getFixtureRenderSize(sizeMM) {
   return Math.max(12, imgDiag * 0.015);
 }
 
+function updateSliderBackground(val) {
+  if (els.heatmapOpacitySlider) {
+    const percent = (val / 50) * 100;
+    els.heatmapOpacitySlider.style.background = `linear-gradient(to right, var(--accent) 0%, var(--accent) ${percent}%, rgba(255, 255, 255, 0.15) ${percent}%, rgba(255, 255, 255, 0.15) 100%)`;
+  }
+}
+
 function renderAll() {
   if (!state.uploadedImage) return;
 
-  if (els.btnIllumToggle) {
-    els.btnIllumToggle.classList.toggle('active', state.heatmapMode === 'zone');
+  if (els.heatmapOpacitySlider) {
+    const val = Math.round(state.heatmapOpacity * 100);
+    els.heatmapOpacitySlider.value = val;
+    updateSliderBackground(val);
   }
 
   renderFloorPlanLayer();
@@ -4221,9 +4235,12 @@ function renderHeatmapLayer() {
     const zoneLumenPerPyeong = zonePyeong > 0 ? (zone.totalLumen || 0) / zonePyeong : 0;
     const zoneTarget = getTargetLumenPerPyung(zone.name);
     const zoneMax = Math.round(zoneTarget * 1.2);
-    let fillColor = 'rgba(255, 59, 48, 0.15)'; // 부족 - red
-    if (zoneLumenPerPyeong >= zoneMax) fillColor = 'rgba(52, 199, 89, 0.15)'; // 충분 - green
-    else if (zoneLumenPerPyeong >= zoneTarget) fillColor = 'rgba(242, 162, 0, 0.15)'; // 적당 - yellow
+    
+    // Use state.heatmapOpacity dynamically
+    const op = state.heatmapOpacity;
+    let fillColor = `rgba(255, 59, 48, ${op})`; // 부족 - red
+    if (zoneLumenPerPyeong >= zoneMax) fillColor = `rgba(52, 199, 89, ${op})`; // 충분 - green
+    else if (zoneLumenPerPyeong >= zoneTarget) fillColor = `rgba(242, 162, 0, ${op})`; // 적당 - yellow
 
     ctx.fillStyle = fillColor;
     ctx.fill();
