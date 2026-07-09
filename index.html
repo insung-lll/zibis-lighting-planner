@@ -298,9 +298,11 @@
         <canvas id="interactionLayer"></canvas>
       </div>
       
-      
-
-      
+      <!-- 제품 설치 안내 멘트 바 -->
+      <div id="placeGuideToast" style="display: none; position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(18, 18, 18, 0.85); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 30px; padding: 10px 20px; color: #ffffff; font-size: 12px; font-weight: 500; align-items: center; gap: 8px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); z-index: 100; transition: opacity 0.2s ease, transform 0.2s ease; pointer-events: none;">
+        <span style="display: inline-block; width: 6px; height: 6px; background-color: #007ce4; border-radius: 50%;"></span>
+        <span>도면에 제품 설치 중... <span style="color: #888888;">(<span style="color: #ffffff; font-weight: 600;">Shift 키</span>를 누르면 자동 스냅 정렬선이 켜집니다.)</span></span>
+      </div>
       <!-- Canvas Zoom Nav -->
       <div class="canvas-zoom-nav" id="canvasZoomNav">
         <button class="zoom-btn" id="btnCanvasZoomOut" title="축소">

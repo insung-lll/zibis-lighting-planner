@@ -484,6 +484,7 @@ const state = {
 const els = {
   appWrapper: document.getElementById('appWrapper'),
   uploadOverlay: document.getElementById('uploadOverlay'),
+  placeGuideToast: document.getElementById('placeGuideToast'),
   fileInput: document.getElementById('fileInput'),
   mainDropZone: document.getElementById('mainDropZone'),
   
@@ -874,6 +875,11 @@ function selectFixture(id) {
   if (els.btnSelectMode) els.btnSelectMode.classList.remove('active');
   // Crosshair cursor for light placement mode
   if (els.canvasContainer) els.canvasContainer.classList.add('crosshair-cursor');
+
+  // Show guide banner for placement mode
+  if (els.placeGuideToast) {
+    els.placeGuideToast.style.display = 'flex';
+  }
 }
 
 // Clean UI and reset selected tools
@@ -903,6 +909,11 @@ function resetTools() {
   
   if (els.canvasContainer) {
     els.canvasContainer.classList.remove('crosshair-cursor');
+  }
+
+  // Hide guide banner
+  if (els.placeGuideToast) {
+    els.placeGuideToast.style.display = 'none';
   }
 
   const zoneDrawHint = document.getElementById('zoneDrawHint');
@@ -2313,7 +2324,7 @@ function setupCanvasInteractions() {
           const zone = state.zones.find(z => isPointInPolygon(pt, z.points));
           if (zone) {
             const zoneLights = state.lights.filter(l => isLightInPolygon(l, zone.points));
-            const snap = getPlacementSnap(pt, zoneLights);
+            const snap = getPlacementSnap(pt, zoneLights, e.shiftKey);
             state.ghostCursor = { x: snap.x, y: snap.y };
             state.snapGuides = snap.guides;
           }
@@ -2813,8 +2824,8 @@ function findZoneAt(x, y) {
 }
 
 // Place selected Downlight
-function getPlacementSnap(pt, zoneLights) {
-  if (!state.snapEnabled) return { x: pt.x, y: pt.y, guides: [] };
+function getPlacementSnap(pt, zoneLights, forceSnap = false) {
+  if (!state.snapEnabled && !forceSnap) return { x: pt.x, y: pt.y, guides: [] };
   const SNAP_DIST = 20 / state.zoom;
   const count = zoneLights.length;
   if (count === 0) return { x: pt.x, y: pt.y, guides: [] };
