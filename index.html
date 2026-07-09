@@ -211,6 +211,11 @@
     <!-- Center Canvas Area -->
     <div class="canvas-area" id="canvasArea" tabindex="0">
 
+      <!-- Zone Polygon Drawing Hint -->
+      <div class="zone-draw-hint" id="zoneDrawHint" style="display: none;">
+        <kbd>Shift</kbd>를 누른 채 이동하면 수평/수직 정렬 · 잘못 찍었으면 <kbd>Backspace</kbd>로 마지막 점 취소
+      </div>
+
       <!-- Horizontal Toolbar at Bottom Center -->
       <div class="horizontal-toolbar" id="horizontalToolbar">
         <!-- 공간 추가 (사각형) -->
@@ -478,7 +483,12 @@
     <div class="calibrate-body">
       <div class="calibrate-canvas-wrap" id="calibrateCanvasWrap">
         <canvas id="calibrateCanvas"></canvas>
-        
+
+        <!-- Shift Snap Hint -->
+        <div class="zone-draw-hint" id="calibrateSnapHint" style="display: none;">
+          <kbd>Shift</kbd>를 누른 채 이동하면 수평/수직 정렬
+        </div>
+
         <!-- Zoom Navigation Widget -->
         <div class="calibrate-zoom-nav">
           <button class="zoom-btn" id="btnCalibrateZoomOut" title="축소">

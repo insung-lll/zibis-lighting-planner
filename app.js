@@ -883,7 +883,10 @@ function resetTools() {
   if (els.canvasContainer) {
     els.canvasContainer.classList.remove('crosshair-cursor');
   }
-  
+
+  const zoneDrawHint = document.getElementById('zoneDrawHint');
+  if (zoneDrawHint) zoneDrawHint.style.display = 'none';
+
   if (els.btnSelectMode) els.btnSelectMode.classList.add('active');
   if (els.tabAddZone) els.tabAddZone.classList.remove('active');
   els.tabMeasure.classList.remove('active');
@@ -1039,6 +1042,8 @@ function setupEventListeners() {
       if (els.lblAddZone) els.lblAddZone.textContent = "공간: 다각형";
       if (els.btnSelectMode) els.btnSelectMode.classList.remove('active');
       if (els.canvasContainer) els.canvasContainer.classList.add('crosshair-cursor');
+      const zoneDrawHint = document.getElementById('zoneDrawHint');
+      if (zoneDrawHint) zoneDrawHint.style.display = 'block';
     });
   }
 
@@ -1541,6 +1546,8 @@ function startCalibrationFlow() {
       ? "기준선이 설정되었습니다. 실제 길이를 입력하고 '보정 값 적용' 버튼을 눌러주세요."
       : "기준선의 시작점을 마우스로 클릭해 주세요.";
   }
+  const calibrateSnapHint = document.getElementById('calibrateSnapHint');
+  if (calibrateSnapHint) calibrateSnapHint.style.display = 'none';
 
   // Initialize zoom and pan — fit image centered in the canvas/wrap
   const fitZoom = Math.min(wrapW / state.uploadedImage.width, wrapH / state.uploadedImage.height, 1.0);
@@ -1619,12 +1626,15 @@ function startCalibrationFlow() {
     const { imageX, imageY } = getCalibrateCoords(e, canvas);
     let pt = { x: imageX, y: imageY };
     
+    const calibrateSnapHint = document.getElementById('calibrateSnapHint');
+
     if (state.calibrationPoints.length === 0) {
       state.calibrationPoints.push(pt);
       state.calibrateMousePos = pt;
       if (els.calibrateStatus) {
-        els.calibrateStatus.textContent = "기준선의 끝점을 마우스로 클릭해 주세요. (Shift 키를 누르면 수평/수직 정렬)";
+        els.calibrateStatus.textContent = "기준선의 끝점을 마우스로 클릭해 주세요.";
       }
+      if (calibrateSnapHint) calibrateSnapHint.style.display = 'block';
     } else if (state.calibrationPoints.length === 1) {
       if (e.shiftKey) {
         pt = getSnappedPoint(state.calibrationPoints[0], pt, true);
@@ -1634,13 +1644,15 @@ function startCalibrationFlow() {
       if (els.calibrateStatus) {
         els.calibrateStatus.textContent = "기준선이 설정되었습니다. 실제 길이를 입력하고 '보정 값 적용' 버튼을 눌러주세요.";
       }
+      if (calibrateSnapHint) calibrateSnapHint.style.display = 'none';
       updateApplyButtonState();
     } else {
       state.calibrationPoints = [pt];
       state.calibrateMousePos = pt;
       if (els.calibrateStatus) {
-        els.calibrateStatus.textContent = "기준선의 끝점을 마우스로 클릭해 주세요. (Shift 키를 누르면 수평/수직 정렬)";
+        els.calibrateStatus.textContent = "기준선의 끝점을 마우스로 클릭해 주세요.";
       }
+      if (calibrateSnapHint) calibrateSnapHint.style.display = 'block';
       updateApplyButtonState();
     }
 
@@ -2783,6 +2795,8 @@ function handleKeyDown(e) {
       if (els.calibrateStatus) {
         els.calibrateStatus.textContent = "기준선의 시작점을 마우스로 클릭해 주세요.";
       }
+      const calibrateSnapHint = document.getElementById('calibrateSnapHint');
+      if (calibrateSnapHint) calibrateSnapHint.style.display = 'none';
       renderCalibrationCanvas();
       e.preventDefault();
       return;

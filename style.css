@@ -2626,6 +2626,37 @@ body {
   transform: translateX(-50%) translateY(0);
 }
 
+/* Zone polygon drawing hint (points-to-fix guidance) */
+.zone-draw-hint {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 12px;
+  color: var(--text-dim);
+  box-shadow: var(--shadow);
+  z-index: 10;
+  max-width: min(90%, 560px);
+  text-align: center;
+  user-select: none;
+}
+
+.zone-draw-hint kbd {
+  display: inline-block;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--text);
+  margin: 0 2px;
+}
+
 
 
 
