@@ -563,36 +563,80 @@
     </div>
   </div>
 
-  <!-- Custom Zone Selection Dialog -->
+  <!-- Custom Zone Selection Dialog (2depth Figma Popup) -->
   <div class="confirm-overlay" id="zoneSelectOverlay">
-    <div class="confirm-dialog" style="width: 380px; position: relative;">
+    <div class="confirm-dialog confirm-dialog-figma" style="width: 460px; position: relative; overflow: hidden;">
       <button class="modal-close-btn" id="btnCloseZoneSelect">
         <svg viewBox="0 0 15.5 15.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M14.75 0.75L0.75 14.75M0.750014 0.75L14.75 14.75"/>
         </svg>
       </button>
-      <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 8px; color: var(--text);">공간 타입 선택</h3>
-      <p class="confirm-msg" style="margin-bottom: 16px; font-size: 13px; color: var(--text-dim);">그려진 공간 구획의 종류를 선택해주세요.</p>
-      
-      <div class="zone-options-grid">
-        <button class="btn zone-opt-btn" data-type="침실">침실</button>
-        <button class="btn zone-opt-btn" data-type="거실">거실</button>
-        <button class="btn zone-opt-btn" data-type="주방">주방</button>
-        <button class="btn zone-opt-btn" data-type="방">방</button>
-        <button class="btn zone-opt-btn" data-type="화장실">화장실</button>
-        <button class="btn zone-opt-btn" data-type="복도">복도</button>
-        <button class="btn zone-opt-btn" data-type="드레스룸">드레스룸</button>
-        <button class="btn zone-opt-btn" data-type="메이크업룸">메이크업룸</button>
+
+      <!-- Depth 1: 공간 성격 선택 -->
+      <div id="zoneSelectDepth1" class="zone-depth-container active">
+        <h3 class="figma-title">공간 밝기 성격 선택</h3>
+        <p class="figma-desc">이 공간을 주로 어떤 밝기로 사용하고 싶으신가요?</p>
+        
+        <div class="zone-type-cards">
+          <div class="zone-type-card" id="cardCozy" data-lumen="700">
+            <div class="card-icon">
+              <img src="img/icon-rest.svg" class="card-icon-img" alt="Cozy">
+            </div>
+            <div class="card-title">아늑한 휴식 공간</div>
+            <div class="card-desc">"호텔이나 감성 카페처럼 눈이 편안하고 따뜻한 밝기"</div>
+            <div class="card-meta">평당 700 lm (약 210 lx)</div>
+          </div>
+          <div class="zone-type-card" id="cardFocus" data-lumen="1250">
+            <div class="card-icon">
+              <img src="img/icon-focus.svg" class="card-icon-img" alt="Focus">
+            </div>
+            <div class="card-title">밝은 집중 공간</div>
+            <div class="card-desc">"도서관이나 공부방처럼 맑고 그림자 없는 선명한 밝기"</div>
+            <div class="card-meta">평당 1,250 lm (약 380 lx)</div>
+          </div>
+        </div>
       </div>
 
-      <div class="form-row" style="margin-bottom: 20px;">
-        <label class="form-label" style="display: block; margin-bottom: 6px; font-size: 11px; color: var(--text-dim);">수동 이름 수정</label>
-        <input type="text" class="form-input" id="zoneNameInput" placeholder="선택 시 자동으로 이름이 생성됩니다" style="width: 100%; box-sizing: border-box;">
-      </div>
+      <!-- Depth 2: 구체적인 공간 지정 -->
+      <div id="zoneSelectDepth2" class="zone-depth-container">
+        <h3 class="figma-title" style="display: flex; align-items: center;">
+          <button id="btnBackToDepth1" class="back-arrow-btn" type="button">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+          </button>
+          공간 이름 지정
+        </h3>
+        <p class="figma-desc" id="depth2SubTitle">어떤 공간인지 선택하거나 이름을 직접 입력해주세요.</p>
+        
+        <div class="form-row" style="margin-bottom: 18px;">
+          <label class="form-label" style="display: block; margin-bottom: 8px; font-size: 11px; color: var(--text-dim);">추천 공간 태그</label>
+          <div id="zoneSuggestTags" class="zone-suggest-tags">
+            <!-- JS로 동적 생성됨 -->
+          </div>
+        </div>
 
-      <div class="confirm-actions">
-        <button class="btn" id="btnCancelZoneSelect">취소</button>
-        <button class="btn btn-primary" id="btnConfirmZoneSelect" style="background-color: var(--accent); border-color: var(--accent); color: #fff;">확인</button>
+        <div class="form-row" style="margin-bottom: 18px;">
+          <label class="form-label" style="display: block; margin-bottom: 6px; font-size: 11px; color: var(--text-dim);">공간 이름 직접 입력</label>
+          <input type="text" class="form-input figma-input" id="zoneNameInput" placeholder="이름을 입력하거나 위 태그를 누르세요">
+        </div>
+
+        <div class="form-row" style="margin-bottom: 24px;">
+          <label class="form-label" style="display: block; margin-bottom: 6px; font-size: 11px; color: var(--text-dim);">스위치 구수 선택</label>
+          <select class="form-input figma-input" id="zoneSwitchCountSelect" style="appearance: none; background-image: url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23888888%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22><polyline points=%226 9 12 15 18 9%22></polyline></svg>'); background-repeat: no-repeat; background-position: right 20px center; background-size: 16px; padding-right: 40px;">
+            <option value="1">1구</option>
+            <option value="2">2구</option>
+            <option value="3">3구</option>
+            <option value="4">4구</option>
+            <option value="5">5구</option>
+            <option value="6">6구</option>
+          </select>
+        </div>
+
+        <div class="confirm-actions" style="margin-top: 0;">
+          <button class="btn btn-primary figma-submit-btn" id="btnConfirmZoneSelect">공간 만들기</button>
+        </div>
       </div>
     </div>
   </div>

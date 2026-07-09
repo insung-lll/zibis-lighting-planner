@@ -3056,19 +3056,109 @@ function generateNextZoneName(type) {
   return `${type}${maxNum + 1}`;
 }
 
+function resetZoneSelectModal() {
+  const d1 = document.getElementById('zoneSelectDepth1');
+  const d2 = document.getElementById('zoneSelectDepth2');
+  if (d1) d1.classList.add('active');
+  if (d2) d2.classList.remove('active');
+
+  // Reset selected card
+  document.querySelectorAll('.zone-type-card').forEach(c => c.classList.remove('selected'));
+  state.selectedTargetLumen = null;
+  state.selectedZoneType = null;
+
+  // Reset tags, input, and submit button state
+  const tagsContainer = document.getElementById('zoneSuggestTags');
+  if (tagsContainer) tagsContainer.innerHTML = '';
+  els.zoneNameInput.value = '';
+  
+  updateSubmitButtonState();
+}
+
+function updateSubmitButtonState() {
+  const submitBtn = els.btnConfirmZoneSelect;
+  if (!submitBtn) return;
+  
+  if (els.zoneNameInput.value.trim().length > 0) {
+    submitBtn.classList.add('ready-to-submit');
+  } else {
+    submitBtn.classList.remove('ready-to-submit');
+  }
+}
+
+function renderSuggestTags(zoneType) {
+  const tagsContainer = document.getElementById('zoneSuggestTags');
+  if (!tagsContainer) return;
+  
+  tagsContainer.innerHTML = '';
+  
+  const cozyTags = ['안방/침실', '거실 (휴식용)', '복도', '드레스룸'];
+  const focusTags = ['주방/부엌', '거실 (작업용)', '서재', '공부방', '화장실'];
+  const tags = zoneType === 'cozy' ? cozyTags : focusTags;
+  
+  tags.forEach(tag => {
+    const btn = document.createElement('button');
+    btn.className = 'zone-tag-btn';
+    btn.textContent = tag;
+    btn.type = 'button';
+    
+    // Check if input value equals tag text to activate it
+    if (els.zoneNameInput.value === tag) {
+      btn.classList.add('active');
+    }
+    
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.zone-tag-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      
+      // Auto-populate
+      const typeForName = tag.split(' ')[0].split('/')[0]; // Simplify name for serial counter
+      const autoName = generateNextZoneName(typeForName);
+      els.zoneNameInput.value = autoName;
+      els.zoneNameInput.focus();
+      
+      updateSubmitButtonState();
+    });
+    
+    tagsContainer.appendChild(btn);
+  });
+}
+
 function editZone(zone) {
   state.editingZoneId = zone.id;
   state.tempZoneData = { points: zone.points, areaM2: zone.areaM2, isRect: false };
   
+  resetZoneSelectModal();
   els.zoneNameInput.value = zone.name;
+
+  // Set the embedded switch count select box
+  const switchSelect = document.getElementById('zoneSwitchCountSelect');
+  if (switchSelect) {
+    switchSelect.value = String(zone.switchCount || 1);
+  }
+
+  // Pre-select Cozy/Focus card depending on targetLumen
+  const targetLumen = zone.targetLumen || getTargetLumenPerPyung(zone);
+  state.selectedTargetLumen = targetLumen;
   
-  document.querySelectorAll('.zone-opt-btn').forEach(btn => btn.classList.remove('active'));
-  document.querySelectorAll('.zone-opt-btn').forEach(btn => {
-    const type = btn.getAttribute('data-type');
-    if (zone.name.startsWith(type)) {
-      btn.classList.add('active');
-    }
-  });
+  if (targetLumen === 700) {
+    const cozyCard = document.getElementById('cardCozy');
+    if (cozyCard) cozyCard.classList.add('selected');
+    state.selectedZoneType = 'cozy';
+  } else {
+    const focusCard = document.getElementById('cardFocus');
+    if (focusCard) focusCard.classList.add('selected');
+    state.selectedZoneType = 'focus';
+  }
+  
+  // Transition to Depth 2 directly during editing since we have value
+  const d1 = document.getElementById('zoneSelectDepth1');
+  const d2 = document.getElementById('zoneSelectDepth2');
+  if (d1) d1.classList.remove('active');
+  if (d2) d2.classList.add('active');
+  renderSuggestTags(state.selectedZoneType);
+  updateSubmitButtonState();
   
   els.zoneSelectOverlay.style.display = 'flex';
   els.zoneSelectOverlay.classList.add('visible');
@@ -3080,18 +3170,16 @@ function editZone(zone) {
 
 function openZoneSelectModal(points, areaM2, isRect) {
   state.tempZoneData = { points, areaM2, isRect };
-  
-  // Reset input and button active states
-  els.zoneNameInput.value = '';
-  document.querySelectorAll('.zone-opt-btn').forEach(btn => btn.classList.remove('active'));
+  resetZoneSelectModal();
+
+  // Reset embedded switch count
+  const switchSelect = document.getElementById('zoneSwitchCountSelect');
+  if (switchSelect) {
+    switchSelect.value = "1";
+  }
   
   els.zoneSelectOverlay.style.display = 'flex';
   els.zoneSelectOverlay.classList.add('visible');
-  
-  // Auto-focus the input box
-  setTimeout(() => {
-    els.zoneNameInput.focus();
-  }, 50);
 }
 
 function closeZoneSelectModal() {
@@ -3099,33 +3187,31 @@ function closeZoneSelectModal() {
   els.zoneSelectOverlay.classList.remove('visible');
   state.tempZoneData = null;
   state.editingZoneId = null;
+  state.selectedTargetLumen = null;
+  state.selectedZoneType = null;
 }
 
 function confirmZoneSelection() {
   const name = els.zoneNameInput.value.trim();
   if (!name) {
-    alert("공간 이름을 입력하거나 종류를 선택해 주세요.");
+    alert("공간 이름을 입력하거나 추천 태그를 선택해 주세요.");
     return;
   }
+  
+  // Read embedded switch count
+  const switchSelect = document.getElementById('zoneSwitchCountSelect');
+  const switchCount = switchSelect ? parseInt(switchSelect.value, 10) : 1;
   
   if (state.tempZoneData) {
     const { points, areaM2 } = state.tempZoneData;
     state.pendingZoneData = { name, points, areaM2 };
     
-    // Hide name modal
+    // Hide modal
     els.zoneSelectOverlay.style.display = 'none';
     els.zoneSelectOverlay.classList.remove('visible');
     
-    // Open switch modal
-    openSwitchInputModal(name);
-    
-    // Pre-select the existing switchCount if editing
-    if (state.editingZoneId !== null) {
-      const zone = state.zones.find(z => z.id === state.editingZoneId);
-      if (zone) {
-        els.switchCountSelect.value = String(zone.switchCount || 1);
-      }
-    }
+    // Bypass the old 3depth modal and create zone instantly
+    finishZoneCreation(switchCount);
   }
 }
 
@@ -3154,6 +3240,7 @@ function finishZoneCreation(switchCount) {
     if (zone && state.pendingZoneData) {
       zone.name = state.pendingZoneData.name;
       zone.switchCount = switchCount || 1;
+      zone.targetLumen = state.selectedTargetLumen || zone.targetLumen || 1250;
       
       recalculateAllZones();
       updateStats();
@@ -3171,7 +3258,8 @@ function finishZoneCreation(switchCount) {
       areaM2: areaM2,
       averageLux: 0,
       visible: true,
-      switchCount: switchCount || 1
+      switchCount: switchCount || 1,
+      targetLumen: state.selectedTargetLumen || 1250
     });
     
     recalculateAllZones();
@@ -3184,8 +3272,14 @@ function finishZoneCreation(switchCount) {
   renderAll();
 }
 
-function getTargetLumenPerPyung(zoneName) {
-  const name = zoneName.trim();
+function getTargetLumenPerPyung(zone) {
+  // If input is an object representing a zone, check its targetLumen attribute first
+  if (zone && typeof zone === 'object' && zone.targetLumen) {
+    return zone.targetLumen;
+  }
+  
+  // Fallback to text parsing (handles legacy state and string inputs)
+  const name = typeof zone === 'string' ? zone.trim() : (zone?.name || '').trim();
   if (name.includes('주방') || name.includes('부엌')) return 1250;
   if (name.includes('메이크업룸')) return 1250;
   if (name.includes('거실')) return 1250;
@@ -3194,43 +3288,87 @@ function getTargetLumenPerPyung(zoneName) {
   if (name.includes('복도')) return 825;
   if (name.includes('침실')) return 825;
   if (name.includes('방')) return 1250;
-  return 1250; // 기본값
+  return 1250; // default value
 }
 
 function setupZoneSelectEvents() {
-  // Option button click handler
-  document.querySelectorAll('.zone-opt-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      document.querySelectorAll('.zone-opt-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      
-      const type = btn.getAttribute('data-type');
-      const autoName = generateNextZoneName(type);
-      els.zoneNameInput.value = autoName;
-    });
+  // Cozy/Focus selection cards handler
+  const cozyCard = document.getElementById('cardCozy');
+  const focusCard = document.getElementById('cardFocus');
+  const d1 = document.getElementById('zoneSelectDepth1');
+  const d2 = document.getElementById('zoneSelectDepth2');
+
+  const selectCard = (type, targetLumen) => {
+    state.selectedZoneType = type;
+    state.selectedTargetLumen = targetLumen;
     
-    // Double click applies the preset directly
-    btn.addEventListener('dblclick', (e) => {
+    cozyCard.classList.remove('selected');
+    focusCard.classList.remove('selected');
+    
+    if (type === 'cozy') cozyCard.classList.add('selected');
+    else focusCard.classList.add('selected');
+    
+    // Transition to Depth 2
+    if (d1 && d2) {
+      d1.classList.remove('active');
+      d2.classList.add('active');
+    }
+    
+    // Generate recommended tags for Depth 2
+    renderSuggestTags(type);
+    updateSubmitButtonState();
+    
+    setTimeout(() => {
+      els.zoneNameInput.focus();
+    }, 150);
+  };
+
+  if (cozyCard) {
+    cozyCard.addEventListener('click', (e) => {
       e.stopPropagation();
-      const type = btn.getAttribute('data-type');
-      const autoName = generateNextZoneName(type);
-      els.zoneNameInput.value = autoName;
-      confirmZoneSelection();
+      selectCard('cozy', 700);
     });
-  });
+  }
 
-  // Cancel and Confirm button handlers
-  els.btnCancelZoneSelect.addEventListener('click', (e) => {
-    e.stopPropagation();
-    closeZoneSelectModal();
-    resetTools();
-    renderAll();
-  });
+  if (focusCard) {
+    focusCard.addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectCard('focus', 1250);
+    });
+  }
 
+  // Back to Depth 1 button (Figma arrow type)
+  const btnBack = document.getElementById('btnBackToDepth1');
+  if (btnBack) {
+    btnBack.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (d1 && d2) {
+        d2.classList.remove('active');
+        d1.classList.add('active');
+      }
+    });
+  }
+
+  // Cancel and Close buttons (X button)
+  const btnClose = document.getElementById('btnCloseZoneSelect');
+  if (btnClose) {
+    btnClose.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeZoneSelectModal();
+      resetTools();
+      renderAll();
+    });
+  }
+
+  // Confirm button handler
   els.btnConfirmZoneSelect.addEventListener('click', (e) => {
     e.stopPropagation();
     confirmZoneSelection();
+  });
+
+  // Track manual text typing to update the submit button visual state
+  els.zoneNameInput.addEventListener('input', () => {
+    updateSubmitButtonState();
   });
 
   // Enter key press in input

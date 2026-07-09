@@ -2657,6 +2657,231 @@ body {
   margin: 0 2px;
 }
 
+/* 2depth 공간 선택 모달 관련 스타일 (Figma Spec) */
+.confirm-dialog-figma {
+  background-color: var(--menu-box, #1e1e1e) !important;
+  border-radius: 40px !important;
+  padding: 28px 36px 36px 36px !important;
+  box-shadow: 6px 6px 15px rgba(0, 0, 0, 0.4) !important;
+  border: 1px solid #2d2d2d !important;
+  height: 490px !important;
+  box-sizing: border-box !important;
+}
+
+.figma-title {
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  margin-top: 0 !important;
+  margin-bottom: 8px !important;
+  font-family: 'Inter', 'Pretendard', sans-serif !important;
+}
+
+.figma-desc {
+  font-size: 13px !important;
+  color: #888888 !important;
+  margin-bottom: 16px !important;
+  line-height: 1.4 !important;
+}
+
+.back-arrow-btn {
+  background: none !important;
+  border: none !important;
+  padding: 0 !important;
+  cursor: pointer !important;
+  color: #888888 !important;
+  margin-right: 12px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  vertical-align: middle !important;
+  transition: color 0.2s ease !important;
+}
+
+.back-arrow-btn:hover {
+  color: #ffffff !important;
+}
+
+.zone-depth-container {
+  display: none;
+  flex-direction: column;
+  height: 426px !important; /* 490px - top padding(28px) - bottom padding(36px) */
+  box-sizing: border-box !important;
+}
+
+.zone-depth-container.active {
+  display: flex;
+}
+
+#zoneSelectDepth1 {
+  justify-content: flex-start;
+}
+
+#zoneSelectDepth1 .zone-type-cards {
+  margin-top: auto;
+  margin-bottom: auto;
+}
+
+.zone-type-cards {
+  display: flex;
+  gap: 16px;
+}
+
+.zone-type-card {
+  flex: 1;
+  background-color: #2a2a2a;
+  border: 1px solid #3a3a3a;
+  border-radius: 20px;
+  padding: 20px 16px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  box-sizing: border-box;
+  height: 280px; /* 카드 높이를 늘어난 팝업 크기에 맞춤 */
+}
+
+.zone-type-card:hover {
+  background-color: #353535;
+  border-color: #555;
+  transform: translateY(-2px);
+}
+
+.zone-type-card.selected {
+  border-color: var(--accent);
+  background-color: #242b35; /* 피그마 활성 색조 */
+}
+
+.card-icon {
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+}
+
+.card-icon-img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  transition: all 0.3s ease;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+}
+
+.zone-type-card:hover .card-icon-img {
+  transform: scale(1.08);
+}
+
+.zone-type-card.selected .card-icon-img {
+  filter: drop-shadow(0 0 8px var(--accent)) drop-shadow(0 0 3px var(--accent)) !important;
+}
+
+.card-title {
+  font-size: 17px !important;
+  font-weight: 500 !important;
+  color: #ffffff !important;
+  margin-bottom: 6px !important;
+}
+
+.card-desc {
+  font-size: 13px !important;
+  color: #888888 !important;
+  line-height: 1.4 !important;
+  margin-bottom: 8px !important;
+  flex-grow: 1 !important;
+  margin-top: 4px !important;
+}
+
+.card-meta {
+  font-size: 12px !important;
+  color: #007ce4 !important;
+  font-weight: 600 !important;
+  margin-top: auto !important;
+}
+
+/* 추천 태그 스타일 */
+.zone-suggest-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+  justify-content: flex-start;
+}
+
+.zone-tag-btn {
+  background-color: #2a2a2a;
+  border: 1px solid #3a3a3a;
+  color: #b6b6b6;
+  padding: 8px 16px;
+  border-radius: 40px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.zone-tag-btn:hover {
+  background-color: #353535;
+  border-color: #555;
+  color: #ffffff;
+}
+
+.zone-tag-btn.active {
+  background-color: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
+}
+
+/* 피그마 인풋 필드 */
+.figma-input {
+  height: 60px !important;
+  background-color: #2a2a2a !important;
+  border: 1px solid #3a3a3a !important;
+  border-radius: 40px !important;
+  padding: 0 34px !important;
+  color: #ffffff !important;
+  font-size: 14px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  transition: all 0.2s ease !important;
+}
+
+.figma-input:focus {
+  border-color: var(--accent) !important;
+  background-color: #2e2e2e !important;
+  outline: none !important;
+}
+
+/* 피그마 서브밋 버튼 */
+.figma-submit-btn {
+  height: 60px !important;
+  background-color: #2a2a2a !important;
+  border: 1px solid #3a3a3a !important;
+  border-radius: 40px !important;
+  color: #b6b6b6 !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  width: 100% !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  box-shadow: none !important;
+  margin-top: auto !important; /* 하단 밀착 고정 */
+}
+
+.figma-submit-btn:hover {
+  background-color: #353535 !important;
+  border-color: #555 !important;
+  color: #ffffff !important;
+}
+
+.figma-submit-btn.ready-to-submit {
+  background-color: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: #ffffff !important;
+}
+
 
 
 
