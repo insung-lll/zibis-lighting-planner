@@ -3396,6 +3396,15 @@ function renderZonePanel() {
             <option value="6" ${zone.switchCount === 6 ? 'selected' : ''}>6구</option>
           </select>
         </div>
+        <button class="zone-delete-btn" data-zone-id="${zone.id}" title="공간 삭제" style="background:none; border:none; color:var(--text-dim); cursor:pointer; display:inline-flex; align-items:center; padding:2px; border-radius:4px; transition: color 0.15s;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            <path d="M10 11v6"/>
+            <path d="M14 11v6"/>
+            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+          </svg>
+        </button>
       </div>
     `;
     
@@ -3420,6 +3429,19 @@ function renderZonePanel() {
       renderAll();
     });
 
+    const deleteBtn = item.querySelector('.zone-delete-btn');
+    deleteBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showConfirm("공간 삭제", `"${zone.name}" 공간 구획을 삭제하시겠습니까?`, () => {
+        state.lights = state.lights.filter(l => !isLightInPolygon(l, zone.points));
+        state.zones = state.zones.filter(z => z.id !== zone.id);
+        recalculateAllZones();
+        updateStats();
+        renderAll();
+        saveStateToHistory();
+      });
+    });
+
     // Add context menu or delete button on dblclick
     item.addEventListener('dblclick', () => {
       showConfirm("공간 삭제", `"${zone.name}" 공간 구획을 삭제하시겠습니까?`, () => {
@@ -3428,6 +3450,7 @@ function renderZonePanel() {
         recalculateAllZones();
         updateStats();
         renderAll();
+        saveStateToHistory();
       });
     });
     

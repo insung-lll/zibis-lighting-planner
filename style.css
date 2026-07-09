@@ -1689,6 +1689,10 @@ body {
   opacity: 1;
 }
 
+.zone-delete-btn:hover {
+  color: var(--danger) !important;
+}
+
 /* Pyung Input Overlay & AI Processing Overlay Styles */
 .pyung-overlay, .ai-processing-overlay {
   position: absolute;
