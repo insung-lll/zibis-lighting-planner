@@ -307,6 +307,22 @@ function getDBProductPrice(namePattern, defaultPrice) {
   return match ? match.price : defaultPrice;
 }
 
+function getDBConverterProdCd(watt) {
+  const w = parseInt(watt, 10);
+  const match = fixtureDatabase.find(f => f.category === 'converter' && f.name.includes(`${w}W`));
+  return match ? (match.ecountProdCd || null) : null;
+}
+
+function getDBControllerProdCd() {
+  const match = fixtureDatabase.find(f => f.category === 'controller' || f.name.includes('컨트롤러'));
+  return match ? (match.ecountProdCd || null) : null;
+}
+
+function getDBProductProdCd(namePattern) {
+  const match = fixtureDatabase.find(f => f.name.includes(namePattern));
+  return match ? (match.ecountProdCd || null) : null;
+}
+
 function getMagneticRailBOM(lengthM) {
   const ceilL = Math.ceil(lengthM);
   if (ceilL <= 0) return [];
@@ -349,13 +365,13 @@ function getMagneticRailBOM(lengthM) {
   const rail3mPrice = getDBProductPrice('마그네틱 레일 3M', 70080);
   
   return [
-    { type: 'rail-2m', name: '마그네틱 레일 2M', price: rail2mPrice, qty: n2, watt: 0, lumen: 0, typeLabel: '라인/마그네틱' },
-    { type: 'rail-3m', name: '마그네틱 레일 3M', price: rail3mPrice, qty: n3, watt: 0, lumen: 0, typeLabel: '라인/마그네틱' },
-    { type: 'magnetic-converter', name: '마그네틱 컨버터 150W (유니온)', price: convPrice, qty: 1, watt: 0, lumen: 0, typeLabel: '안정기 (SMPS)' },
-    { type: 'magnetic-controller', name: '마그네틱 컨트롤러', price: ctrlPrice, qty: 1, watt: 0, lumen: 0, typeLabel: '컨트롤러' },
-    { type: 'magnetic-connector', name: '마그네틱 연결선', price: connectorPrice, qty: nConn, watt: 0, lumen: 0, typeLabel: '부자재' },
-    { type: 'magnetic-powerline', name: '마그네틱 전원선', price: powerLinePrice, qty: 1, watt: 0, lumen: 0, typeLabel: '부자재' },
-    { type: 'magnetic-endcap', name: '마그네틱 마감캡', price: endcapPrice, qty: 1, watt: 0, lumen: 0, typeLabel: '부자재' }
+    { type: 'rail-2m', name: '마그네틱 레일 2M', price: rail2mPrice, ecountProdCd: getDBProductProdCd('마그네틱 레일 2M'), qty: n2, watt: 0, lumen: 0, typeLabel: '라인/마그네틱' },
+    { type: 'rail-3m', name: '마그네틱 레일 3M', price: rail3mPrice, ecountProdCd: getDBProductProdCd('마그네틱 레일 3M'), qty: n3, watt: 0, lumen: 0, typeLabel: '라인/마그네틱' },
+    { type: 'magnetic-converter', name: '마그네틱 컨버터 150W (유니온)', price: convPrice, ecountProdCd: getDBConverterProdCd(150), qty: 1, watt: 0, lumen: 0, typeLabel: '안정기 (SMPS)' },
+    { type: 'magnetic-controller', name: '마그네틱 컨트롤러', price: ctrlPrice, ecountProdCd: getDBControllerProdCd(), qty: 1, watt: 0, lumen: 0, typeLabel: '컨트롤러' },
+    { type: 'magnetic-connector', name: '마그네틱 연결선', price: connectorPrice, ecountProdCd: getDBProductProdCd('마그네틱 연결선'), qty: nConn, watt: 0, lumen: 0, typeLabel: '부자재' },
+    { type: 'magnetic-powerline', name: '마그네틱 전원선', price: powerLinePrice, ecountProdCd: getDBProductProdCd('마그네틱 전원선'), qty: 1, watt: 0, lumen: 0, typeLabel: '부자재' },
+    { type: 'magnetic-endcap', name: '마그네틱 마감캡', price: endcapPrice, ecountProdCd: getDBProductProdCd('마그네틱 마감캡'), qty: 1, watt: 0, lumen: 0, typeLabel: '부자재' }
   ].filter(item => item.qty > 0);
 }
 
@@ -4573,6 +4589,10 @@ async function exportToExcel() {
     projectName = userInput.trim() || '나의 조명 설계';
   }
 
+  // 합계 행(H:I 병합 셀)의 행 번호 — 로컬 다운로드본에서 품번 열을 지울 때 이 행들은 건드리지 않기 위함
+  // (병합 셀의 비-마스터 셀 값을 지우면 마스터 셀 값까지 같이 사라지는 문제가 있었음)
+  const totalRowNumbers = [];
+
   // 1. Render everything onto a temporary output canvas at 100% scale
   const w = state.uploadedImage.width;
   const h = state.uploadedImage.height;
@@ -4722,7 +4742,8 @@ async function exportToExcel() {
     { key: 'E', width: 14 }, // 소비전력 (W)
     { key: 'F', width: 14 }, // 광량 (lm)
     { key: 'G', width: 12 }, // 배치 수량
-    { key: 'H', width: 16 }  // 예상 금액
+    { key: 'H', width: 16 }, // 예상 금액
+    { key: 'I', width: 18 }  // 품번 (이카운트 ERP)
   ];
   
   // 3. Title Style & Merges
@@ -4776,6 +4797,7 @@ async function exportToExcel() {
             type: item.typeLabel,
             color: null,
             price: item.price,
+            ecountProdCd: item.ecountProdCd || null,
             qty: 0,
             isLine: true,
             totalWatt: 0,
@@ -4800,16 +4822,21 @@ async function exportToExcel() {
           type: catLabel,
           color: spec ? spec.color : null,
           price: currentPrice,
+          ecountProdCd: spec ? (spec.ecountProdCd || null) : null,
           qty: 0,
           isLine: spec && (spec.category === 'linebar' || spec.icon === 'line'),
           totalWatt: 0,
-          totalLumen: 0
+          totalLumen: 0,
+          totalLengthM: 0
         };
       }
       allProducts[l.typeId].qty++;
       if (allProducts[l.typeId].isLine) {
         allProducts[l.typeId].totalWatt += l.watt;
         allProducts[l.typeId].totalLumen += l.lumen;
+        if (l.x2 !== undefined && l.y2 !== undefined && state.pixelsPerMeter > 0) {
+          allProducts[l.typeId].totalLengthM += Math.sqrt((l.x2 - l.x) ** 2 + (l.y2 - l.y) ** 2) / state.pixelsPerMeter;
+        }
       }
     }
   });
@@ -4835,6 +4862,7 @@ async function exportToExcel() {
             type: '안정기 (SMPS)',
             color: null,
             price: smpsPrice,
+            ecountProdCd: getDBConverterProdCd(capNum),
             qty: 0,
             isLine: false
           };
@@ -4854,6 +4882,7 @@ async function exportToExcel() {
             type: '컨트롤러',
             color: null,
             price: getDBControllerPrice(),
+            ecountProdCd: getDBControllerProdCd(),
             qty: 0,
             isLine: false
           };
@@ -4865,7 +4894,7 @@ async function exportToExcel() {
 
   // Helper to format cells
   function applyRowStyles(row, isItalic) {
-    for (let c = 2; c <= 8; c++) {
+    for (let c = 2; c <= 9; c++) {
       const cell = row.getCell(c);
       cell.font = { name: 'Malgun Gothic', size: 10, italic: isItalic };
       cell.border = {
@@ -4891,7 +4920,7 @@ async function exportToExcel() {
   }
 
   // 6. Section 1: Product Summary Table (주문서용 - 제품별 총 주문 수량 합계)
-  worksheet.mergeCells(`B${tableStartRow}:H${tableStartRow}`);
+  worksheet.mergeCells(`B${tableStartRow}:I${tableStartRow}`);
   const summaryTitle = worksheet.getCell(`B${tableStartRow}`);
   summaryTitle.value = '제품별 총 주문 수량 합계 (주문서용)';
   summaryTitle.font = { name: 'Malgun Gothic', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -4903,7 +4932,7 @@ async function exportToExcel() {
   summaryTitle.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
   worksheet.getRow(tableStartRow).height = 28;
   
-  const summaryHeaders = ['제품 컬러', '제품명 / 자재명', '구분 (타입)', '단가 (원)', '총 주문 수량', '비고', '총 합계 금액'];
+  const summaryHeaders = ['제품 컬러', '제품명 / 자재명', '구분 (타입)', '단가 (원)', '총 주문 수량', '비고', '총 합계 금액', '품번'];
   const summaryHeaderRow = worksheet.getRow(tableStartRow + 1);
   summaryHeaderRow.height = 25;
   
@@ -4947,12 +4976,12 @@ async function exportToExcel() {
     row.getCell(4).value = p.type;
     row.getCell(5).value = p.price;
     row.getCell(5).numFmt = '#,##0';
-    row.getCell(6).value = p.qty + '개';
+    row.getCell(6).value = p.qty;
     
     // Remarks
     let remarkVal = '-';
     if (p.isLine) {
-      remarkVal = `총 ${(p.totalWatt / 10).toFixed(1)}m (${p.totalWatt}W, ${p.totalLumen} lm)`;
+      remarkVal = `총 ${(p.totalLengthM || 0).toFixed(1)}m (${p.totalWatt}W, ${p.totalLumen} lm)`;
     } else if (p.price === 0) {
       remarkVal = '포함 자재';
     }
@@ -4960,8 +4989,9 @@ async function exportToExcel() {
     
     row.getCell(8).value = rowCost;
     row.getCell(8).numFmt = '#,##0';
-    
-    for (let c = 2; c <= 8; c++) {
+    row.getCell(9).value = p.ecountProdCd || '-';
+
+    for (let c = 2; c <= 9; c++) {
       const cell = row.getCell(c);
       if (c === 2 && p.color) {
         const cleanColor = p.color.replace('#', '');
@@ -4990,6 +5020,7 @@ async function exportToExcel() {
   });
   
   // Aggregate summary row for consolidated order
+  totalRowNumbers.push(currentRowNum);
   const aggTotalRow = worksheet.getRow(currentRowNum);
   aggTotalRow.height = 30;
   worksheet.mergeCells(`B${currentRowNum}:G${currentRowNum}`);
@@ -5013,6 +5044,7 @@ async function exportToExcel() {
     };
   }
   
+  worksheet.mergeCells(`H${currentRowNum}:I${currentRowNum}`);
   const aggValueCell = aggTotalRow.getCell(8);
   aggValueCell.value = grandTotalCost;
   aggValueCell.numFmt = '#,##0';
@@ -5032,7 +5064,7 @@ async function exportToExcel() {
   // 7. Section 2: Space BOM Table (선택된 조명 및 자동 산출 자재 목록)
   currentRowNum += 3; // Leave 2 blank rows
   
-  worksheet.mergeCells(`B${currentRowNum}:H${currentRowNum}`);
+  worksheet.mergeCells(`B${currentRowNum}:I${currentRowNum}`);
   const bomTitle = worksheet.getCell(`B${currentRowNum}`);
   bomTitle.value = '선택된 조명 및 자동 산출 자재 목록 (BOM)';
   bomTitle.font = { name: 'Malgun Gothic', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -5045,7 +5077,7 @@ async function exportToExcel() {
   worksheet.getRow(currentRowNum).height = 28;
   currentRowNum++;
   
-  const bomHeaders = ['공간 분류', '조명 모델 / 자재명', '구분 (타입)', '소비전력 (W)', '광량 (lm)', '배치 수량', '예상 금액'];
+  const bomHeaders = ['공간 분류', '조명 모델 / 자재명', '구분 (타입)', '소비전력 (W)', '광량 (lm)', '배치 수량', '예상 금액', '품번'];
   const bomHeaderRow = worksheet.getRow(currentRowNum);
   bomHeaderRow.height = 25;
   
@@ -5094,6 +5126,7 @@ async function exportToExcel() {
               watt: 0,
               lumen: 0,
               price: item.price,
+              ecountProdCd: item.ecountProdCd || null,
               qty: 0,
               isLinebar: true
             };
@@ -5119,6 +5152,7 @@ async function exportToExcel() {
             watt: isLine ? 0 : l.watt,
             lumen: isLine ? 0 : l.lumen,
             price: currentPrice,
+            ecountProdCd: spec ? (spec.ecountProdCd || null) : null,
             qty: 0,
             isLinebar: isLine
           };
@@ -5135,79 +5169,82 @@ async function exportToExcel() {
     Object.values(groups).forEach(g => {
       const rowCost = g.price * g.qty;
       totalCost += rowCost;
-      
+
       const row = worksheet.getRow(currentRowNum);
       row.height = 22;
-      
+
       row.getCell(2).value = zone.name;
       row.getCell(3).value = g.name;
       row.getCell(4).value = g.type;
       row.getCell(5).value = g.watt ? g.watt + 'W' : '-';
       row.getCell(6).value = g.lumen ? g.lumen + ' lm' : '-';
-      row.getCell(7).value = g.qty + '개';
+      row.getCell(7).value = g.qty;
       row.getCell(8).value = rowCost;
       row.getCell(8).numFmt = '#,##0';
-      
+      row.getCell(9).value = g.ecountProdCd || '-';
+
       applyRowStyles(row, false);
       currentRowNum++;
     });
-    
+
     // SMPS in this zone
     if (zone.requiredSMPS && zone.requiredSMPS.length > 0) {
       const smpsCounts = {};
       zone.requiredSMPS.forEach(cap => {
         smpsCounts[cap] = (smpsCounts[cap] || 0) + 1;
       });
-      
+
       Object.entries(smpsCounts).forEach(([cap, qty]) => {
         const row = worksheet.getRow(currentRowNum);
         row.height = 22;
-        
+
         const capNum = parseInt(cap, 10);
         const smpsPrice = getDBConverterPrice(capNum);
         const smpsCost = smpsPrice * qty;
         totalCost += smpsCost;
-        
+
         row.getCell(2).value = zone.name;
         row.getCell(3).value = `${cap}W 안정기`;
         row.getCell(4).value = '안정기 (SMPS)';
         row.getCell(5).value = cap + 'W';
         row.getCell(6).value = '-';
-        row.getCell(7).value = qty + '개';
+        row.getCell(7).value = qty;
         row.getCell(8).value = smpsCost;
         row.getCell(8).numFmt = '#,##0';
-        
+        row.getCell(9).value = getDBConverterProdCd(capNum) || '-';
+
         applyRowStyles(row, false);
         currentRowNum++;
       });
     }
-    
+
     // Controllers in this zone
     if (zone.requiredControllers && zone.requiredControllers.length > 0) {
       zone.requiredControllers.forEach(ctrl => {
         const row = worksheet.getRow(currentRowNum);
         row.height = 22;
-        
+
         const ctrlName = typeof ctrl === 'string' ? ctrl : ctrl.name;
         const qty = typeof ctrl === 'string' ? 1 : ctrl.qty;
         const ctrlPrice = getDBControllerPrice();
         const ctrlCost = ctrlPrice * qty;
         totalCost += ctrlCost;
-        
+
         row.getCell(2).value = zone.name;
         row.getCell(3).value = ctrlName;
         row.getCell(4).value = '컨트롤러';
         row.getCell(5).value = '-';
         row.getCell(6).value = '-';
-        row.getCell(7).value = `${qty}개`;
+        row.getCell(7).value = qty;
         row.getCell(8).value = ctrlCost;
         row.getCell(8).numFmt = '#,##0';
-        
+        row.getCell(9).value = getDBControllerProdCd() || '-';
+
         applyRowStyles(row, false);
         currentRowNum++;
       });
     }
-    
+
     // Merge Space cells vertically in Column B
     const endRow = currentRowNum - 1;
     if (endRow >= startRow) {
@@ -5239,6 +5276,7 @@ async function exportToExcel() {
               watt: 0,
               lumen: 0,
               price: item.price,
+              ecountProdCd: item.ecountProdCd || null,
               qty: 0,
               isLinebar: true
             };
@@ -5264,6 +5302,7 @@ async function exportToExcel() {
             watt: isLine ? 0 : l.watt,
             lumen: isLine ? 0 : l.lumen,
             price: currentPrice2,
+            ecountProdCd: spec ? (spec.ecountProdCd || null) : null,
             qty: 0,
             isLinebar: isLine
           };
@@ -5288,10 +5327,11 @@ async function exportToExcel() {
       row.getCell(4).value = g.type;
       row.getCell(5).value = g.watt ? g.watt + 'W' : '-';
       row.getCell(6).value = g.lumen ? g.lumen + ' lm' : '-';
-      row.getCell(7).value = g.qty + '개';
+      row.getCell(7).value = g.qty;
       row.getCell(8).value = rowCost;
       row.getCell(8).numFmt = '#,##0';
-      
+      row.getCell(9).value = g.ecountProdCd || '-';
+
       applyRowStyles(row, false);
       currentRowNum++;
     });
@@ -5306,6 +5346,7 @@ async function exportToExcel() {
   }
   
   // Table 2 Total Summary Row (BOM 가견적 합계)
+  totalRowNumbers.push(currentRowNum);
   const totalRow = worksheet.getRow(currentRowNum);
   totalRow.height = 30;
   worksheet.mergeCells(`B${currentRowNum}:G${currentRowNum}`);
@@ -5329,6 +5370,7 @@ async function exportToExcel() {
     };
   }
   
+  worksheet.mergeCells(`H${currentRowNum}:I${currentRowNum}`);
   const valueCell = totalRow.getCell(8);
   valueCell.value = grandTotalCost; // 상단 제품 주문 총 예상 합계와 동일하게 통일
   valueCell.numFmt = '#,##0';
@@ -5345,11 +5387,30 @@ async function exportToExcel() {
     right: { style: 'thin', color: { argb: 'FF44475A' } }
   };
   
-  // 10. Download Excel workbook
+  // 10. Generate the full workbook (품번 포함) — 서버 저장용
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  const url = URL.createObjectURL(blob);
-  
+
+  // 10.1 로컬 다운로드용은 품번(9번째 열)을 제거한 별도 사본으로 생성 — 서버 저장본과 로컬 다운로드본을 분리
+  const localWorkbook = new ExcelJS.Workbook();
+  await localWorkbook.xlsx.load(buffer);
+  const localWorksheet = localWorkbook.worksheets[0];
+  localWorksheet.eachRow((row) => {
+    if (totalRowNumbers.includes(row.number)) return; // H:I 병합된 합계 행은 건드리지 않음 (마스터 셀 값 손상 방지)
+    try {
+      row.getCell(9).value = null;
+    } catch (e) {
+      // 병합 셀 등 값 설정이 막히는 경우 무시
+    }
+  });
+  localWorksheet.getColumn(9).width = 0;
+  localWorksheet.getColumn(9).hidden = true;
+  const localBuffer = await localWorkbook.xlsx.writeBuffer();
+  const localBlob = new Blob([localBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+  // 10.2 Download Excel workbook (품번 미포함)
+  const url = URL.createObjectURL(localBlob);
+
   const a = document.createElement('a');
   a.href = url;
   a.download = `${projectName}_지비스_가견적서_${Date.now()}.xlsx`;
