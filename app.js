@@ -1533,6 +1533,7 @@ function startCalibrationFlow() {
     state.calibrationPoints = [];
   }
   state.calibrateMousePos = null;
+  hideCalibrationPopup();
 
   // Show modal first so layout is settled before measuring wrap dimensions
   modal.style.display = 'flex';
@@ -1547,9 +1548,9 @@ function startCalibrationFlow() {
   canvas.width = wrapW;
   canvas.height = wrapH;
 
-  // 기준선 길이: 이전에 적용한 값이 있으면 유지, 없으면 기본값 0.9m
+  // 기준선 길이: 이전에 적용한 값이 있으면 유지, 없으면 기본값 3.0m
   if (els.referenceDistance) {
-    els.referenceDistance.value = state.lastReferenceDistance || "0.9";
+    els.referenceDistance.value = state.lastReferenceDistance || "3.0";
   }
 
   // 평수 입력 초기화
@@ -1564,7 +1565,7 @@ function startCalibrationFlow() {
 
   if (els.calibrateStatus) {
     els.calibrateStatus.textContent = hasExistingLine
-      ? "기준선이 설정되었습니다. 실제 길이를 입력하고 '보정 값 적용' 버튼을 눌러주세요."
+      ? "기준선이 설정되었습니다. 실제 길이를 입력하고 '설정 완료' 버튼을 눌러주세요."
       : "기준선의 시작점을 마우스로 클릭해 주세요.";
   }
   const calibrateSnapHint = document.getElementById('calibrateSnapHint');
@@ -1650,6 +1651,7 @@ function startCalibrationFlow() {
     const calibrateSnapHint = document.getElementById('calibrateSnapHint');
 
     if (state.calibrationPoints.length === 0) {
+      hideCalibrationPopup();
       state.calibrationPoints.push(pt);
       state.calibrateMousePos = pt;
       if (els.calibrateStatus) {
@@ -1663,11 +1665,15 @@ function startCalibrationFlow() {
       state.calibrationPoints.push(pt);
       state.calibrateMousePos = null;
       if (els.calibrateStatus) {
-        els.calibrateStatus.textContent = "기준선이 설정되었습니다. 실제 길이를 입력하고 '보정 값 적용' 버튼을 눌러주세요.";
+        els.calibrateStatus.textContent = "기준선이 설정되었습니다. 실제 길이를 입력하고 '설정 완료' 버튼을 눌러주세요.";
       }
       if (calibrateSnapHint) calibrateSnapHint.style.display = 'none';
       updateApplyButtonState();
+      
+      // 마우스(두 번째 포인트) 근처에 실제 길이 입력 팝업 띄우기
+      showCalibrationPopup(pt);
     } else {
+      hideCalibrationPopup();
       state.calibrationPoints = [pt];
       state.calibrateMousePos = pt;
       if (els.calibrateStatus) {
@@ -1849,7 +1855,7 @@ els.btnApplyCalibrate.addEventListener('click', () => {
 
   const refDist = parseFloat(els.referenceDistance.value);
   if (isNaN(refDist) || refDist <= 0) {
-    alert("올바른 기준선 길이를 입력해 주세요 (예: 0.9).");
+    alert("올바른 기준선 길이를 입력해 주세요 (예: 3.0).");
     return;
   }
   
@@ -1860,6 +1866,7 @@ els.btnApplyCalibrate.addEventListener('click', () => {
   state.pixelsPerMeter = distPx / refDist;
   state.lastReferenceDistance = refDist;
 
+  hideCalibrationPopup();
   els.calibrateOverlay.style.display = 'none';
   els.calibrateCanvas.onmousedown = null;
   els.calibrateCanvas.onmousemove = null;
@@ -1880,6 +1887,7 @@ els.btnApplyCalibrate.addEventListener('click', () => {
 });
 
 els.btnCancelCalibrate.addEventListener('click', () => {
+  hideCalibrationPopup();
   els.calibrateOverlay.style.display = 'none';
   els.calibrateCanvas.onmousedown = null;
   els.calibrateCanvas.onmousemove = null;
@@ -1895,6 +1903,92 @@ els.btnCancelCalibrate.addEventListener('click', () => {
     recalculateAllZones();
     renderAll();
   }
+});
+
+// ── 마우스 근처 플로팅 캘리브레이션 팝업 함수 ──
+function showCalibrationPopup(pt) {
+  const popup = document.getElementById('calibrateInputPopup');
+  const input = document.getElementById('popupRefDistance');
+  if (!popup || !input) return;
+
+  // 이미지 좌표 -> 캔버스 기준 CSS 좌표 변환
+  const canvasX = pt.x * state.calibrateZoom + state.calibratePanX;
+  const canvasY = pt.y * state.calibrateZoom + state.calibratePanY;
+
+  const wrap = els.calibrateCanvas.parentElement;
+  const wrapW = wrap ? wrap.clientWidth : 800;
+  const wrapH = wrap ? wrap.clientHeight : 600;
+
+  // 마우스 클릭(두 번째 점) 위치 가로 중앙 정렬 및 선 위에 배치 (팝업 크기: 가로 190px, 세로 약 68px)
+  let left = canvasX - 95; 
+  let top = canvasY - 85; // 선과 마우스 포인터 위로 떠 있도록 Y 오프셋 조정
+
+  // 화면 경계 밖으로 벗어나는 것 방지
+  if (left < 10) {
+    left = 10;
+  }
+  if (left + 190 > wrapW) {
+    left = wrapW - 200;
+  }
+  if (top < 10) {
+    // 도면 상단 끝에 그려진 경우, 선을 가리지 않게 팝업을 아래쪽으로 노출
+    top = canvasY + 25;
+  }
+  if (top + 70 > wrapH) {
+    top = wrapH - 80;
+  }
+
+  popup.style.left = `${left}px`;
+  popup.style.top = `${top}px`;
+  popup.style.display = 'block';
+
+  // 우측 패널 입력란 값과 싱크
+  input.value = els.referenceDistance.value;
+
+  // 즉시 입력 필드 포커싱 및 텍스트 전체 선택
+  setTimeout(() => {
+    input.focus();
+    input.select();
+  }, 50);
+}
+
+function hideCalibrationPopup() {
+  const popup = document.getElementById('calibrateInputPopup');
+  if (popup) popup.style.display = 'none';
+}
+
+// 팝업 이벤트 리스너 등록
+document.getElementById('popupRefDistance')?.addEventListener('input', (e) => {
+  if (els.referenceDistance) {
+    els.referenceDistance.value = e.target.value;
+  }
+});
+
+document.getElementById('popupRefDistance')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    document.getElementById('btnPopupApply')?.click();
+  }
+});
+
+document.getElementById('btnPopupApply')?.addEventListener('click', () => {
+  const val = parseFloat(document.getElementById('popupRefDistance')?.value);
+  if (isNaN(val) || val <= 0) {
+    alert("올바른 기준선 길이를 입력해 주세요 (예: 3.0).");
+    return;
+  }
+  if (els.referenceDistance) {
+    els.referenceDistance.value = val;
+  }
+  state.lastReferenceDistance = val;
+  hideCalibrationPopup();
+  
+  if (els.btnApplyCalibrate) {
+    els.btnApplyCalibrate.disabled = false;
+    els.btnApplyCalibrate.focus();
+  }
+  
+  renderCalibrationCanvas();
 });
 
 // ==================== WIDGET INTERACTIONS (MOUSE, ZOOM, PAN) ====================
