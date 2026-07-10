@@ -408,6 +408,8 @@ const state = {
   nextZoneId: 1,
   nextDimId: 1,
   bomFilterZoneId: null,
+  expandedBOMGroups: { 'magnetic-system': false },
+  magneticRailToastShown: false,
   editingZoneId: null,
   vertexEditingZoneId: null,
   draggingVertexIdx: -1,
@@ -4003,19 +4005,112 @@ function renderBOMTable() {
   
   let totalCost = 0;
   
-  // 1. Render main lights
+  // Group keys for magnetic rail system
+  const groupKeys = ['rail-2m', 'magnetic-converter', 'magnetic-controller', 'magnetic-connector', 'magnetic-powerline', 'magnetic-endcap'];
+  
+  // Check if magnetic system is active in BOM
+  const hasMagneticSystem = groupKeys.some(key => groups[key] && groups[key].qty > 0);
+  
+  // Show / hide magnetic rail toast
+  const toast = document.getElementById('bomToastMessage');
+  if (toast) {
+    if (hasMagneticSystem && !state.magneticRailToastShown) {
+      toast.style.display = 'flex';
+    } else {
+      toast.style.display = 'none';
+    }
+  }
+
+  // Calculate magnetic system group totals if active
+  let magneticGroupTotalCost = 0;
+  let magneticGroupTotalWatt = 0;
+  let magneticGroupTotalLumen = 0;
+  let magneticGroupRailQty = 0;
+  
+  if (hasMagneticSystem) {
+    groupKeys.forEach(key => {
+      const item = groups[key];
+      if (item) {
+        magneticGroupTotalCost += item.price * item.qty;
+        magneticGroupTotalWatt += item.watt;
+        magneticGroupTotalLumen += item.lumen;
+        if (key === 'rail-2m') {
+          magneticGroupRailQty = item.qty;
+        }
+      }
+    });
+    totalCost += magneticGroupTotalCost;
+  }
+
+  // Helper for type labels
+  function getFixtureTypeLabel(category) {
+    if (category === 'downlight') return '매입 다운라이트';
+    if (category === 'linebar') return '라인/마그네틱';
+    if (category === 'multi') return '멀티매입등';
+    if (category === 'smarthome') return '스마트홈 기기';
+    if (category === 'etc') return '기타';
+    return '조명';
+  }
+
+  // 1. Render Group (Magnetic System) if active
+  if (hasMagneticSystem) {
+    const isExpanded = state.expandedBOMGroups && state.expandedBOMGroups['magnetic-system'];
+    const groupTr = document.createElement('tr');
+    groupTr.style.backgroundColor = 'rgba(0, 112, 243, 0.04)';
+    groupTr.style.borderLeft = '3px solid var(--accent)';
+    groupTr.innerHTML = `
+      <td>
+        <div style="display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none;" onclick="toggleBOMGroup('magnetic-system')">
+          <span style="font-size:10px; color:var(--accent); transition: transform 0.15s ease; display:inline-block; transform: ${isExpanded ? 'rotate(90deg)' : 'rotate(0deg)'};">▶</span>
+          <strong>마그네틱 레일 시스템 (부자재 포함)</strong>
+        </div>
+      </td>
+      <td>라인/마그네틱</td>
+      <td>${magneticGroupTotalWatt > 0 ? magneticGroupTotalWatt + 'W' : '-'}</td>
+      <td>${magneticGroupTotalLumen > 0 ? magneticGroupTotalLumen + ' lm' : '-'}</td>
+      <td>레일 ${magneticGroupRailQty}개 + 부자재</td>
+      <td><strong>₩${magneticGroupTotalCost.toLocaleString()}</strong></td>
+      <td>
+        <button class="btn" style="height:28px; padding:0 8px; font-size:10px; background-color:var(--danger); border-color:var(--danger); color:#fff;" onclick="deleteBOMFixture('rail-2m')">삭제</button>
+      </td>
+    `;
+    els.bomTableBody.appendChild(groupTr);
+    
+    // If expanded, render sub-items
+    if (isExpanded) {
+      groupKeys.forEach(key => {
+        const g = groups[key];
+        if (g && g.qty > 0) {
+          const cost = g.price * g.qty;
+          const subTr = document.createElement('tr');
+          subTr.style.backgroundColor = 'rgba(255, 255, 255, 0.01)';
+          subTr.style.borderLeft = '3px solid var(--accent)';
+          subTr.style.opacity = '0.85';
+          subTr.innerHTML = `
+            <td style="padding-left: 28px; color: var(--text-dim);">
+              <span style="color: var(--accent); margin-right: 6px; font-weight: bold;">└</span> ${g.name}
+            </td>
+            <td style="color: var(--text-dim); font-size: 12px;">부자재</td>
+            <td style="color: var(--text-dim); font-size: 12px;">${g.watt > 0 ? g.watt + 'W' : '-'}</td>
+            <td style="color: var(--text-dim); font-size: 12px;">${g.lumen > 0 ? g.lumen + ' lm' : '-'}</td>
+            <td style="color: var(--text-dim); font-size: 12px;">${g.qty}개</td>
+            <td style="color: var(--text-dim); font-size: 12px;">₩${cost.toLocaleString()}</td>
+            <td>
+              <span style="font-size:11px;color:var(--text-dim);">자동 배정</span>
+            </td>
+          `;
+          els.bomTableBody.appendChild(subTr);
+        }
+      });
+    }
+  }
+
+  // 2. Render other main lights (excluding group items)
   entries.forEach(([typeId, g]) => {
+    if (groupKeys.includes(typeId)) return; // Skip group items as they are rendered above
+    
     const cost = g.price * g.qty;
     totalCost += cost;
-    
-    function getFixtureTypeLabel(category) {
-      if (category === 'downlight') return '매입 다운라이트';
-      if (category === 'linebar') return '라인/마그네틱';
-      if (category === 'multi') return '멀티매입등';
-      if (category === 'smarthome') return '스마트홈 기기';
-      if (category === 'etc') return '기타';
-      return '조명';
-    }
     
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -4026,9 +4121,7 @@ function renderBOMTable() {
       <td>${g.qty}개</td>
       <td><strong>₩${cost.toLocaleString()}</strong></td>
       <td>
-        ${['magnetic-converter', 'magnetic-controller', 'magnetic-connector', 'magnetic-powerline', 'magnetic-endcap'].includes(typeId)
-          ? `<span style="font-size:11px;color:var(--text-dim);">자동 배정</span>`
-          : `<button class="btn" style="height:28px; padding:0 8px; font-size:10px; background-color:var(--danger); border-color:var(--danger); color:#fff;" onclick="deleteBOMFixture('${typeId}')">삭제</button>`}
+        <button class="btn" style="height:28px; padding:0 8px; font-size:10px; background-color:var(--danger); border-color:var(--danger); color:#fff;" onclick="deleteBOMFixture('${typeId}')">삭제</button>
       </td>
     `;
     els.bomTableBody.appendChild(tr);
@@ -4143,6 +4236,18 @@ window.deleteBOMFixture = function(typeId) {
     saveStateToHistory();
     renderAll();
   });
+};
+
+window.toggleBOMGroup = function(groupId) {
+  state.expandedBOMGroups = state.expandedBOMGroups || {};
+  state.expandedBOMGroups[groupId] = !state.expandedBOMGroups[groupId];
+  renderBOMTable();
+};
+
+window.dismissBOMToast = function() {
+  state.magneticRailToastShown = true;
+  const toast = document.getElementById('bomToastMessage');
+  if (toast) toast.style.display = 'none';
 };
 
 // ==================== CANVAS LAYERS RENDERING ====================

@@ -371,6 +371,14 @@
         </button>
       </div>
     </div>
+    <!-- BOM Toast Message (Option C) -->
+    <div id="bomToastMessage" style="display: none; background: var(--accent-light); border: 1px solid var(--accent); border-radius: 8px; padding: 10px 16px; margin: 10px 16px; color: var(--text); font-size: 12px; align-items: center; justify-content: space-between;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 14px;">💡</span>
+        <span>마그네틱 레일 설치 시 필수 부자재(전원선, 연결선, 마감캡)가 자동으로 견적에 포함됩니다.</span>
+      </div>
+      <button style="background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 14px; font-weight: bold; padding: 0 4px;" onclick="dismissBOMToast()">×</button>
+    </div>
     <div class="bom-table-wrap">
       <table class="bom-table">
         <thead>
@@ -993,6 +1001,6 @@
 
 </div>
 
-<script src="app.js?v=32"></script>
+<script src="app.js?v=33"></script>
 </body>
 </html>
