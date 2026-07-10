@@ -3646,17 +3646,14 @@ function recalculateAllZones() {
       zone.averageLux = 0;
     }
     
-    // Auto calculate SMPS & Controllers (Exception: only magnetic rails inside zone)
-    const hasOnlyMagneticRails = insideLights.length > 0 && insideLights.every(l => l.typeId === 'magnetic-rail' || l.typeId === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57');
-
-    // 컨버터/컨트롤러는 IoT 제품이 실제로 배치된 경우에만 필요함 — 공간을 막 추가한 시점(조명 0개)에는 추가하지 않음.
-    // (일반 조명은 조명 자체에 컨버터가 내장된 구조라 이 계산에서 제외될 예정 — 그 로직은 일반 조명 추가 시점에 별도 반영)
+    // Auto calculate SMPS & Controllers (Exception: exclude magnetic rails & fixtures as their BOM contains their own converter/controller)
     const iotLights = insideLights.filter(l => {
       const spec = fixtureDatabase.find(f => f.id === l.typeId);
-      return spec && spec.productLine === 'zibis_iot';
+      const isMagnetic = spec && (spec.id === 'magnetic-rail' || spec.id === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57' || (spec.name && spec.name.includes('마그네틱')));
+      return spec && spec.productLine === 'zibis_iot' && !isMagnetic;
     });
 
-    if (hasOnlyMagneticRails || iotLights.length === 0) {
+    if (iotLights.length === 0) {
       zone.requiredSMPS = [];
       zone.requiredControllers = [];
     } else {
