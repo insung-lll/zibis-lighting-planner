@@ -757,15 +757,23 @@ async function init() {
   } catch (e) {
     console.warn('Supabase 로드 실패, 로컬 데이터 사용:', e);
   }
-  // 다운라이트 배치 순서 조정 (사이렌 집중 2인치 -> 사이렌 확산 2인치 -> 컷오프 2인치 -> 컷오프 3인치)
+  // 다운라이트 및 멀티매입등 배치 순서 조정
   fixtureDatabase.sort((a, b) => {
     const getOrder = (item) => {
       if (!item.name) return 999;
       const name = item.name;
+      // 1. 다운라이트 순서
       if (name.includes('사이렌') && name.includes('집중') && name.includes('2인치')) return 1;
       if (name.includes('사이렌') && name.includes('확산') && name.includes('2인치')) return 2;
       if (name.includes('컷오프') && name.includes('2인치')) return 3;
       if (name.includes('컷오프') && name.includes('3인치')) return 4;
+      
+      // 2. 멀티매입등(그리드슬롯) 순서
+      if (name.includes('그리드슬롯') && name.includes('6구') && name.includes('블랙')) return 51;
+      if (name.includes('그리드슬롯') && name.includes('6구') && name.includes('화이트')) return 52;
+      if (name.includes('그리드슬롯') && name.includes('12구') && name.includes('블랙')) return 53;
+      if (name.includes('그리드슬롯') && name.includes('12구') && name.includes('화이트')) return 54;
+      
       return 100;
     };
     return getOrder(a) - getOrder(b);
