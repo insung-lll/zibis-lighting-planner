@@ -495,9 +495,9 @@
 
         <!-- Floating Calibration Input Popup -->
         <div id="calibrateInputPopup" style="display: none; position: absolute; background: rgba(25, 25, 25, 0.95); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 10px 12px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); z-index: 1000; width: 190px; box-sizing: border-box; color: #fff; pointer-events: auto;">
-          <div style="font-size: 11px; font-weight: 700; margin-bottom: 6px; letter-spacing: 0.3px; color: rgba(255,255,255,0.9);">📏 실제 길이 입력 (m)</div>
+          <div style="font-size: 11px; font-weight: 700; margin-bottom: 6px; letter-spacing: 0.3px; color: rgba(255,255,255,0.9);">📏 실제 길이 입력 (mm)</div>
           <div style="display: flex; gap: 8px; align-items: center;">
-            <input type="number" id="popupRefDistance" value="3.0" min="0.1" step="0.1" style="flex: 1; min-width: 0; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 4px; padding: 5px 8px; color: #fff; font-size: 13px; font-weight: bold; outline: none; text-align: center;">
+            <input type="number" id="popupRefDistance" value="3000" min="1" step="1" style="flex: 1; min-width: 0; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 4px; padding: 5px 8px; color: #fff; font-size: 13px; font-weight: bold; outline: none; text-align: center;">
             <button id="btnPopupApply" style="background: #0070f3; border: none; border-radius: 4px; color: #fff; padding: 5px 12px; font-size: 12px; font-weight: 700; cursor: pointer; transition: background 0.15s; outline: none; white-space: nowrap;">적용</button>
           </div>
         </div>
@@ -541,10 +541,10 @@
             도면 상의 <strong>실제 수치(예: 방 가로 치수선 등)를 알고 있는 기준선의 양 끝점</strong>을 클릭하여 선을 직접 그려주세요.
           </p>
           <div class="form-row" style="margin-bottom: 12px;">
-            <label class="form-label">그려진 기준선의 실제 길이 (m)</label>
+            <label class="form-label">그려진 기준선의 실제 길이 (mm)</label>
             <div class="height-input-row">
-              <input type="number" class="form-input" id="referenceDistance" value="3.0" min="0.1" step="0.1">
-              <span class="unit">meters</span>
+              <input type="number" class="form-input" id="referenceDistance" value="3000" min="1" step="1">
+              <span class="unit">mm</span>
             </div>
           </div>
 
@@ -554,7 +554,7 @@
             </div>
             <ul style="margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 4px;">
               <li>도면의 <strong>치수선(예: 3000, 3600 등)</strong>의 양 끝점을 클릭하여 맞추는 것이 가장 정확합니다.</li>
-              <li>치수선 수치가 3000(mm)일 경우 실제 길이에 <strong>3.0</strong>을 입력해 주세요.</li>
+              <li>치수선 수치(예: 3000)를 실제 길이에 그대로 입력해 주세요.</li>
               <li>방문이나 가구는 도면상 축척이 정확하지 않은 경우가 많으므로 기준선으로 사용하지 않는 것을 권장합니다.</li>
             </ul>
           </div>
@@ -1014,6 +1014,6 @@
 
 </div>
 
-<script src="app.js?v=42"></script>
+<script src="app.js?v=43"></script>
 </body>
 </html>

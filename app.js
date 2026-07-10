@@ -1548,9 +1548,9 @@ function startCalibrationFlow() {
   canvas.width = wrapW;
   canvas.height = wrapH;
 
-  // 기준선 길이: 이전에 적용한 값이 있으면 유지, 없으면 기본값 3.0m
+  // 기준선 길이: 이전에 적용한 값이 있으면 유지, 없으면 기본값 3000mm
   if (els.referenceDistance) {
-    els.referenceDistance.value = state.lastReferenceDistance || "3.0";
+    els.referenceDistance.value = state.lastReferenceDistance || "3000";
   }
 
   // 평수 입력 초기화
@@ -1855,7 +1855,7 @@ els.btnApplyCalibrate.addEventListener('click', () => {
 
   const refDist = parseFloat(els.referenceDistance.value);
   if (isNaN(refDist) || refDist <= 0) {
-    alert("올바른 기준선 길이를 입력해 주세요 (예: 3.0).");
+    alert("올바른 기준선 길이를 입력해 주세요 (예: 3000).");
     return;
   }
   
@@ -1863,7 +1863,8 @@ els.btnApplyCalibrate.addEventListener('click', () => {
   const p2 = state.calibrationPoints[1];
   const distPx = Math.hypot(p2.x - p1.x, p2.y - p1.y);
 
-  state.pixelsPerMeter = distPx / refDist;
+  // refDist는 mm 단위이므로 m 단위로 변환 (예: 3000 -> 3.0)
+  state.pixelsPerMeter = distPx / (refDist / 1000.0);
   state.lastReferenceDistance = refDist;
 
   hideCalibrationPopup();
@@ -1974,7 +1975,7 @@ document.getElementById('popupRefDistance')?.addEventListener('keydown', (e) => 
 document.getElementById('btnPopupApply')?.addEventListener('click', () => {
   const val = parseFloat(document.getElementById('popupRefDistance')?.value);
   if (isNaN(val) || val <= 0) {
-    alert("올바른 기준선 길이를 입력해 주세요 (예: 3.0).");
+    alert("올바른 기준선 길이를 입력해 주세요 (예: 3000).");
     return;
   }
   if (els.referenceDistance) {
