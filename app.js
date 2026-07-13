@@ -4290,11 +4290,28 @@ function renderBOMTable() {
   // 3. Render total cost row
   const totalTr = document.createElement('tr');
   totalTr.style.borderTop = '2px solid var(--border)';
-  totalTr.innerHTML = `
-    <td colspan="5" style="text-align:right; font-weight:700; font-size:13px;">총 예상 비용:</td>
-    <td colspan="2" style="font-weight:800; font-size:14px; color:var(--accent);">₩${totalCost.toLocaleString()}</td>
-  `;
+  if (authUser) {
+    totalTr.innerHTML = `
+      <td colspan="5" style="text-align:right; font-weight:700; font-size:13px;">총 예상 비용:</td>
+      <td colspan="2" style="font-weight:800; font-size:14px; color:var(--accent);">₩${totalCost.toLocaleString()}</td>
+    `;
+  } else {
+    totalTr.innerHTML = `
+      <td colspan="5" style="text-align:right; font-weight:700; font-size:13px;">총 예상 비용:</td>
+      <td colspan="2">
+        <button id="btnBomSignupGate" style="background:var(--accent); color:#fff; border:none; border-radius:6px; padding:6px 12px; font-size:11px; font-weight:700; cursor:pointer; white-space:nowrap;">회원가입하고 확인하기</button>
+      </td>
+    `;
+  }
   els.bomTableBody.appendChild(totalTr);
+
+  if (!authUser) {
+    const btnBomSignupGate = document.getElementById('btnBomSignupGate');
+    const signupOverlay = document.getElementById('signupOverlay');
+    if (btnBomSignupGate && signupOverlay) {
+      btnBomSignupGate.onclick = () => { signupOverlay.style.display = 'flex'; };
+    }
+  }
 }
 
 function deleteRelatedLights(lightsToDelete) {
