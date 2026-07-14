@@ -255,6 +255,7 @@ body {
   flex-wrap: nowrap;
   gap: 6px;
   overflow-x: auto;
+  padding-bottom: 8px;
 }
 
 .category-pills::-webkit-scrollbar {
