@@ -853,7 +853,7 @@ function renderFixtureLibrary() {
           ${item.lumen ? `<span>${item.lumen} lm</span>` : ''}
           ${(item.beam && !isMagneticOrFixture) ? `<span>${item.beam}°</span>` : ''}
           ${item.inch ? `<span>${item.inch}</span>` : ''}
-          ${(item.category === 'linebar' && !isMagneticOrFixture) ? '<span>1m 기준</span>' : ((item.length && !isMagneticOrFixture) ? `<span>${item.length/1000}m</span>` : '')}
+          ${(item.category === 'linebar' && !isMagneticOrFixture) ? '<span>1m 기준</span>' : ((item.length && !isMagneticOrFixture && item.category !== 'direct' && item.category !== 'roomlight') ? `<span>${item.length/1000}m</span>` : '')}
         </div>
         ${item.link ? `
         <div class="fixture-link-wrapper" style="margin-top: 6px;">
