@@ -608,9 +608,11 @@ function mapSupabaseProduct(p) {
   const CAT_MAP = {
     '다운라이트': 'downlight', '라인바': 'linebar', '멀티': 'multi',
     '방등/거실등': 'roomlight', '엣지등': 'roomlight',
+    '직부등': 'direct',
     '컨버터': 'converter', '컨트롤러': 'controller', '레일스포트': 'etc'
   };
-  let cat = CAT_MAP[p.category] || 'etc';
+  // DB에 category 값 뒤에 개행/공백이 섞여 들어오는 경우가 있어 trim 후 매칭
+  let cat = CAT_MAP[(p.category || '').trim()] || 'etc';
   if (p.name && (p.name.replace(/\s+/g, '').includes('3"회전매립등') || p.name.replace(/\s+/g, '').includes('GR3"매립등'))) {
     cat = 'etc';
   }
@@ -627,6 +629,9 @@ function mapSupabaseProduct(p) {
   } else if (cat === 'roomlight') {
     icon = 'rect';
     color = '#FF2D55';
+  } else if (cat === 'direct') {
+    icon = 'rect';
+    color = '#007AFF'; // 직부등은 블루 컬러 고정
   } else if (cat === 'linebar') {
     if ((p.name && p.name.includes('마그네틱 레일')) || p.id === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57' || p.id === 'magnetic-rail') {
       icon = 'line';
@@ -2171,7 +2176,45 @@ function setupCanvasInteractions() {
         return;
       }
 
-      if (spec && (((spec.category === 'linebar' && !spec.name.includes('등기구')) || spec.icon === 'line' || spec.id.includes('gridslot') || spec.category === 'multi'))) {
+      const isDirectRotate = spec && spec.category === 'direct' && (spec.name.includes('유닛') || spec.name.includes('주방등'));
+
+      if (isDirectRotate) {
+        if (!state.isDrawingLinebar) {
+          // FIRST CLICK: fix position
+          state.isDrawingLinebar = true;
+          state.linebarStart = { x: pt.x, y: pt.y };
+          state.linebarEnd = { x: pt.x, y: pt.y };
+        } else {
+          // SECOND CLICK: fix direction only (실치수 고정, 회전만 결정)
+          const specCur = fixtureDatabase.find(f => f.id === state.selectedFixtureId);
+          if (specCur) {
+            const dx = state.linebarEnd.x - state.linebarStart.x;
+            const dy = state.linebarEnd.y - state.linebarStart.y;
+            const rotation = Math.atan2(dy, dx);
+            const newLight = {
+              id: state.nextLightId++,
+              typeId: specCur.id,
+              name: specCur.name,
+              x: state.linebarStart.x,
+              y: state.linebarStart.y,
+              watt: specCur.watt,
+              lumen: specCur.lumen,
+              color: specCur.color,
+              size: specCur.size,
+              price: specCur.price,
+              rotation
+            };
+            state.lights.push(newLight);
+            recalculateAllZones();
+            updateStats();
+            saveStateToHistory();
+          }
+          state.isDrawingLinebar = false;
+          state.linebarStart = null;
+          state.linebarEnd = null;
+          renderAll();
+        }
+      } else if (spec && (((spec.category === 'linebar' && !spec.name.includes('등기구')) || spec.icon === 'line' || spec.id.includes('gridslot') || spec.category === 'multi'))) {
         if (!state.isDrawingLinebar) {
           // FIRST CLICK: start drawing linebar
           state.isDrawingLinebar = true;
@@ -2582,7 +2625,16 @@ function setupCanvasInteractions() {
       }
     } else if (state.activeTool === 'place' && state.isDrawingLinebar) {
       const specCur = fixtureDatabase.find(f => f.id === state.selectedFixtureId);
-      if (specCur && (specCur.id.includes('gridslot') || specCur.category === 'multi')) {
+      if (specCur && specCur.category === 'direct') {
+        // 직부등(유닛/주방등): 수평/수직 방향으로만 스냅 (자유 회전 불가)
+        const rawDx = pt.x - state.linebarStart.x;
+        const rawDy = pt.y - state.linebarStart.y;
+        if (Math.abs(rawDx) >= Math.abs(rawDy)) {
+          state.linebarEnd = { x: pt.x, y: state.linebarStart.y };
+        } else {
+          state.linebarEnd = { x: state.linebarStart.x, y: pt.y };
+        }
+      } else if (specCur && (specCur.id.includes('gridslot') || specCur.category === 'multi')) {
         // Force snap to horizontal/vertical for gridslots
         const snappedPt = getSnappedPoint(state.linebarStart, pt, true);
         const dx = snappedPt.x - state.linebarStart.x;
@@ -4195,6 +4247,7 @@ function renderBOMTable() {
     if (category === 'linebar') return '라인/마그네틱';
     if (category === 'multi') return '멀티매입등';
     if (category === 'roomlight') return '방등/거실등';
+    if (category === 'direct') return '직부등';
     if (category === 'smarthome') return '스마트홈 기기';
     if (category === 'etc') return '기타';
     return '조명';
@@ -4755,7 +4808,8 @@ function renderLightsLayer() {
       const spec = fixtureDatabase.find(f => f.id === l.typeId);
       const isMagneticModule = spec && spec.category === 'linebar' && spec.name.includes('등기구') && /L\d+/.test(spec.name);
       const isRoomLight = spec && spec.category === 'roomlight';
-      
+      const isDirectLight = spec && spec.category === 'direct';
+
       if (isMagneticModule) {
         const lenPx = state.pixelsPerMeter > 0 ? ((spec.length || 300) / 1000) * state.pixelsPerMeter : 15;
         const wPx = state.pixelsPerMeter > 0 ? (22 / 1000) * state.pixelsPerMeter : 4;
@@ -4831,6 +4885,40 @@ function renderLightsLayer() {
         ctx.strokeRect(-hPx / 2 + 8, -wPx / 2 + 8, hPx - 16, wPx - 16);
         
         ctx.restore();
+      } else if (isDirectLight) {
+        // 직부등 (방등/유닛/주방등): 실제 사이즈 고정 + 블루 컬러 렉트, 회전값 반영
+        const wM = spec.widthMM ? (spec.widthMM / 1000) : 0.32;
+        const hM = spec.lengthMM ? (spec.lengthMM / 1000) : 0.62;
+        const wPx = wM * state.pixelsPerMeter;
+        const hPx = hM * state.pixelsPerMeter;
+
+        ctx.save();
+        ctx.translate(l.x, l.y);
+        ctx.rotate(l.rotation || 0);
+
+        if (isSelected) {
+          ctx.beginPath();
+          ctx.rect(-hPx / 2 - 4, -wPx / 2 - 4, hPx + 8, wPx + 8);
+          ctx.fillStyle = 'rgba(242, 162, 0, 0.3)';
+          ctx.fill();
+        }
+
+        // Body (blue, 지정 컬러 고정)
+        ctx.beginPath();
+        ctx.rect(-hPx / 2, -wPx / 2, hPx, wPx);
+        ctx.fillStyle = l.color || '#007AFF';
+        ctx.shadowColor = 'rgba(0,0,0,0.4)';
+        ctx.shadowBlur = 5;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Diffuser core (밝은 안쪽 패널)
+        ctx.beginPath();
+        ctx.rect(-hPx / 2 + 4, -wPx / 2 + 4, hPx - 8, wPx - 8);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+        ctx.fill();
+
+        ctx.restore();
       } else {
         // Draw selection outer glow
         // Draw selection outer glow or warning glow
@@ -4896,7 +4984,50 @@ function renderInteractionLayer() {
     ctx.globalAlpha = 0.8;
     const spec = fixtureDatabase.find(f => f.id === state.selectedFixtureId);
     
-    if (spec && (spec.id.includes('gridslot') || spec.category === 'multi')) {
+    if (spec && spec.category === 'direct') {
+      // 직부등(유닛/주방등): 실제 사이즈 고정 렉트 + 회전 프리뷰
+      const dx = state.linebarEnd.x - state.linebarStart.x;
+      const dy = state.linebarEnd.y - state.linebarStart.y;
+      const angle = Math.atan2(dy, dx);
+      const lenM = (spec.lengthMM || 620) / 1000;
+      const wM = (spec.widthMM || 320) / 1000;
+      const lenPx = lenM * state.pixelsPerMeter;
+      const wPx = wM * state.pixelsPerMeter;
+
+      ctx.save();
+      ctx.translate(state.linebarStart.x, state.linebarStart.y);
+      ctx.rotate(angle);
+
+      ctx.fillStyle = spec.color;
+      ctx.fillRect(-lenPx / 2, -wPx / 2, lenPx, wPx);
+
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(-lenPx / 2, -wPx / 2, lenPx, wPx);
+
+      // 방향 화살표 (중심 -> 진행 방향)
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(lenPx / 2 - 6, 0);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.save();
+      ctx.globalAlpha = 1;
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(`${spec.lengthMM}×${spec.widthMM}mm`, state.linebarStart.x, state.linebarStart.y - wPx / 2 - 10);
+      ctx.restore();
+
+      // 앵커 점
+      ctx.beginPath();
+      ctx.arc(state.linebarStart.x, state.linebarStart.y, 5, 0, 2 * Math.PI);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+    } else if (spec && (spec.id.includes('gridslot') || spec.category === 'multi')) {
       const dx = state.linebarEnd.x - state.linebarStart.x;
       const dy = state.linebarEnd.y - state.linebarStart.y;
       const len = Math.sqrt(dx*dx + dy*dy);
@@ -5586,6 +5717,7 @@ async function exportToExcel() {
           : spec.category === 'linebar'   ? '라인/마그네틱'
           : spec.category === 'multi'     ? '멀티매입등'
           : spec.category === 'roomlight' ? '방등/거실등'
+          : spec.category === 'direct'    ? '직부등'
           : spec.category === 'smarthome' ? '스마트홈 기기'
           : spec.category === 'etc'       ? '기타'
           : '조명';
@@ -5914,6 +6046,7 @@ async function exportToExcel() {
             : spec.category === 'linebar'   ? '라인/마그네틱'
             : spec.category === 'multi'     ? '멀티매입등'
             : spec.category === 'roomlight' ? '방등/거실등'
+            : spec.category === 'direct'    ? '직부등'
             : spec.category === 'smarthome' ? '스마트홈 기기'
             : spec.category === 'etc'       ? '기타'
             : '조명';
@@ -6065,6 +6198,7 @@ async function exportToExcel() {
             : spec.category === 'linebar'   ? '라인/마그네틱'
             : spec.category === 'multi'     ? '멀티매입등'
             : spec.category === 'roomlight' ? '방등/거실등'
+            : spec.category === 'direct'    ? '직부등'
             : spec.category === 'smarthome' ? '스마트홈 기기'
             : spec.category === 'etc'       ? '기타'
             : '조명';
