@@ -608,7 +608,7 @@ function mapSupabaseProduct(p) {
   const CAT_MAP = {
     '다운라이트': 'downlight', '라인바': 'linebar', '멀티': 'multi',
     '방등/거실등': 'roomlight', '엣지등': 'roomlight',
-    '직부등': 'direct',
+    '메인등': 'direct', '직부등': 'direct',
     '컨버터': 'converter', '컨트롤러': 'controller', '레일스포트': 'etc'
   };
   // DB에 category 값 뒤에 개행/공백이 섞여 들어오는 경우가 있어 trim 후 매칭
@@ -4247,7 +4247,7 @@ function renderBOMTable() {
     if (category === 'linebar') return '라인/마그네틱';
     if (category === 'multi') return '멀티매입등';
     if (category === 'roomlight') return '방등/거실등';
-    if (category === 'direct') return '직부등';
+    if (category === 'direct') return '메인등';
     if (category === 'smarthome') return '스마트홈 기기';
     if (category === 'etc') return '기타';
     return '조명';
@@ -5717,7 +5717,7 @@ async function exportToExcel() {
           : spec.category === 'linebar'   ? '라인/마그네틱'
           : spec.category === 'multi'     ? '멀티매입등'
           : spec.category === 'roomlight' ? '방등/거실등'
-          : spec.category === 'direct'    ? '직부등'
+          : spec.category === 'direct'    ? '메인등'
           : spec.category === 'smarthome' ? '스마트홈 기기'
           : spec.category === 'etc'       ? '기타'
           : '조명';
@@ -6046,7 +6046,7 @@ async function exportToExcel() {
             : spec.category === 'linebar'   ? '라인/마그네틱'
             : spec.category === 'multi'     ? '멀티매입등'
             : spec.category === 'roomlight' ? '방등/거실등'
-            : spec.category === 'direct'    ? '직부등'
+            : spec.category === 'direct'    ? '메인등'
             : spec.category === 'smarthome' ? '스마트홈 기기'
             : spec.category === 'etc'       ? '기타'
             : '조명';
@@ -6198,7 +6198,7 @@ async function exportToExcel() {
             : spec.category === 'linebar'   ? '라인/마그네틱'
             : spec.category === 'multi'     ? '멀티매입등'
             : spec.category === 'roomlight' ? '방등/거실등'
-            : spec.category === 'direct'    ? '직부등'
+            : spec.category === 'direct'    ? '메인등'
             : spec.category === 'smarthome' ? '스마트홈 기기'
             : spec.category === 'etc'       ? '기타'
             : '조명';
