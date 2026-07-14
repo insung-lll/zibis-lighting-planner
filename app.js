@@ -607,6 +607,7 @@ const zoneColors = ['#007aff', '#34c759', '#ff9500', '#ff3b30', '#af52de', '#5ac
 function mapSupabaseProduct(p) {
   const CAT_MAP = {
     '다운라이트': 'downlight', '라인바': 'linebar', '멀티': 'multi',
+    '방등/거실등': 'roomlight', '엣지등': 'roomlight',
     '컨버터': 'converter', '컨트롤러': 'controller', '레일스포트': 'etc'
   };
   let cat = CAT_MAP[p.category] || 'etc';
@@ -623,6 +624,9 @@ function mapSupabaseProduct(p) {
     if (beam !== null && beam <= 24) { subCategory = 'spot'; icon = 'spot'; color = '#FF9500'; }
     else if (beam !== null && beam >= 60) { subCategory = 'diffused'; icon = 'diffused'; color = '#FFCC00'; }
     else { subCategory = 'deep'; icon = 'spot'; color = '#FF9500'; }
+  } else if (cat === 'roomlight') {
+    icon = 'rect';
+    color = '#FF2D55';
   } else if (cat === 'linebar') {
     if ((p.name && p.name.includes('마그네틱 레일')) || p.id === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57' || p.id === 'magnetic-rail') {
       icon = 'line';
@@ -646,6 +650,15 @@ function mapSupabaseProduct(p) {
     lengthMM = heads === 6 ? 114 : 228;
     widthMM = 30;
     length = lengthMM;
+  }
+  // Parse size_mm if available (e.g. "620×320×26.5" or "1220×200×26.5")
+  if (p.size_mm) {
+    const parts = p.size_mm.split(/[×xX*]/);
+    if (parts.length >= 2) {
+      lengthMM = parseFloat(parts[0]);
+      widthMM = parseFloat(parts[1]);
+      length = lengthMM;
+    }
   }
   // 라인바 전용 필드 (마그네틱 레일은 길이 제한 해제)
   if (cat === 'linebar') {
@@ -1051,6 +1064,12 @@ function setupEventListeners() {
       e.stopPropagation();
       resetTools();
       state.activeTool = 'draw-zone-polygon';
+      
+      // 공간추가 다각형의 경우 디폴트로 스냅이 켜져있게 설정
+      state.snapEnabled = true;
+      const snapBtn = document.getElementById('snapToggleBtn');
+      if (snapBtn) snapBtn.classList.add('active');
+      
       state.onboardingDismissed = true;
       checkOnboardingTooltip();
       if (els.tabAddZone) els.tabAddZone.classList.add('active');
@@ -2731,37 +2750,65 @@ function setupCanvasInteractions() {
 }
 
 function getSnappedPoint(p1, p2, forceSnap = false) {
-  if (!p1) return p2;
-  if (!state.snapEnabled && !forceSnap) return p2;
-  const dx = p2.x - p1.x;
-  const dy = p2.y - p1.y;
-  const dist = Math.sqrt(dx * dx + dy * dy);
-  if (dist === 0) return p2;
+  // If snap is disabled and shift key is not pressed, just return the point
+  if (!state.snapEnabled && !forceSnap) {
+    state.snapGuides = [];
+    return p2;
+  }
 
-  // If shift key or forced snap is active
-  if (forceSnap) {
-    if (Math.abs(dx) >= Math.abs(dy)) {
-      return { x: p2.x, y: p1.y }; // Snap to horizontal
-    } else {
-      return { x: p1.x, y: p2.y }; // Snap to vertical
+  let snapX = p2.x;
+  let snapY = p2.y;
+  const guides = [];
+
+  const threshold = 15 / state.zoom;
+  let snappedX = false;
+  let snappedY = false;
+
+  // 1. Point-to-point horizontal/vertical alignment snap (Snaps to any existing vertex in zones)
+  if (state.snapEnabled) {
+    // Gather all candidate points (zone vertices and active polygon vertices)
+    const candidates = [];
+    state.zones.forEach(z => {
+      if (z.points) candidates.push(...z.points);
+    });
+    if (state.zonePolygonPoints) {
+      candidates.push(...state.zonePolygonPoints);
+    }
+
+    for (const cp of candidates) {
+      // Don't snap to the exact same position
+      if (Math.hypot(p2.x - cp.x, p2.y - cp.y) < 0.1) continue;
+
+      // Check vertical alignment (align X)
+      if (!snappedX && Math.abs(p2.x - cp.x) < threshold) {
+        snapX = cp.x;
+        snappedX = true;
+        guides.push({ type: 'v', x: cp.x });
+      }
+      // Check horizontal alignment (align Y)
+      if (!snappedY && Math.abs(p2.y - cp.y) < threshold) {
+        snapY = cp.y;
+        snappedY = true;
+        guides.push({ type: 'h', y: cp.y });
+      }
     }
   }
 
-  // Auto-snap threshold: 6 degrees (~0.105 rad) or 15 pixels
-  const angle = Math.atan2(Math.abs(dy), Math.abs(dx)); // range [0, PI/2]
-  const snapAngleThreshold = 6 * Math.PI / 180; // 6 degrees
-  const snapPixelThreshold = 15; // pixels
-
-  // Close to horizontal (angle close to 0)
-  if (angle < snapAngleThreshold || Math.abs(dy) < snapPixelThreshold) {
-    return { x: p2.x, y: p1.y };
+  // 2. Force snap (Shift key) relative to previous point p1
+  if (forceSnap && p1) {
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      snapY = p1.y; // horizontal line
+      guides.push({ type: 'h', y: p1.y });
+    } else {
+      snapX = p1.x; // vertical line
+      guides.push({ type: 'v', x: p1.x });
+    }
   }
-  // Close to vertical (angle close to PI/2)
-  if ((Math.PI / 2 - angle) < snapAngleThreshold || Math.abs(dx) < snapPixelThreshold) {
-    return { x: p1.x, y: p2.y };
-  }
 
-  return p2;
+  state.snapGuides = guides;
+  return { x: snapX, y: snapY };
 }
 
 function getOriginalCoords(e) {
@@ -4147,6 +4194,7 @@ function renderBOMTable() {
     if (category === 'downlight') return '매입 다운라이트';
     if (category === 'linebar') return '라인/마그네틱';
     if (category === 'multi') return '멀티매입등';
+    if (category === 'roomlight') return '방등/거실등';
     if (category === 'smarthome') return '스마트홈 기기';
     if (category === 'etc') return '기타';
     return '조명';
@@ -4706,6 +4754,7 @@ function renderLightsLayer() {
     } else {
       const spec = fixtureDatabase.find(f => f.id === l.typeId);
       const isMagneticModule = spec && spec.category === 'linebar' && spec.name.includes('등기구') && /L\d+/.test(spec.name);
+      const isRoomLight = spec && spec.category === 'roomlight';
       
       if (isMagneticModule) {
         const lenPx = state.pixelsPerMeter > 0 ? ((spec.length || 300) / 1000) * state.pixelsPerMeter : 15;
@@ -4737,6 +4786,49 @@ function renderLightsLayer() {
         ctx.rect(-lenPx / 2 + 2, -wPx / 2 + 1.5, lenPx - 4, wPx - 3);
         ctx.fillStyle = '#ffffff';
         ctx.fill();
+        
+        ctx.restore();
+      } else if (isRoomLight) {
+        // Draw flat panel room light to scale
+        const wM = spec.widthMM ? (spec.widthMM / 1000) : 0.62;
+        const hM = spec.lengthMM ? (spec.lengthMM / 1000) : 0.62;
+        const wPx = wM * state.pixelsPerMeter;
+        const hPx = hM * state.pixelsPerMeter;
+        
+        ctx.save();
+        ctx.translate(l.x, l.y);
+        ctx.rotate(l.rotation || 0);
+        
+        // Draw selection glow
+        if (isSelected) {
+          ctx.beginPath();
+          ctx.rect(-hPx / 2 - 4, -wPx / 2 - 4, hPx + 8, wPx + 8);
+          ctx.fillStyle = 'rgba(242, 162, 0, 0.3)';
+          ctx.fill();
+        }
+        
+        // Outer body (white panel with colored border and shadow)
+        ctx.beginPath();
+        ctx.rect(-hPx / 2, -wPx / 2, hPx, wPx);
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = l.color || '#FF2D55';
+        ctx.lineWidth = 1.5;
+        ctx.shadowColor = 'rgba(0,0,0,0.4)';
+        ctx.shadowBlur = 5;
+        ctx.fill();
+        ctx.shadowBlur = 0; // reset
+        ctx.stroke();
+        
+        // Diffuser core
+        ctx.beginPath();
+        ctx.rect(-hPx / 2 + 4, -wPx / 2 + 4, hPx - 8, wPx - 8);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.fill();
+        
+        // Inner frame
+        ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(-hPx / 2 + 8, -wPx / 2 + 8, hPx - 16, wPx - 16);
         
         ctx.restore();
       } else {
@@ -5097,6 +5189,32 @@ function renderInteractionLayer() {
     ctx.font = '11px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(lengthM.toFixed(2) + 'm', (state.measureStart.x + state.measureEnd.x) / 2, (state.measureStart.y + state.measureEnd.y) / 2 - 6);
+  }
+
+  // Draw snap guide lines for all drawing tools
+  if (state.snapGuides && state.snapGuides.length > 0) {
+    ctx.save();
+    ctx.setLineDash([8, 5]);
+    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.75;
+    const W = c.width;
+    const H = c.height;
+    for (const g of state.snapGuides) {
+      if (g.type === 'v') {
+        ctx.strokeStyle = '#00d4ff';
+        ctx.beginPath();
+        ctx.moveTo(g.x, 0);
+        ctx.lineTo(g.x, H);
+        ctx.stroke();
+      } else if (g.type === 'h') {
+        ctx.strokeStyle = '#00d4ff';
+        ctx.beginPath();
+        ctx.moveTo(0, g.y);
+        ctx.lineTo(W, g.y);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
   }
   
   ctx.restore();
@@ -5467,6 +5585,7 @@ async function exportToExcel() {
           : spec.category === 'downlight' ? '매입 다운라이트'
           : spec.category === 'linebar'   ? '라인/마그네틱'
           : spec.category === 'multi'     ? '멀티매입등'
+          : spec.category === 'roomlight' ? '방등/거실등'
           : spec.category === 'smarthome' ? '스마트홈 기기'
           : spec.category === 'etc'       ? '기타'
           : '조명';
@@ -5794,6 +5913,7 @@ async function exportToExcel() {
             : spec.category === 'downlight' ? '매입 다운라이트'
             : spec.category === 'linebar'   ? '라인/마그네틱'
             : spec.category === 'multi'     ? '멀티매입등'
+            : spec.category === 'roomlight' ? '방등/거실등'
             : spec.category === 'smarthome' ? '스마트홈 기기'
             : spec.category === 'etc'       ? '기타'
             : '조명';
@@ -5944,6 +6064,7 @@ async function exportToExcel() {
             : spec.category === 'downlight' ? '매입 다운라이트'
             : spec.category === 'linebar'   ? '라인/마그네틱'
             : spec.category === 'multi'     ? '멀티매입등'
+            : spec.category === 'roomlight' ? '방등/거실등'
             : spec.category === 'smarthome' ? '스마트홈 기기'
             : spec.category === 'etc'       ? '기타'
             : '조명';
