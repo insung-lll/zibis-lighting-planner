@@ -566,7 +566,27 @@ const els = {
   zoneSelectOverlay: document.getElementById('zoneSelectOverlay'),
   zoneNameInput: document.getElementById('zoneNameInput'),
   btnCancelZoneSelect: document.getElementById('btnCancelZoneSelect'),
-  btnConfirmZoneSelect: document.getElementById('btnConfirmZoneSelect')
+  btnConfirmZoneSelect: document.getElementById('btnConfirmZoneSelect'),
+  
+  // Consultation Request Modal
+  btnConsultation: document.getElementById('btnConsultation'),
+  consultationOverlay: document.getElementById('consultationOverlay'),
+  btnCloseConsultation: document.getElementById('btnCloseConsultation'),
+  consultationFormView: document.getElementById('consultationFormView'),
+  clientName: document.getElementById('clientName'),
+  clientPhone: document.getElementById('clientPhone'),
+  clientAddress: document.getElementById('clientAddress'),
+  clientHopeDate: document.getElementById('clientHopeDate'),
+  clientRemarks: document.getElementById('clientRemarks'),
+  privacyConsent: document.getElementById('privacyConsent'),
+  btnConsultSubmit: document.getElementById('btnConsultSubmit'),
+  consultationSuccessView: document.getElementById('consultationSuccessView'),
+  summaryName: document.getElementById('summaryName'),
+  summaryPhone: document.getElementById('summaryPhone'),
+  summaryAddress: document.getElementById('summaryAddress'),
+  btnConsultSuccessClose: document.getElementById('btnConsultSuccessClose'),
+  consultLoadingOverlay: document.getElementById('consultLoadingOverlay'),
+  consultLoadingText: document.getElementById('consultLoadingText')
 };
 
 // Helper: 도면 화면 진입 전(업로드/스케일보정)에는 .topbar(회원가입/로그인 포함)를 숨김
@@ -585,6 +605,74 @@ function showToast(message) {
   toastHideTimeout = setTimeout(() => {
     toast.classList.remove('show');
   }, 2200);
+}
+
+// Helper: dataURL을 Blob으로 변환
+function dataURLtoBlob(dataurl) {
+  var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
+      bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+  while(n--){
+      u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new Blob([u8arr], {type:mime});
+}
+
+// Helper: 도면 레이어 병합 캡처
+function captureMergedFloorplan() {
+  const mainCanvas = els.floorplanCanvas;
+  if (!mainCanvas) return null;
+  const width = mainCanvas.width;
+  const height = mainCanvas.height;
+  
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = width;
+  tempCanvas.height = height;
+  const tempCtx = tempCanvas.getContext('2d');
+  
+  // 1. 바탕 도면 그리기
+  tempCtx.drawImage(els.floorplanCanvas, 0, 0);
+  
+  // 2. 조명 영역 그리기
+  if (els.zoneCanvas) {
+    tempCtx.drawImage(els.zoneCanvas, 0, 0);
+  }
+  
+  // 3. 조명 기구 그리기
+  if (els.lightOverlay) {
+    tempCtx.drawImage(els.lightOverlay, 0, 0);
+  }
+  
+  return tempCanvas.toDataURL('image/png');
+}
+
+// Helper: 개인정보 마스킹 처리
+function maskClientInfo(type, val) {
+  if (!val) return '';
+  val = val.trim();
+  if (type === 'name') {
+    if (val.length <= 1) return val;
+    if (val.length === 2) return val[0] + '*';
+    if (val.length === 3) return val[0] + '*' + val[2];
+    return val[0] + '*'.repeat(val.length - 2) + val[val.length - 1];
+  }
+  if (type === 'phone') {
+    const digits = val.replace(/[^0-9]/g, '');
+    if (digits.length === 10) {
+      return digits.substring(0, 3) + '-***-' + digits.substring(6);
+    }
+    if (digits.length === 11) {
+      return digits.substring(0, 3) + '-****-' + digits.substring(7);
+    }
+    return val;
+  }
+  if (type === 'address') {
+    const parts = val.split(/\s+/);
+    if (parts.length <= 2) {
+      return parts.join(' ') + ' ****';
+    }
+    return parts.slice(0, 2).join(' ') + ' ****';
+  }
+  return val;
 }
 
 // Helper: uploadOverlay 표시 제어 (download-container 동기화 포함)
@@ -1440,6 +1528,231 @@ function setupEventListeners() {
       state.isScanningCalibration = false;
       
       setUploadOverlayVisible(true);
+    });
+  }
+
+  // Consultation Request Modal Event Listeners
+  if (els.btnConsultation) {
+    els.btnConsultation.addEventListener('click', () => {
+      // 1. 빈 도면 검사
+      if (!state.lights || state.lights.length === 0) {
+        alert("배치된 조명이 없는 빈 도면은 상담을 신청할 수 없습니다.");
+        if (els.consultationOverlay) els.consultationOverlay.style.display = 'none';
+        return;
+      }
+
+      // 2. 폼 초기화 및 열기
+      if (els.clientName) els.clientName.value = '';
+      if (els.clientPhone) els.clientPhone.value = '';
+      if (els.clientAddress) els.clientAddress.value = '';
+      if (els.clientHopeDate) els.clientHopeDate.value = '';
+      if (els.clientRemarks) els.clientRemarks.value = '';
+      if (els.privacyConsent) els.privacyConsent.checked = false;
+
+      if (els.consultationFormView) els.consultationFormView.style.display = 'flex';
+      if (els.consultationSuccessView) els.consultationSuccessView.style.display = 'none';
+      if (els.consultationOverlay) els.consultationOverlay.style.display = 'flex';
+    });
+  }
+
+  if (els.btnCloseConsultation) {
+    els.btnCloseConsultation.addEventListener('click', () => {
+      if (els.consultationOverlay) els.consultationOverlay.style.display = 'none';
+    });
+  }
+
+  if (els.btnConsultSuccessClose) {
+    els.btnConsultSuccessClose.addEventListener('click', () => {
+      if (els.consultationOverlay) els.consultationOverlay.style.display = 'none';
+    });
+  }
+
+  if (els.btnConsultSubmit) {
+    els.btnConsultSubmit.addEventListener('click', async () => {
+      const name = els.clientName.value.trim();
+      const rawPhone = els.clientPhone.value.trim();
+      const address = els.clientAddress.value.trim();
+      const hopeDate = els.clientHopeDate.value;
+      const remarks = els.clientRemarks.value.trim();
+
+      // 1. 필수값 기입 여부 검사
+      if (!name || !rawPhone || !address) {
+        alert("성함, 연락처, 시공지 주소는 필수 입력 항목입니다.");
+        return;
+      }
+
+      // 2. 연락처 정규식 밸리데이션 (010 번호 10~11자리 숫자 기입 제약)
+      const phoneVal = rawPhone.replace(/[^0-9]/g, '');
+      const phoneRegex = /^010\d{7,8}$/;
+      if (!phoneRegex.test(phoneVal)) {
+        alert("올바른 연락처(010으로 시작하는 10~11자리 숫자)를 입력해주세요.");
+        return;
+      }
+
+      // 3. 개인정보 동의 체크 검사
+      if (!els.privacyConsent || !els.privacyConsent.checked) {
+        alert("개인정보 수집 및 이용에 동의해야 상담 신청이 가능합니다.");
+        return;
+      }
+
+      // 버튼 로딩 상태 비활성화 및 로딩 오버레이 노출
+      const originalText = els.btnConsultSubmit.textContent;
+      els.btnConsultSubmit.disabled = true;
+      els.btnConsultSubmit.textContent = "상담 접수 중...";
+
+      if (els.consultLoadingOverlay) {
+        els.consultLoadingOverlay.style.display = 'flex';
+      }
+
+      try {
+        // A. 도면 이미지 병합 캡처 및 스토리지 업로드
+        if (els.consultLoadingText) {
+          els.consultLoadingText.textContent = "도면 이미지를 캡처하여 업로드 중입니다...";
+        }
+        
+        const capturedImageBase64 = captureMergedFloorplan();
+        let imageUrl = null;
+        
+        if (capturedImageBase64) {
+          const blob = dataURLtoBlob(capturedImageBase64);
+          const storagePath = `consult_${Date.now()}_${Math.random().toString(36).substring(2, 9)}.png`;
+          
+          const { data: uploadData, error: uploadErr } = await supabaseClient.storage
+            .from('consultation-images')
+            .upload(storagePath, blob, {
+              contentType: 'image/png',
+              upsert: true
+            });
+            
+          if (uploadErr) {
+            console.error('Storage 업로드 실패:', uploadErr.message);
+          } else {
+            const { data: urlData } = supabaseClient.storage
+              .from('consultation-images')
+              .getPublicUrl(storagePath);
+            imageUrl = urlData.publicUrl;
+          }
+        }
+
+        // B. 임시 견적 데이터(quotes) 생성 (비회원/회원 공통)
+        if (els.consultLoadingText) {
+          els.consultLoadingText.textContent = "상담 신청 정보를 서버에 등록 중입니다...";
+        }
+
+        const projectName = name + " 고객님 견적 상담 도면";
+        let base64Image = null;
+        if (state.uploadedImage) {
+          const tempCanvas = document.createElement('canvas');
+          tempCanvas.width = state.uploadedImage.width;
+          tempCanvas.height = state.uploadedImage.height;
+          tempCanvas.getContext('2d').drawImage(state.uploadedImage, 0, 0);
+          base64Image = tempCanvas.toDataURL('image/jpeg', 0.85);
+        }
+
+        const lightsWithProductCode = state.lights.map(l => {
+          const spec = fixtureDatabase.find(f => f.id === l.typeId);
+          return { ...l, ecountProdCd: spec ? (spec.ecountProdCd || null) : null };
+        });
+
+        const projectData = {
+          version: '1.0',
+          pixelsPerMeter: state.pixelsPerMeter,
+          ceilingHeight: state.ceilingHeight,
+          imageBase64: base64Image,
+          lights: lightsWithProductCode,
+          zones: state.zones,
+          dimensions: state.dimensions,
+          nextLightId: state.nextLightId,
+          nextZoneId: state.nextZoneId,
+          nextDimId: state.nextDimId
+        };
+
+        const { data: quoteData, error: quoteErr } = await supabaseClient
+          .from('quotes')
+          .insert({
+            user_id: authUser ? authUser.id : null,
+            project_name: projectName,
+            project_data: projectData
+          })
+          .select();
+
+        let finalQuoteId = null;
+        if (quoteErr) {
+          console.error('상담용 임시 견적서 생성 실패:', quoteErr.message);
+        } else if (quoteData && quoteData[0]) {
+          finalQuoteId = quoteData[0].id;
+        }
+
+        // C. ConsultationRequest 테이블에 인서트
+        const { data: consultData, error: consultErr } = await supabaseClient
+          .from('ConsultationRequest')
+          .insert({
+            name: name,
+            phone: phoneVal,
+            address: address,
+            hope_date: hopeDate || null,
+            remarks: remarks || null,
+            image_url: imageUrl,
+            quote_id: finalQuoteId,
+            status: '상담대기'
+          })
+          .select();
+
+        if (consultErr) {
+          throw new Error(consultErr.message);
+        }
+
+        // D. 플로우 알림 전송 (Supabase Edge Function 호출)
+        if (els.consultLoadingText) {
+          els.consultLoadingText.textContent = "영업 담당자 단체방에 알림을 전송 중입니다...";
+        }
+
+        try {
+          const edgeUrl = 'https://wezywuqfzyyylpxsfdgu.supabase.co/functions/v1/send-flow-notification';
+          const edgeResponse = await fetch(edgeUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              name: name,
+              phone: phoneVal,
+              address: address,
+              hopeDate: hopeDate || null,
+              remarks: remarks || null,
+              imageUrl: imageUrl,
+              quoteId: finalQuoteId
+            })
+          });
+
+          const edgeResult = await edgeResponse.json();
+          if (!edgeResponse.ok || !edgeResult.success) {
+            console.warn('Flow 알림 발송 실패(지연):', edgeResult.error);
+          } else {
+            console.log('Flow 알림 발송 성공:', edgeResult);
+          }
+        } catch (flowErr) {
+          console.warn('Flow 알림 발송 중 통신 예외 발생:', flowErr);
+        }
+
+        // E. 성공 뷰 노출 및 정보 마스킹 표출
+        if (els.summaryName) els.summaryName.textContent = maskClientInfo('name', name);
+        if (els.summaryPhone) els.summaryPhone.textContent = maskClientInfo('phone', phoneVal);
+        if (els.summaryAddress) els.summaryAddress.textContent = maskClientInfo('address', address);
+
+        if (els.consultationFormView) els.consultationFormView.style.display = 'none';
+        if (els.consultationSuccessView) els.consultationSuccessView.style.display = 'flex';
+
+      } catch (err) {
+        console.error('상담 신청 실패:', err);
+        alert('상담 신청 처리 중 오류가 발생했습니다: ' + err.message);
+      } finally {
+        els.btnConsultSubmit.disabled = false;
+        els.btnConsultSubmit.textContent = originalText;
+        if (els.consultLoadingOverlay) {
+          els.consultLoadingOverlay.style.display = 'none';
+        }
+      }
     });
   }
 }

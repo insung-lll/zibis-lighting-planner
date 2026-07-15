@@ -2977,6 +2977,12 @@ body {
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
 }
 
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+
 
 
 

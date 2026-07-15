@@ -137,7 +137,13 @@
       </div>
 
       <!-- 견적 다운로드 버튼 영역 (프로젝트 로드 후 노출, 가장 우측 배치) -->
-      <div class="download-container" style="position: relative; display: none; align-items: center;">
+      <div class="download-container" style="position: relative; display: none; align-items: center; gap: 8px;">
+        <button class="btn btn-secondary btn-consult" id="btnConsultation" title="견적 상담 신청 (플로우 연동)" style="background-color: #10b981; border: none; color: #fff; display: flex; align-items: center; gap: 8px; padding: 7px 16px 8px 16px; border-radius: 60px; font-weight: 500; font-size: 12px; height: 34px; box-sizing: border-box; font-family: 'Pretendard', sans-serif; cursor: pointer;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          견적 상담하기
+        </button>
         <button class="btn btn-primary btn-download" id="btnExport" title="견적 다운로드 (엑셀)" style="background-color: #036cc5; border: none; color: #fff; display: flex; align-items: center; gap: 8px; padding: 7px 16px 8px 16px; border-radius: 60px; font-weight: 500; font-size: 12px; height: 34px; box-sizing: border-box; font-family: 'Pretendard', sans-serif;">
           <svg width="18" height="18" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-top: -1px;">
             <path fill-rule="evenodd" clip-rule="evenodd" d="M23.0659 4.35413L6.84827 4.35413V33.6458H31.1513V12.7747L23.0659 4.35413Z" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"/>
@@ -1013,9 +1019,80 @@
       </div>
     </div>
   </div>
+
+  <!-- Consultation Request Modal -->
+  <div class="confirm-overlay" id="consultationOverlay" style="display: none; z-index: 997;">
+    <div class="confirm-dialog auth-card" style="height: auto; max-height: 90vh; display: flex; flex-direction: column; position: relative; text-align: left; padding: 28px; width: 440px; box-sizing: border-box;">
+      <button class="modal-close-btn" id="btnCloseConsultation" style="position: absolute; right: 28px; top: 24px; background: none; border: none; font-size: 20px; color: var(--text-dim); cursor: pointer;">×</button>
+      
+      <!-- Form View -->
+      <div id="consultationFormView" style="display: flex; flex-direction: column; min-height: 0;">
+        <h2 class="auth-title" style="flex-shrink: 0; text-align: center; margin-bottom: 20px !important; font-size: 20px; font-weight: 700; color: #ffffff; font-family: 'Pretendard', sans-serif;">견적 상담 신청</h2>
+        
+        <div class="form-row" style="margin-bottom: 12px;">
+          <label style="font-size: 12px; color: var(--text-dim); margin-bottom: 4px; display: block; font-family: 'Pretendard', sans-serif;">성함 (필수)</label>
+          <input type="text" class="form-input" id="clientName" placeholder="성함을 입력해주세요" style="width: 100%; box-sizing: border-box; font-family: inherit; font-size: 13px; border-radius: 8px; padding: 10px; border: 1px solid #3a3a3a; background: #1a1a1a; color: #fff;">
+        </div>
+
+        <div class="form-row" style="margin-bottom: 12px;">
+          <label style="font-size: 12px; color: var(--text-dim); margin-bottom: 4px; display: block; font-family: 'Pretendard', sans-serif;">연락처 (필수)</label>
+          <input type="text" class="form-input" id="clientPhone" placeholder="010-XXXX-XXXX (숫자만)" style="width: 100%; box-sizing: border-box; font-family: inherit; font-size: 13px; border-radius: 8px; padding: 10px; border: 1px solid #3a3a3a; background: #1a1a1a; color: #fff;">
+        </div>
+
+        <div class="form-row" style="margin-bottom: 12px;">
+          <label style="font-size: 12px; color: var(--text-dim); margin-bottom: 4px; display: block; font-family: 'Pretendard', sans-serif;">시공지 주소 (필수)</label>
+          <input type="text" class="form-input" id="clientAddress" placeholder="지번 또는 도로명 주소" style="width: 100%; box-sizing: border-box; font-family: inherit; font-size: 13px; border-radius: 8px; padding: 10px; border: 1px solid #3a3a3a; background: #1a1a1a; color: #fff;">
+        </div>
+
+        <div class="form-row" style="margin-bottom: 12px;">
+          <label style="font-size: 12px; color: var(--text-dim); margin-bottom: 4px; display: block; font-family: 'Pretendard', sans-serif;">희망 시공 예정일</label>
+          <input type="date" class="form-input" id="clientHopeDate" style="width: 100%; box-sizing: border-box; font-family: inherit; font-size: 13px; border-radius: 8px; padding: 10px; border: 1px solid #3a3a3a; background: #1a1a1a; color: #fff; color-scheme: dark;">
+        </div>
+
+        <div class="form-row" style="margin-bottom: 16px;">
+          <label style="font-size: 12px; color: var(--text-dim); margin-bottom: 4px; display: block; font-family: 'Pretendard', sans-serif;">요청 사항 / 비고</label>
+          <textarea class="form-input" id="clientRemarks" rows="3" placeholder="추가 문의사항이나 요청을 기재해주세요" style="width: 100%; box-sizing: border-box; resize: none; font-family: inherit; font-size: 13px; border-radius: 8px; padding: 10px; border: 1px solid #3a3a3a; background: #1a1a1a; color: #fff;"></textarea>
+        </div>
+
+        <div class="form-row" style="margin-bottom: 20px; display: flex; align-items: flex-start; gap: 8px;">
+          <input type="checkbox" id="privacyConsent" style="margin-top: 3px; cursor: pointer;">
+          <label for="privacyConsent" style="font-size: 11px; color: var(--text-dim); line-height: 1.4; cursor: pointer; user-select: none; font-family: 'Pretendard', sans-serif;">
+            <span style="color: #ff9f0a; font-weight: 600;">[필수]</span> 수집된 개인정보(성함, 연락처, 주소, 비고)는 견적 상담 접수 완료 후 3개월간 보존되며, 3개월 이후에는 안전하게 자동 파기(마스킹)됩니다. 이에 동의합니다.
+          </label>
+        </div>
+
+        <button class="btn btn-primary" id="btnConsultSubmit" style="width: 100%; background: #10b981; border: none; font-weight: 600; padding: 12px; border-radius: 8px; cursor: pointer; font-family: 'Pretendard', sans-serif;">상담 신청하기</button>
+      </div>
+
+      <!-- Success View (Hidden by default) -->
+      <div id="consultationSuccessView" style="display: none; flex-direction: column; text-align: center; align-items: center; padding: 10px 0;">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 16px;">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+          <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        <h2 style="font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 8px; font-family: 'Pretendard', sans-serif;">상담 신청 완료!</h2>
+        <p style="font-size: 13px; color: var(--text-dim); margin-bottom: 20px; line-height: 1.5; font-family: 'Pretendard', sans-serif;">상담 신청이 성공적으로 접수되었습니다.<br>담당자가 빠른 시일 내에 연락드리겠습니다.</p>
+        
+        <div style="width: 100%; background: #1f1f1f; border-radius: 8px; padding: 16px; margin-bottom: 24px; text-align: left; box-sizing: border-box; font-size: 13px; font-family: 'Pretendard', sans-serif;">
+          <div style="margin-bottom: 8px; display: flex; justify-content: space-between;"><strong style="color: var(--text-dim);">성함:</strong> <span id="summaryName" style="color: #fff;"></span></div>
+          <div style="margin-bottom: 8px; display: flex; justify-content: space-between;"><strong style="color: var(--text-dim);">연락처:</strong> <span id="summaryPhone" style="color: #fff;"></span></div>
+          <div style="margin-bottom: 8px; display: flex; justify-content: space-between;"><strong style="color: var(--text-dim);">시공지:</strong> <span id="summaryAddress" style="color: #fff;"></span></div>
+          <div style="display: flex; justify-content: space-between;"><strong style="color: var(--text-dim);">상태:</strong> <span style="color: #10b981; font-weight: 600;">상담대기</span></div>
+        </div>
+
+        <button class="btn btn-primary" id="btnConsultSuccessClose" style="width: 100%; background: #3a3a3a; border: none; font-weight: 600; padding: 12px; border-radius: 8px; color: #fff; cursor: pointer; font-family: 'Pretendard', sans-serif;">확인</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- Consultation Loading Overlay -->
+<div id="consultLoadingOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.75); z-index: 9999; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+  <div class="consult-spinner" style="width: 50px; height: 50px; border: 4px solid rgba(255, 255, 255, 0.1); border-radius: 50%; border-top-color: #10b981; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
+  <div id="consultLoadingText" style="color: #fff; font-size: 14px; font-weight: 500; font-family: 'Pretendard', sans-serif;">상담 신청을 접수 중입니다...</div>
+</div>
 
 </div>
 

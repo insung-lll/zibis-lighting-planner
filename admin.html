@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>지비스 조명 플래너 - 어드민 대시보드</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0e0e0e; --bg-card: #181818; --bg-hover: #222;
+      --border: #2c2c2c; --text: #f0f0f0; --text-dim: #888;
+      --accent: #10b981; --accent-blue: #3b82f6;
+      --warn: #f59e0b;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'Pretendard','Inter',sans-serif; min-height: 100vh; }
+    @keyframes spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+
+    #authGate { position:fixed; inset:0; background:var(--bg); z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; }
+    .spinner { width:40px; height:40px; border:3px solid rgba(255,255,255,0.08); border-top-color:var(--accent); border-radius:50%; animation:spin 0.9s linear infinite; }
+    #authGateMsg { font-size:13px; color:var(--text-dim); }
+
+    .admin-wrap { max-width:1280px; margin:0 auto; padding:36px 28px; }
+    .admin-header { display:flex; justify-content:space-between; align-items:center; padding-bottom:24px; border-bottom:1px solid var(--border); margin-bottom:32px; }
+    .header-left { display:flex; align-items:center; gap:12px; }
+    .header-logo { height:26px; }
+    .header-title { font-size:17px; font-weight:700; letter-spacing:-0.5px; }
+    .badge-admin { background:var(--accent); color:#000; font-size:10px; font-weight:800; padding:2px 8px; border-radius:20px; font-family:'Inter',sans-serif; letter-spacing:0.5px; }
+    .header-right { display:flex; align-items:center; gap:14px; }
+    #txtAdminUser { font-size:13px; color:var(--text-dim); }
+    .btn-home { display:flex; align-items:center; gap:6px; background:var(--bg-card); border:1px solid var(--border); color:var(--text); padding:8px 16px; border-radius:24px; font-size:12px; font-weight:500; text-decoration:none; transition:background 0.2s; }
+    .btn-home:hover { background:var(--bg-hover); }
+
+    .widgets { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:32px; }
+    .widget { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:22px 24px; position:relative; overflow:hidden; }
+    .widget::before { content:''; position:absolute; top:0; left:0; width:3px; height:100%; }
+    .widget.total::before { background:var(--accent-blue); }
+    .widget.pending::before { background:var(--warn); }
+    .widget.done::before { background:var(--accent); }
+    .widget-label { font-size:11px; font-weight:600; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.6px; margin-bottom:8px; }
+    .widget-val { font-size:34px; font-weight:700; font-family:'Inter',sans-serif; }
+
+    .filter-bar { display:flex; align-items:center; gap:12px; margin-bottom:18px; }
+    .search-wrap { position:relative; flex:1; max-width:360px; }
+    .search-wrap svg { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--text-dim); }
+    .search-input { width:100%; height:40px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:13px; padding:0 12px 0 36px; outline:none; transition:border-color 0.2s; font-family:inherit; }
+    .search-input:focus { border-color:var(--accent); }
+    .filter-select { height:40px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:13px; padding:0 12px; outline:none; font-family:inherit; cursor:pointer; }
+    .btn-refresh { display:flex; align-items:center; gap:6px; height:40px; padding:0 14px; background:transparent; border:1px solid var(--border); color:var(--text); border-radius:8px; font-size:12px; font-family:inherit; cursor:pointer; transition:background 0.2s; }
+    .btn-refresh:hover { background:var(--bg-hover); }
+
+    .table-wrap { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; overflow:hidden; box-shadow:0 8px 32px rgba(0,0,0,0.3); }
+    .admin-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .admin-table th { background:#131313; color:var(--text-dim); font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; padding:14px 20px; border-bottom:1px solid var(--border); text-align:left; }
+    .admin-table td { padding:14px 20px; border-bottom:1px solid var(--border); color:var(--text); vertical-align:middle; }
+    .admin-table tbody tr:last-child td { border-bottom:none; }
+    .admin-table tbody tr { transition:background 0.15s; }
+    .admin-table tbody tr:hover { background:rgba(255,255,255,0.025); }
+
+    .status-badge { display:inline-block; font-size:11px; font-weight:600; padding:4px 10px; border-radius:20px; }
+    .status-상담대기 { background:rgba(245,158,11,0.15); color:#f59e0b; }
+    .status-상담중 { background:rgba(59,130,246,0.15); color:#60a5fa; }
+    .status-가견적발송 { background:rgba(167,139,250,0.15); color:#a78bfa; }
+    .status-발주확정 { background:rgba(16,185,129,0.15); color:#34d399; }
+    .status-취소 { background:rgba(239,68,68,0.15); color:#f87171; }
+
+    .status-select { background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:5px 10px; font-size:12px; font-family:inherit; outline:none; cursor:pointer; }
+    .btn-detail { background:var(--accent-blue); border:none; color:#fff; padding:6px 14px; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer; font-family:inherit; transition:opacity 0.15s; }
+    .btn-detail:hover { opacity:0.8; }
+    .empty-msg { text-align:center; color:var(--text-dim); padding:60px; font-size:14px; }
+
+    #detailModal { position:fixed; inset:0; background:rgba(0,0,0,0.8); backdrop-filter:blur(10px); z-index:8888; display:none; align-items:center; justify-content:center; }
+    #detailModal.open { display:flex; }
+    .modal-card { width:1060px; max-width:96vw; height:82vh; max-height:860px; background:var(--bg-card); border:1px solid var(--border); border-radius:24px; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 24px 80px rgba(0,0,0,0.6); }
+    .modal-header { display:flex; justify-content:space-between; align-items:center; padding:22px 28px; border-bottom:1px solid var(--border); flex-shrink:0; }
+    .modal-header h3 { font-size:16px; font-weight:700; }
+    .btn-modal-close { background:none; border:none; color:var(--text-dim); font-size:22px; cursor:pointer; line-height:1; transition:color 0.15s; }
+    .btn-modal-close:hover { color:var(--text); }
+    .modal-body { display:flex; flex:1; min-height:0; }
+    .panel-img { flex:1.3; background:#0a0a0a; border-right:1px solid var(--border); display:flex; align-items:center; justify-content:center; padding:24px; }
+    .panel-img img { max-width:100%; max-height:100%; object-fit:contain; border-radius:8px; }
+    .panel-info { flex:1; padding:28px; overflow-y:auto; display:flex; flex-direction:column; gap:22px; }
+    .sec-label { font-size:11px; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.6px; margin-bottom:12px; padding-left:8px; border-left:3px solid var(--accent-blue); }
+    .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .info-key { font-size:11px; color:var(--text-dim); margin-bottom:3px; }
+    .info-val { font-size:13px; font-weight:500; word-break:break-all; }
+    .bom-wrap { border:1px solid var(--border); border-radius:10px; overflow:hidden; max-height:200px; overflow-y:auto; }
+    .bom-table { width:100%; border-collapse:collapse; font-size:12px; }
+    .bom-table th { background:#111; color:var(--text-dim); font-size:10px; font-weight:600; text-transform:uppercase; padding:8px 12px; text-align:left; border-bottom:1px solid var(--border); }
+    .bom-table td { padding:9px 12px; border-bottom:1px solid var(--border); }
+    .bom-table tr:last-child td { border-bottom:none; }
+    .bom-total { display:flex; justify-content:space-between; align-items:center; font-size:14px; font-weight:700; padding-top:12px; border-top:1px solid var(--border); }
+    #lblTotalCost { color:var(--accent); }
+    .remarks-box { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px; font-size:12px; white-space:pre-wrap; min-height:48px; }
+    .status-row { display:flex; gap:10px; align-items:flex-end; margin-top:auto; padding-top:16px; border-top:1px solid var(--border); }
+    .status-row > div { flex:1; }
+    .slabel { font-size:11px; color:var(--text-dim); margin-bottom:6px; }
+    .modal-status-sel { width:100%; height:40px; background:var(--bg); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:13px; font-family:inherit; outline:none; cursor:pointer; padding:0 12px; }
+    .btn-save { height:40px; background:var(--accent); border:none; border-radius:8px; color:#000; font-size:13px; font-weight:700; padding:0 20px; cursor:pointer; font-family:inherit; transition:opacity 0.15s; white-space:nowrap; }
+    .btn-save:hover { opacity:0.85; }
+
+    .toast { position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(20px); background:#fff; color:#000; padding:12px 22px; border-radius:30px; font-size:13px; font-weight:600; opacity:0; transition:opacity 0.25s, transform 0.25s; pointer-events:none; z-index:99999; box-shadow:0 8px 30px rgba(0,0,0,0.4); }
+    .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+<div id="authGate">
+  <div class="spinner"></div>
+  <span id="authGateMsg">어드민 권한을 확인하는 중입니다...</span>
+</div>
+
+<div class="admin-wrap" id="adminMain" style="display:none;">
+  <header class="admin-header">
+    <div class="header-left">
+      <img src="logo.png" alt="ZIBIS" class="header-logo">
+      <span class="header-title">ZIBIS ADMIN</span>
+      <span class="badge-admin">ADMIN</span>
+    </div>
+    <div class="header-right">
+      <span id="txtAdminUser"></span>
+      <a href="index.html" class="btn-home">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        플래너 홈으로
+      </a>
+    </div>
+  </header>
+
+  <div class="widgets">
+    <div class="widget total"><div class="widget-label">총 상담 신청</div><div class="widget-val" id="wTotal">–</div></div>
+    <div class="widget pending"><div class="widget-label">상담 대기</div><div class="widget-val" id="wPending">–</div></div>
+    <div class="widget done"><div class="widget-label">상담중 / 완료</div><div class="widget-val" id="wDone">–</div></div>
+  </div>
+
+  <div class="filter-bar">
+    <div class="search-wrap">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" class="search-input" id="searchInput" placeholder="이름, 연락처, 주소 검색...">
+    </div>
+    <select class="filter-select" id="statusFilter">
+      <option value="">전체 상태</option>
+      <option value="상담대기">상담대기</option>
+      <option value="상담중">상담중</option>
+      <option value="가견적발송">가견적발송</option>
+      <option value="발주확정">발주확정</option>
+      <option value="취소">취소</option>
+    </select>
+    <button class="btn-refresh" id="btnRefresh">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      새로고침
+    </button>
+  </div>
+
+  <div class="table-wrap">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th style="width:140px;">신청 일시</th>
+          <th style="width:80px;">성함</th>
+          <th style="width:120px;">연락처</th>
+          <th>시공지 주소</th>
+          <th style="width:110px;">희망 시공일</th>
+          <th style="width:110px; text-align:center;">상태</th>
+          <th style="width:70px; text-align:center;">상세</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+    <div id="emptyMsg" class="empty-msg" style="display:none;">접수된 상담 신청 내역이 없습니다.</div>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div id="detailModal">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 id="modalTitle">상담 신청 상세</h3>
+      <button class="btn-modal-close" id="btnModalClose">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="panel-img">
+        <img id="imgBlueprint" src="" alt="도면" style="display:none;">
+        <span id="lblNoImg" style="color:var(--text-dim); font-size:13px; display:none;">캡처된 도면이 없습니다.</span>
+      </div>
+      <div class="panel-info">
+        <div>
+          <div class="sec-label">고객 기본 정보</div>
+          <div class="info-grid">
+            <div class="info-item"><div class="info-key">성함</div><div class="info-val" id="mName"></div></div>
+            <div class="info-item"><div class="info-key">연락처</div><div class="info-val" id="mPhone"></div></div>
+            <div class="info-item" style="grid-column:span 2;"><div class="info-key">시공지 주소</div><div class="info-val" id="mAddress"></div></div>
+            <div class="info-item"><div class="info-key">희망 시공일</div><div class="info-val" id="mHopeDate"></div></div>
+            <div class="info-item"><div class="info-key">견적서 ID</div><div class="info-val" id="mQuoteId" style="font-size:10px; font-family:'Inter',sans-serif;"></div></div>
+          </div>
+        </div>
+        <div>
+          <div class="sec-label">배치 조명 명세 (BOM)</div>
+          <div class="bom-wrap">
+            <table class="bom-table">
+              <thead><tr><th>구분</th><th>자재명</th><th style="text-align:center; width:46px;">수량</th><th style="text-align:right; width:90px;">단가</th></tr></thead>
+              <tbody id="bomBody"></tbody>
+            </table>
+            <div id="noBom" style="padding:18px; text-align:center; color:var(--text-dim); font-size:12px; display:none;">연동된 자재 정보가 없습니다.</div>
+          </div>
+          <div class="bom-total" style="margin-top:12px;">
+            <span>총 예상 자재가 (소비자가 기준)</span>
+            <span id="lblTotalCost">₩0</span>
+          </div>
+        </div>
+        <div>
+          <div class="sec-label">고객 요청사항</div>
+          <div class="remarks-box" id="mRemarks"></div>
+        </div>
+        <div class="status-row">
+          <div>
+            <div class="slabel">처리 상태 변경</div>
+            <select class="modal-status-sel" id="selectModalStatus">
+              <option value="상담대기">상담대기</option>
+              <option value="상담중">상담중</option>
+              <option value="가견적발송">가견적발송</option>
+              <option value="발주확정">발주확정</option>
+              <option value="취소">취소</option>
+            </select>
+          </div>
+          <button class="btn-save" id="btnSaveStatus">저장</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="admin.js"></script>
+</body>
+</html>
