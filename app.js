@@ -1534,14 +1534,20 @@ function setupEventListeners() {
   // Consultation Request Modal Event Listeners
   if (els.btnConsultation) {
     els.btnConsultation.addEventListener('click', () => {
-      // 1. 빈 도면 검사
+      // 1. 비회원 회원가입 유도
+      if (!authUser) {
+        alert('견적 상담을 신청하려면 회원가입이 필요합니다.');
+        document.getElementById('signupOverlay').style.display = 'flex';
+        return;
+      }
+      // 2. 빈 도면 검사
       if (!state.lights || state.lights.length === 0) {
         alert("배치된 조명이 없는 빈 도면은 상담을 신청할 수 없습니다.");
         if (els.consultationOverlay) els.consultationOverlay.style.display = 'none';
         return;
       }
 
-      // 2. 폼 초기화 및 열기
+      // 3. 폼 초기화 및 열기
       if (els.clientName) els.clientName.value = '';
       if (els.clientPhone) els.clientPhone.value = '';
       if (els.clientAddress) els.clientAddress.value = '';
@@ -7729,6 +7735,9 @@ function setupPasswordToggle(btnId, inputId) {
   }
 }
 
+// 견적 상담하기: 디자인 작업 중에는 전원 비노출. 테스트 재개 시 이메일을 다시 추가.
+const CONSULTATION_FEATURE_TESTERS = [];
+
 function updateAuthUI(user, profile) {
   const headerAuthLinks = document.getElementById('headerAuthLinks');
   const profileMenuContainer = document.getElementById('profileMenuContainer');
@@ -7738,6 +7747,11 @@ function updateAuthUI(user, profile) {
   } else {
     if (headerAuthLinks) headerAuthLinks.style.display = 'flex';
     if (profileMenuContainer) profileMenuContainer.style.display = 'none';
+  }
+
+  if (els.btnConsultation) {
+    const canSeeConsultation = !!(user && user.email && CONSULTATION_FEATURE_TESTERS.includes(user.email));
+    els.btnConsultation.style.display = canSeeConsultation ? 'flex' : 'none';
   }
 }
 
