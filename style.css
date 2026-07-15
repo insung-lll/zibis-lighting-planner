@@ -2345,6 +2345,28 @@ body {
   border-color: #ff453a;
 }
 
+/* Consultation Status Badge */
+.consult-status-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.consult-status-badge.waiting {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+.consult-status-badge.done {
+  background-color: rgba(52, 199, 89, 0.15);
+  color: #34c759;
+}
+.consult-status-badge.cancelled {
+  background-color: rgba(255, 69, 58, 0.15);
+  color: #ff453a;
+}
+
 /* Feedback List Item Styling */
 .feedback-item {
   padding: 10px 12px;
@@ -2428,6 +2450,58 @@ body {
 
 .hamburger-dropdown-item:hover svg {
   color: #FFFFFF;
+}
+
+/* 견적 split button (다운로드 즉시 실행 + 드롭다운 토글) */
+.quote-btn-download {
+  background-color: #036cc5;
+  border: none;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 6px 8px 14px;
+  border-top-left-radius: 60px;
+  border-bottom-left-radius: 60px;
+  font-weight: 500;
+  font-size: 12px;
+  font-family: 'Pretendard', sans-serif;
+  cursor: pointer;
+  box-sizing: border-box;
+  white-space: nowrap;
+  transition: background-color 0.15s;
+}
+.quote-btn-download:hover {
+  background-color: #00549b;
+}
+
+.quote-btn-toggle {
+  background-color: #036cc5;
+  border: none;
+  color: #fff;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-top-right-radius: 50px;
+  border-bottom-right-radius: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: background-color 0.15s;
+}
+.quote-btn-toggle:hover {
+  background-color: #00549b;
+}
+.quote-btn-toggle svg {
+  transition: transform 0.2s;
+}
+.quote-btn-toggle.open {
+  background-color: #00549b;
+}
+.quote-btn-toggle.open svg {
+  transform: rotate(180deg);
 }
 
 .header-auth-links {

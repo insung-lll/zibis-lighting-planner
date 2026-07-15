@@ -1700,7 +1700,8 @@ function setupEventListeners() {
             remarks: remarks || null,
             image_url: imageUrl,
             quote_id: finalQuoteId,
-            status: '상담대기'
+            status: '상담대기',
+            user_id: authUser.id
           })
           .select();
 
@@ -6927,7 +6928,15 @@ function setupAuthEventListeners() {
   const profileEditOverlay = document.getElementById('profileEditOverlay');
   const changePasswordOverlay = document.getElementById('changePasswordOverlay');
   const myEstimatesOverlay = document.getElementById('myEstimatesOverlay');
+  const myConsultationsOverlay = document.getElementById('myConsultationsOverlay');
   const feedbackOverlay = document.getElementById('feedbackOverlay');
+
+  // 견적 통합 드롭다운 (다운로드 / 상담하기 / 상담내역)
+  const btnQuoteDownloadDirect = document.getElementById('btnQuoteDownloadDirect');
+  const btnQuoteDropdownToggle = document.getElementById('btnQuoteDropdownToggle');
+  const quoteDropdown = document.getElementById('quoteDropdown');
+  const btnMenuQuoteConsult = document.getElementById('btnMenuQuoteConsult');
+  const btnMenuQuoteHistory = document.getElementById('btnMenuQuoteHistory');
 
   // Header Links
   const btnHeaderSignup = document.getElementById('btnHeaderSignup');
@@ -6942,6 +6951,7 @@ function setupAuthEventListeners() {
   const btnCloseProfileEdit = document.getElementById('btnCloseProfileEdit');
   const btnCloseChangePassword = document.getElementById('btnCloseChangePassword');
   const btnCloseMyEstimates = document.getElementById('btnCloseMyEstimates');
+  const btnCloseMyConsultations = document.getElementById('btnCloseMyConsultations');
   const btnCloseFeedback = document.getElementById('btnCloseFeedback');
 
   // Modal Transitions
@@ -7072,6 +7082,10 @@ function setupAuthEventListeners() {
     if (profileDropdown && !profileDropdown.contains(e.target) && !e.target.closest('#btnProfileMenu')) {
       profileDropdown.style.display = 'none';
     }
+    if (quoteDropdown && !quoteDropdown.contains(e.target) && !e.target.closest('#btnQuoteDropdownToggle')) {
+      quoteDropdown.style.display = 'none';
+      if (btnQuoteDropdownToggle) btnQuoteDropdownToggle.classList.remove('open');
+    }
     if (hamburgerDropdown && !hamburgerDropdown.contains(e.target) && !e.target.closest('#btnHamburgerMenu')) {
       hamburgerDropdown.style.display = 'none';
       if (btnHamburgerMenu) btnHamburgerMenu.innerHTML = hamburgerSvg;
@@ -7084,6 +7098,30 @@ function setupAuthEventListeners() {
   if (btnProfileMenu) btnProfileMenu.onclick = (e) => {
     e.stopPropagation();
     profileDropdown.style.display = profileDropdown.style.display === 'flex' ? 'none' : 'flex';
+  };
+
+  // 견적 다운로드(왼쪽, 즉시 실행) / 드롭다운 토글(오른쪽, 화살표 방향 전환)
+  if (btnQuoteDownloadDirect) btnQuoteDownloadDirect.onclick = () => {
+    const btnExp = document.getElementById('btnExport');
+    if (btnExp) btnExp.click();
+  };
+  if (btnQuoteDropdownToggle) btnQuoteDropdownToggle.onclick = (e) => {
+    e.stopPropagation();
+    const willOpen = quoteDropdown.style.display !== 'flex';
+    quoteDropdown.style.display = willOpen ? 'flex' : 'none';
+    btnQuoteDropdownToggle.classList.toggle('open', willOpen);
+  };
+  if (btnMenuQuoteConsult) btnMenuQuoteConsult.onclick = () => {
+    quoteDropdown.style.display = 'none';
+    if (btnQuoteDropdownToggle) btnQuoteDropdownToggle.classList.remove('open');
+    const btnConsult = document.getElementById('btnConsultation');
+    if (btnConsult) btnConsult.click();
+  };
+  if (btnMenuQuoteHistory) btnMenuQuoteHistory.onclick = () => {
+    quoteDropdown.style.display = 'none';
+    if (btnQuoteDropdownToggle) btnQuoteDropdownToggle.classList.remove('open');
+    myConsultationsOverlay.style.display = 'flex';
+    loadMyConsultations();
   };
 
   // Close Modal Handlers
@@ -7102,6 +7140,7 @@ function setupAuthEventListeners() {
   if (btnCloseProfileEdit) btnCloseProfileEdit.onclick = () => profileEditOverlay.style.display = 'none';
   if (btnCloseChangePassword) btnCloseChangePassword.onclick = () => changePasswordOverlay.style.display = 'none';
   if (btnCloseMyEstimates) btnCloseMyEstimates.onclick = () => myEstimatesOverlay.style.display = 'none';
+  if (btnCloseMyConsultations) btnCloseMyConsultations.onclick = () => myConsultationsOverlay.style.display = 'none';
   if (btnCloseFeedback) btnCloseFeedback.onclick = () => feedbackOverlay.style.display = 'none';
   
   const btnCloseOnboarding = document.getElementById('btnCloseOnboarding');
@@ -7735,8 +7774,8 @@ function setupPasswordToggle(btnId, inputId) {
   }
 }
 
-// 견적 상담하기: 디자인 작업 중에는 전원 비노출. 테스트 재개 시 이메일을 다시 추가.
-const CONSULTATION_FEATURE_TESTERS = [];
+// 견적 상담하기 / 상담내역: 디자인·테스트 완료 전까지 아래 계정에게만 노출
+const CONSULTATION_FEATURE_TESTERS = ['dpdltmwjd@gmail.com'];
 
 function updateAuthUI(user, profile) {
   const headerAuthLinks = document.getElementById('headerAuthLinks');
@@ -7749,10 +7788,12 @@ function updateAuthUI(user, profile) {
     if (profileMenuContainer) profileMenuContainer.style.display = 'none';
   }
 
-  if (els.btnConsultation) {
-    const canSeeConsultation = !!(user && user.email && CONSULTATION_FEATURE_TESTERS.includes(user.email));
-    els.btnConsultation.style.display = canSeeConsultation ? 'flex' : 'none';
-  }
+  // btnConsultation 자체는 "견적" 드롭다운에서 위임 호출하는 숨김 버튼이라 항상 display:none 유지
+  const canSeeConsultation = !!(user && user.email && CONSULTATION_FEATURE_TESTERS.includes(user.email));
+  const btnMenuQuoteConsult = document.getElementById('btnMenuQuoteConsult');
+  const btnMenuQuoteHistory = document.getElementById('btnMenuQuoteHistory');
+  if (btnMenuQuoteConsult) btnMenuQuoteConsult.style.display = canSeeConsultation ? 'flex' : 'none';
+  if (btnMenuQuoteHistory) btnMenuQuoteHistory.style.display = canSeeConsultation ? 'flex' : 'none';
 }
 
 // Load My Estimates List
@@ -7847,6 +7888,78 @@ async function loadMyEstimatesList() {
         loadMyEstimatesList();
       }
     };
+
+    listContainer.appendChild(el);
+  });
+}
+
+// Load My Consultation Requests (견적 상담내역)
+function getConsultStatusBadge(status) {
+  if (status === '상담대기') return { cls: 'waiting', label: '상담대기' };
+  if (status === '취소') return { cls: 'cancelled', label: '취소됨' };
+  return { cls: 'done', label: '상담완료' };
+}
+
+async function loadMyConsultations() {
+  const listContainer = document.getElementById('consultationsListContainer');
+  if (!listContainer) return;
+
+  listContainer.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-dim);">상담내역 로드 중...</div>';
+
+  if (!authUser) return;
+
+  const { data, error } = await supabaseClient
+    .from('ConsultationRequest')
+    .select('id, address, hope_date, status, created_at')
+    .eq('user_id', authUser.id)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    listContainer.innerHTML = '<div style="text-align:center; padding:20px; color:#ff453a;">로드 오류: ' + error.message + '</div>';
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    listContainer.innerHTML = '<div class="empty-estimates-msg" style="text-align: center; color: var(--text-dim); padding: 40px 0; font-size: 13px;">신청한 상담 내역이 없습니다.</div>';
+    return;
+  }
+
+  listContainer.innerHTML = '';
+  data.forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'estimate-item';
+    const dateStr = new Date(item.created_at).toLocaleString();
+    const badge = getConsultStatusBadge(item.status);
+    const canCancel = item.status === '상담대기';
+
+    el.innerHTML = `
+      <div class="estimate-info">
+        <div class="estimate-name">${item.address || '주소 미입력'}</div>
+        <div class="estimate-date">${dateStr}${item.hope_date ? ' · 희망 시공일 ' + item.hope_date : ''}</div>
+      </div>
+      <div class="estimate-actions">
+        <span class="consult-status-badge ${badge.cls}">${badge.label}</span>
+        ${canCancel ? `<button class="btn-est-action delete" data-id="${item.id}">취소</button>` : ''}
+      </div>
+    `;
+
+    if (canCancel) {
+      el.querySelector('.delete').onclick = async () => {
+        const confirmCancel = confirm('상담 신청을 취소하시겠습니까?');
+        if (!confirmCancel) return;
+
+        const { error: cancelErr } = await supabaseClient
+          .from('ConsultationRequest')
+          .update({ status: '취소' })
+          .eq('id', item.id);
+
+        if (cancelErr) {
+          alert('취소 실패: ' + cancelErr.message);
+        } else {
+          loadMyConsultations();
+        }
+      };
+    }
 
     listContainer.appendChild(el);
   });

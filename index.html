@@ -22,7 +22,7 @@
   <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:image" content="https://zibis-lighting-planner.pages.dev/share.png" />
-  <link rel="stylesheet" type="text/css" href="style.css?v=25" />
+  <link rel="stylesheet" type="text/css" href="style.css?v=27" />
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
@@ -96,8 +96,8 @@
       <!-- User Profile Dropdown (로그인 완료 시 노출, 견적 다운로드 왼쪽 배치) -->
       <div class="profile-menu-container" id="profileMenuContainer" style="display: none; position: relative; margin-right: 12px;">
         <!-- Circular grey outline button matching figma node 50-635 (No initials, silhouette only) -->
-        <div class="profile-avatar" id="btnProfileMenu" style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; user-select: none; transition: background-color 0.2s;">
-          <svg width="32" height="32" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <div class="profile-avatar" id="btnProfileMenu" style="width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; user-select: none; transition: background-color 0.2s;">
+          <svg width="28" height="28" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M13 1C6.37258 1 1 6.37258 1 13C1 19.6274 6.37258 25 13 25C19.6274 25 25 19.6274 25 13C25 6.37258 19.6274 1 13 1Z" fill="#2A2A2A"/>
             <path d="M13 13C15.2091 13 17 11.2091 17 9C17 6.79086 15.2091 5 13 5C10.7909 5 9 6.79086 9 9C9 11.2091 10.7909 13 13 13Z" fill="#2A2A2A"/>
             <path d="M21 21.9444C21 19.7847 19.4377 16.9999 17 17H9C6.56229 16.9999 5 19.7847 5 21.9444M1 13C1 6.37258 6.37258 1 13 1C19.6274 1 25 6.37258 25 13C25 19.6274 19.6274 25 13 25C6.37258 25 1 19.6274 1 13ZM17 9C17 11.2091 15.2091 13 13 13C10.7909 13 9 11.2091 9 9C9 6.79086 10.7909 5 13 5C15.2091 5 17 6.79086 17 9Z" stroke="#D9D9D9"/>
@@ -138,13 +138,14 @@
 
       <!-- 견적 다운로드 버튼 영역 (프로젝트 로드 후 노출, 가장 우측 배치) -->
       <div class="download-container" style="position: relative; display: none; align-items: center; gap: 8px;">
-        <button class="btn btn-secondary btn-consult" id="btnConsultation" title="견적 상담 신청 (플로우 연동)" style="background-color: #10b981; border: none; color: #fff; display: none; align-items: center; gap: 8px; padding: 7px 16px 8px 16px; border-radius: 60px; font-weight: 500; font-size: 12px; height: 34px; box-sizing: border-box; font-family: 'Pretendard', sans-serif; cursor: pointer;">
+        <!-- 실제 클릭 로직은 기존 버튼에 그대로 유지, 화면엔 숨기고 아래 "견적" 드롭다운에서 위임 호출 -->
+        <button class="btn btn-secondary btn-consult" id="btnConsultation" title="견적 상담 신청 (플로우 연동)" style="display: none;">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
           </svg>
           견적 상담하기
         </button>
-        <button class="btn btn-primary btn-download" id="btnExport" title="견적 다운로드 (엑셀)" style="background-color: #036cc5; border: none; color: #fff; display: flex; align-items: center; gap: 8px; padding: 7px 16px 8px 16px; border-radius: 60px; font-weight: 500; font-size: 12px; height: 34px; box-sizing: border-box; font-family: 'Pretendard', sans-serif;">
+        <button class="btn btn-primary btn-download" id="btnExport" title="견적 다운로드 (엑셀)" style="display: none;">
           <svg width="18" height="18" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-top: -1px;">
             <path fill-rule="evenodd" clip-rule="evenodd" d="M23.0659 4.35413L6.84827 4.35413V33.6458H31.1513V12.7747L23.0659 4.35413Z" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"/>
             <path d="M22.312 5.23242V13.696H30.3982" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"/>
@@ -153,6 +154,39 @@
           </svg>
           견적 다운로드
         </button>
+
+        <!-- 견적 통합 드롭다운: 다운로드(즉시 실행) / 상담하기 / 상담내역(드롭다운) -->
+        <div class="quote-menu-wrap" style="position: relative; display: flex; gap: 1px; height: 34px;">
+          <button class="quote-btn-download" id="btnQuoteDownloadDirect" title="견적 다운로드">
+            <svg width="19" height="19" viewBox="0 0 19 19" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path fill-rule="evenodd" clip-rule="evenodd" d="M11.5329 2.17708L3.42411 2.17708V16.8229H15.5756V6.38737L11.5329 2.17708Z" stroke="white" stroke-width="1.2" stroke-linecap="square"/>
+              <path d="M11.156 2.61621V6.84801H15.1991" stroke="white" stroke-width="1.2" stroke-linecap="square"/>
+              <path d="M8.60095 12.9259V8.10509" stroke="white" stroke-width="1.2" stroke-linecap="square"/>
+              <path d="M10.4718 11.4957L8.60049 13.375L6.72917 11.4957" stroke="white" stroke-width="1.2" stroke-linecap="square"/>
+            </svg>
+            견적 다운로드
+          </button>
+          <button class="quote-btn-toggle" id="btnQuoteDropdownToggle" title="더 보기">
+            <svg width="10" height="6" viewBox="0 0 9.2 5.2" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M0.6 0.6L4.6 4.6L8.6 0.6" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <div class="hamburger-dropdown" id="quoteDropdown" style="display: none; position: absolute; right: 0; top: 40px; z-index: 1200;">
+            <button class="hamburger-dropdown-item" id="btnMenuQuoteConsult" style="display: none;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+              견적 상담하기
+            </button>
+            <button class="hamburger-dropdown-item" id="btnMenuQuoteHistory" style="display: none;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9"/>
+                <polyline points="12 7 12 12 15 14"/>
+              </svg>
+              견적 상담내역
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -976,6 +1010,22 @@
     </div>
   </div>
 
+  <!-- My Consultations (견적 상담내역) Modal -->
+  <div class="confirm-overlay" id="myConsultationsOverlay" style="display: none; z-index: 998;">
+    <div class="confirm-dialog auth-card" style="max-height: 80vh; display: flex; flex-direction: column; position: relative;">
+      <button class="modal-close-btn" id="btnCloseMyConsultations">
+        <svg viewBox="0 0 15.5 15.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14.75 0.75L0.75 14.75M0.750014 0.75L14.75 14.75"/>
+        </svg>
+      </button>
+      <h2 class="auth-title" style="flex-shrink: 0; text-align: left; margin-bottom: 16px !important;">견적 상담내역</h2>
+      <div class="estimates-list-container" id="consultationsListContainer" style="flex: 1; overflow-y: auto; margin-bottom: 8px;">
+        <!-- Consultation items populated dynamically -->
+        <div class="empty-estimates-msg" style="text-align: center; color: var(--text-dim); padding: 40px 0; font-size: 13px;">신청한 상담 내역이 없습니다.</div>
+      </div>
+    </div>
+  </div>
+
   <!-- Feedback / Request Modal -->
   <div class="confirm-overlay" id="feedbackOverlay" style="display: none; z-index: 997;">
     <div class="confirm-dialog auth-card" style="height: 560px; max-height: 85vh; display: flex; flex-direction: column; position: relative; text-align: center;">
@@ -1096,6 +1146,6 @@
 
 </div>
 
-<script src="app.js?v=63"></script>
+<script src="app.js?v=66"></script>
 </body>
 </html>

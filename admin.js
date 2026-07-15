@@ -6,6 +6,8 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // ==================== STATE ====================
 let allRows = [];       // all fetched consultation records
 let currentRow = null;  // currently opened detail modal record
+let allProducts = [];        // all fetched product records
+let productsLoaded = false;  // lazy-load guard
 
 // ==================== AUTH GATE ====================
 async function checkAdminAuth() {
@@ -124,6 +126,99 @@ function applyFilter() {
     );
   }
   renderTable(filtered);
+}
+
+// ==================== PRODUCT PRICE MANAGEMENT ====================
+async function loadProducts() {
+  const { data, error } = await sb
+    .from('products')
+    .select('id, name, category, product_line, price')
+    .order('name', { ascending: true });
+
+  if (error) {
+    showToast('제품 목록을 불러오는 중 오류가 발생했습니다.');
+    console.error(error);
+    return;
+  }
+
+  allProducts = data || [];
+  productsLoaded = true;
+  applyProductFilter();
+}
+
+function renderProductTable(rows) {
+  const tbody = document.getElementById('productTableBody');
+  const emptyMsg = document.getElementById('productEmptyMsg');
+
+  if (rows.length === 0) {
+    tbody.innerHTML = '';
+    emptyMsg.style.display = 'block';
+    return;
+  }
+  emptyMsg.style.display = 'none';
+
+  tbody.innerHTML = rows.map(p => {
+    const lineLabel = p.product_line === 'zibis_general' ? '일반 조명' : 'IoT 조명';
+    return `
+      <tr>
+        <td><strong>${p.name}</strong></td>
+        <td style="color:var(--text-dim); font-size:12px;">${p.category || '-'}</td>
+        <td><span class="line-badge line-${p.product_line || 'zibis_iot'}">${lineLabel}</span></td>
+        <td style="text-align:right;">
+          <input type="number" class="price-input" data-id="${p.id}" data-original="${p.price}" value="${p.price}">
+          <button class="btn-price-save" data-id="${p.id}">저장</button>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+function applyProductFilter() {
+  const keyword = document.getElementById('productSearchInput').value.trim().toLowerCase();
+  const line = document.getElementById('productLineFilter').value;
+  let filtered = allProducts;
+  if (line) filtered = filtered.filter(p => (p.product_line || 'zibis_iot') === line);
+  if (keyword) filtered = filtered.filter(p => (p.name || '').toLowerCase().includes(keyword));
+  renderProductTable(filtered);
+}
+
+async function saveProductPrice(id, input, btn) {
+  const newPrice = Number(input.value);
+  if (!Number.isFinite(newPrice) || newPrice < 0) {
+    showToast('올바른 가격을 입력해주세요.');
+    return;
+  }
+
+  const { error } = await sb
+    .from('products')
+    .update({ price: newPrice })
+    .eq('id', id);
+
+  if (error) {
+    showToast('가격 저장 중 오류가 발생했습니다.');
+    console.error(error);
+    return;
+  }
+
+  input.dataset.original = newPrice;
+  input.classList.remove('dirty');
+  btn.classList.remove('enabled');
+  const p = allProducts.find(p => p.id === id);
+  if (p) p.price = newPrice;
+
+  showToast('가격이 저장되었습니다.');
+}
+
+// ==================== TAB SWITCHING ====================
+function switchTab(tab) {
+  const isConsult = tab === 'consult';
+  document.getElementById('tabBtnConsult').classList.toggle('active', isConsult);
+  document.getElementById('tabBtnProducts').classList.toggle('active', !isConsult);
+  document.getElementById('viewConsult').style.display = isConsult ? 'block' : 'none';
+  document.getElementById('viewProducts').style.display = isConsult ? 'none' : 'block';
+
+  if (!isConsult && !productsLoaded) {
+    loadProducts();
+  }
 }
 
 // ==================== DETAIL MODAL ====================
@@ -274,6 +369,32 @@ function bindEvents() {
   // Close modal on backdrop click
   document.getElementById('detailModal').addEventListener('click', (e) => {
     if (e.target === e.currentTarget) closeDetail();
+  });
+
+  // Tabs
+  document.getElementById('tabBtnConsult').addEventListener('click', () => switchTab('consult'));
+  document.getElementById('tabBtnProducts').addEventListener('click', () => switchTab('products'));
+
+  // Product filter/search
+  document.getElementById('productSearchInput').addEventListener('input', applyProductFilter);
+  document.getElementById('productLineFilter').addEventListener('change', applyProductFilter);
+  document.getElementById('btnRefreshProducts').addEventListener('click', loadProducts);
+
+  // Product price inline edit (event delegation on tbody)
+  const productTbody = document.getElementById('productTableBody');
+  productTbody.addEventListener('input', (e) => {
+    if (!e.target.classList.contains('price-input')) return;
+    const input = e.target;
+    const btn = input.nextElementSibling;
+    const isDirty = Number(input.value) !== Number(input.dataset.original);
+    input.classList.toggle('dirty', isDirty);
+    btn.classList.toggle('enabled', isDirty);
+  });
+  productTbody.addEventListener('click', (e) => {
+    if (!e.target.classList.contains('btn-price-save')) return;
+    const btn = e.target;
+    const input = btn.previousElementSibling;
+    saveProductPrice(btn.dataset.id, input, btn);
   });
 }
 
