@@ -22,7 +22,7 @@
   <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:image" content="https://zibis-lighting-planner.pages.dev/share.png" />
-  <link rel="stylesheet" type="text/css" href="style.css?v=24" />
+  <link rel="stylesheet" type="text/css" href="style.css?v=25" />
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
@@ -159,11 +159,15 @@
     
     <!-- Left Sidebar: Fixture Library -->
     <div class="left-panel" id="leftPanel">
-      <div class="panel-header">조명 라이브러리</div>
-      <div class="category-pills-wrap">
+      <div class="library-tabs" id="libraryTabs">
+        <div class="library-tab active" data-line="zibis_iot">IoT 조명</div>
+        <div class="library-tab" data-line="zibis_general">일반 조명</div>
+        <div class="library-tab-indicator" id="libraryTabIndicator"></div>
+      </div>
+      <div class="category-pills-wrap" id="categoryPillsWrap">
         <div class="category-pills" id="categoryPills">
           <div class="pill active" data-category="downlight">다운라이트</div>
-          <div class="pill" data-category="direct">메인등</div>
+          <div class="pill" data-category="direct">직부등</div>
           <div class="pill" data-category="multi">멀티매입등</div>
           <div class="pill" data-category="linebar">라인/마그네틱</div>
         </div>
@@ -1015,6 +1019,6 @@
 
 </div>
 
-<script src="app.js?v=54"></script>
+<script src="app.js?v=60"></script>
 </body>
 </html>

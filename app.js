@@ -391,6 +391,7 @@ const state = {
   selectedFixtureId: null,
   activeCategory: 'downlight',
   activeSubCategory: 'all',
+  activeProductLine: 'zibis_iot',
   selectedZoneId: null,
   selectedDimensionId: null,
 
@@ -494,6 +495,9 @@ const els = {
   txtCalibrateZoom: document.getElementById('txtCalibrateZoom'),
   
   // Left Panel
+  libraryTabs: document.getElementById('libraryTabs'),
+  libraryTabIndicator: document.getElementById('libraryTabIndicator'),
+  categoryPillsWrap: document.getElementById('categoryPillsWrap'),
   categoryPills: document.getElementById('categoryPills'),
   fixtureList: document.getElementById('fixtureList'),
   
@@ -603,12 +607,26 @@ const ctxs = {
 // Color definitions
 const zoneColors = ['#007aff', '#34c759', '#ff9500', '#ff3b30', '#af52de', '#5ac8fa', '#ff2d55', '#ffcc00'];
 
+// 조명 라이브러리 라인(IoT/일반)별 카테고리 pill 목록
+const CATEGORY_PILLS_BY_LINE = {
+  zibis_iot: [
+    { key: 'downlight', label: '다운라이트' },
+    { key: 'direct', label: '직부등' },
+    { key: 'multi', label: '멀티매입등' },
+    { key: 'linebar', label: '라인/마그네틱' }
+  ],
+  zibis_general: [
+    { key: 'direct', label: '직부등' },
+    { key: 'sensor', label: '센서' }
+  ]
+};
+
 // ==================== SUPABASE PRODUCT LOADER ====================
 function mapSupabaseProduct(p) {
   const CAT_MAP = {
     '다운라이트': 'downlight', '라인바': 'linebar', '멀티': 'multi',
     '방등/거실등': 'roomlight', '엣지등': 'roomlight',
-    '메인등': 'direct', '직부등': 'direct',
+    '메인등': 'direct', '직부등': 'direct', '센서': 'sensor',
     '컨버터': 'converter', '컨트롤러': 'controller', '레일스포트': 'etc'
   };
   // DB에 category 값 뒤에 개행/공백이 섞여 들어오는 경우가 있어 trim 후 매칭
@@ -632,6 +650,9 @@ function mapSupabaseProduct(p) {
   } else if (cat === 'direct') {
     icon = 'rect';
     color = '#007AFF'; // 직부등은 블루 컬러 고정
+  } else if (cat === 'sensor') {
+    icon = 'rect';
+    color = '#5AC8FA'; // 센서 조명은 하늘색으로 구분
   } else if (cat === 'linebar') {
     if ((p.name && p.name.includes('마그네틱 레일')) || p.id === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57' || p.id === 'magnetic-rail') {
       icon = 'line';
@@ -665,6 +686,8 @@ function mapSupabaseProduct(p) {
       length = lengthMM;
     }
   }
+  // 직부/센서 라인 중 이름에 "원형"이 포함된 제품은 사각 렉트가 아닌 지름 기준 원형으로 렌더링
+  const isRound = (cat === 'direct' || cat === 'sensor') && p.name && p.name.includes('원형');
   // 라인바 전용 필드 (마그네틱 레일은 길이 제한 해제)
   if (cat === 'linebar') {
     const isMagnetic = (p.name && p.name.includes('마그네틱 레일')) || p.id === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57' || p.id === 'magnetic-rail';
@@ -708,7 +731,8 @@ function mapSupabaseProduct(p) {
     heads,
     lengthMM,
     widthMM,
-    length
+    length,
+    isRound
   };
 }
 
@@ -803,11 +827,13 @@ async function init() {
 // Render the side library items
 function renderFixtureLibrary() {
   els.fixtureList.innerHTML = '';
-  let filtered = state.activeCategory === 'all'
-    ? fixtureDatabase
-    : fixtureDatabase.filter(f => f.category === state.activeCategory);
-    
-  if (state.activeCategory === 'downlight' && state.activeSubCategory !== 'all') {
+  let filtered = fixtureDatabase.filter(f => f.productLine === state.activeProductLine);
+
+  filtered = state.activeCategory === 'all'
+    ? filtered
+    : filtered.filter(f => f.category === state.activeCategory);
+
+  if (state.activeProductLine === 'zibis_iot' && state.activeCategory === 'downlight' && state.activeSubCategory !== 'all') {
     filtered = filtered.filter(f => f.subCategory === state.activeSubCategory);
   }
 
@@ -826,7 +852,13 @@ function renderFixtureLibrary() {
     );
     return !isAccessory;
   });
-    
+
+  if (filtered.length === 0) {
+    const emptyText = state.activeProductLine === 'zibis_general' ? '등록된 일반 조명이 없습니다.' : '해당 조건의 제품이 없습니다.';
+    els.fixtureList.innerHTML = `<div class="fixture-list-empty">${emptyText}</div>`;
+    return;
+  }
+
   filtered.forEach(item => {
     const isMagneticOrFixture = item.id === 'fe1f7195-3630-49c0-8cda-f5ea732cfe57' || item.id === 'magnetic-rail' || (item.name && item.name.includes('마그네틱'));
     const card = document.createElement('div');
@@ -853,7 +885,7 @@ function renderFixtureLibrary() {
           ${item.lumen ? `<span>${item.lumen} lm</span>` : ''}
           ${(item.beam && !isMagneticOrFixture) ? `<span>${item.beam}°</span>` : ''}
           ${item.inch ? `<span>${item.inch}</span>` : ''}
-          ${(item.category === 'linebar' && !isMagneticOrFixture) ? '<span>1m 기준</span>' : ((item.length && !isMagneticOrFixture && item.category !== 'direct' && item.category !== 'roomlight') ? `<span>${item.length/1000}m</span>` : '')}
+          ${(item.category === 'linebar' && !isMagneticOrFixture) ? '<span>1m 기준</span>' : ((item.length && !isMagneticOrFixture && item.category !== 'direct' && item.category !== 'roomlight' && item.category !== 'sensor') ? `<span>${item.length/1000}m</span>` : '')}
         </div>
         ${item.link ? `
         <div class="fixture-link-wrapper" style="margin-top: 6px;">
@@ -1004,6 +1036,30 @@ function setupEventListeners() {
       e.stopPropagation();
     });
   }
+
+  // Library line tabs (IoT 조명 / 일반 조명)
+  els.libraryTabs.addEventListener('click', (e) => {
+    const tab = e.target.closest('.library-tab');
+    if (!tab) return;
+    const line = tab.getAttribute('data-line');
+    if (line === state.activeProductLine) return;
+
+    document.querySelectorAll('.library-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    els.libraryTabIndicator.classList.toggle('tab2', line === 'zibis_general');
+    state.activeProductLine = line;
+
+    // 라인마다 카테고리 체계가 다르므로 전환 시 해당 라인의 카테고리 pill로 교체
+    const pills = CATEGORY_PILLS_BY_LINE[line] || [];
+    els.categoryPills.innerHTML = pills.map((p, i) =>
+      `<div class="pill${i === 0 ? ' active' : ''}" data-category="${p.key}">${p.label}</div>`
+    ).join('');
+    state.activeCategory = pills[0] ? pills[0].key : 'all';
+    state.activeSubCategory = 'all';
+    els.subCategoryPillsWrap.style.display = (state.activeCategory === 'downlight') ? 'block' : 'none';
+
+    renderFixtureLibrary();
+  });
 
   // Category selection pills
   els.categoryPills.addEventListener('click', (e) => {
@@ -4247,7 +4303,8 @@ function renderBOMTable() {
     if (category === 'linebar') return '라인/마그네틱';
     if (category === 'multi') return '멀티매입등';
     if (category === 'roomlight') return '방등/거실등';
-    if (category === 'direct') return '메인등';
+    if (category === 'direct') return '직부등';
+    if (category === 'sensor') return '센서';
     if (category === 'smarthome') return '스마트홈 기기';
     if (category === 'etc') return '기타';
     return '조명';
@@ -4808,7 +4865,7 @@ function renderLightsLayer() {
       const spec = fixtureDatabase.find(f => f.id === l.typeId);
       const isMagneticModule = spec && spec.category === 'linebar' && spec.name.includes('등기구') && /L\d+/.test(spec.name);
       const isRoomLight = spec && spec.category === 'roomlight';
-      const isDirectLight = spec && spec.category === 'direct';
+      const isDirectLight = spec && (spec.category === 'direct' || spec.category === 'sensor');
 
       if (isMagneticModule) {
         const lenPx = state.pixelsPerMeter > 0 ? ((spec.length || 300) / 1000) * state.pixelsPerMeter : 15;
@@ -4896,27 +4953,51 @@ function renderLightsLayer() {
         ctx.translate(l.x, l.y);
         ctx.rotate(l.rotation || 0);
 
-        if (isSelected) {
+        if (spec.isRound) {
+          // 원형 직부/센서 조명: 지름 기준 원형 렌더링
+          const radiusPx = hPx / 2;
+          if (isSelected) {
+            ctx.beginPath();
+            ctx.arc(0, 0, radiusPx + 4, 0, 2 * Math.PI);
+            ctx.fillStyle = 'rgba(242, 162, 0, 0.3)';
+            ctx.fill();
+          }
+
           ctx.beginPath();
-          ctx.rect(-hPx / 2 - 4, -wPx / 2 - 4, hPx + 8, wPx + 8);
-          ctx.fillStyle = 'rgba(242, 162, 0, 0.3)';
+          ctx.arc(0, 0, radiusPx, 0, 2 * Math.PI);
+          ctx.fillStyle = l.color || '#007AFF';
+          ctx.shadowColor = 'rgba(0,0,0,0.4)';
+          ctx.shadowBlur = 5;
+          ctx.fill();
+          ctx.shadowBlur = 0;
+
+          ctx.beginPath();
+          ctx.arc(0, 0, radiusPx - 4, 0, 2 * Math.PI);
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+          ctx.fill();
+        } else {
+          if (isSelected) {
+            ctx.beginPath();
+            ctx.rect(-hPx / 2 - 4, -wPx / 2 - 4, hPx + 8, wPx + 8);
+            ctx.fillStyle = 'rgba(242, 162, 0, 0.3)';
+            ctx.fill();
+          }
+
+          // Body (blue, 지정 컬러 고정)
+          ctx.beginPath();
+          ctx.rect(-hPx / 2, -wPx / 2, hPx, wPx);
+          ctx.fillStyle = l.color || '#007AFF';
+          ctx.shadowColor = 'rgba(0,0,0,0.4)';
+          ctx.shadowBlur = 5;
+          ctx.fill();
+          ctx.shadowBlur = 0;
+
+          // Diffuser core (밝은 안쪽 패널)
+          ctx.beginPath();
+          ctx.rect(-hPx / 2 + 4, -wPx / 2 + 4, hPx - 8, wPx - 8);
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
           ctx.fill();
         }
-
-        // Body (blue, 지정 컬러 고정)
-        ctx.beginPath();
-        ctx.rect(-hPx / 2, -wPx / 2, hPx, wPx);
-        ctx.fillStyle = l.color || '#007AFF';
-        ctx.shadowColor = 'rgba(0,0,0,0.4)';
-        ctx.shadowBlur = 5;
-        ctx.fill();
-        ctx.shadowBlur = 0;
-
-        // Diffuser core (밝은 안쪽 패널)
-        ctx.beginPath();
-        ctx.rect(-hPx / 2 + 4, -wPx / 2 + 4, hPx - 8, wPx - 8);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
-        ctx.fill();
 
         ctx.restore();
       } else {
@@ -5717,7 +5798,8 @@ async function exportToExcel() {
           : spec.category === 'linebar'   ? '라인/마그네틱'
           : spec.category === 'multi'     ? '멀티매입등'
           : spec.category === 'roomlight' ? '방등/거실등'
-          : spec.category === 'direct'    ? '메인등'
+          : spec.category === 'direct'    ? '직부등'
+          : spec.category === 'sensor'    ? '센서'
           : spec.category === 'smarthome' ? '스마트홈 기기'
           : spec.category === 'etc'       ? '기타'
           : '조명';
@@ -6046,7 +6128,8 @@ async function exportToExcel() {
             : spec.category === 'linebar'   ? '라인/마그네틱'
             : spec.category === 'multi'     ? '멀티매입등'
             : spec.category === 'roomlight' ? '방등/거실등'
-            : spec.category === 'direct'    ? '메인등'
+            : spec.category === 'direct'    ? '직부등'
+            : spec.category === 'sensor'    ? '센서'
             : spec.category === 'smarthome' ? '스마트홈 기기'
             : spec.category === 'etc'       ? '기타'
             : '조명';
@@ -6198,7 +6281,8 @@ async function exportToExcel() {
             : spec.category === 'linebar'   ? '라인/마그네틱'
             : spec.category === 'multi'     ? '멀티매입등'
             : spec.category === 'roomlight' ? '방등/거실등'
-            : spec.category === 'direct'    ? '메인등'
+            : spec.category === 'direct'    ? '직부등'
+            : spec.category === 'sensor'    ? '센서'
             : spec.category === 'smarthome' ? '스마트홈 기기'
             : spec.category === 'etc'       ? '기타'
             : '조명';
