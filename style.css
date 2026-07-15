@@ -2495,6 +2495,7 @@ body {
   background-color: #00549b;
 }
 .quote-btn-toggle svg {
+  transform: rotate(0deg);
   transition: transform 0.2s;
 }
 .quote-btn-toggle.open {
@@ -2502,6 +2503,16 @@ body {
 }
 .quote-btn-toggle.open svg {
   transform: rotate(180deg);
+}
+
+/* 비회원: 토글/드롭다운 없이 견적 다운로드만 노출 (Figma 58:866) */
+.quote-menu-wrap.guest-mode .quote-btn-toggle,
+.quote-menu-wrap.guest-mode .hamburger-dropdown {
+  display: none !important;
+}
+.quote-menu-wrap.guest-mode .quote-btn-download {
+  border-radius: 60px;
+  padding: 7px 14px 8px 14px;
 }
 
 .header-auth-links {

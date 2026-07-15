@@ -22,7 +22,7 @@
   <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:image" content="https://zibis-lighting-planner.pages.dev/share.png" />
-  <link rel="stylesheet" type="text/css" href="style.css?v=27" />
+  <link rel="stylesheet" type="text/css" href="style.css?v=28" />
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
@@ -156,7 +156,7 @@
         </button>
 
         <!-- 견적 통합 드롭다운: 다운로드(즉시 실행) / 상담하기 / 상담내역(드롭다운) -->
-        <div class="quote-menu-wrap" style="position: relative; display: flex; gap: 1px; height: 34px;">
+        <div class="quote-menu-wrap" id="quoteMenuWrap" style="position: relative; display: flex; gap: 1px; height: 34px;">
           <button class="quote-btn-download" id="btnQuoteDownloadDirect" title="견적 다운로드">
             <svg width="19" height="19" viewBox="0 0 19 19" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path fill-rule="evenodd" clip-rule="evenodd" d="M11.5329 2.17708L3.42411 2.17708V16.8229H15.5756V6.38737L11.5329 2.17708Z" stroke="white" stroke-width="1.2" stroke-linecap="square"/>
@@ -652,7 +652,7 @@
             </div>
             <div class="card-title">밝은 집중 공간</div>
             <div class="card-desc">"도서관이나 공부방처럼 맑고 그림자 없는 선명한 밝기"</div>
-            <div class="card-meta">평당 1,250 lm (약 380 lx)</div>
+            <div class="card-meta">평당 1,250 lm</div>
           </div>
           <div class="zone-type-card" id="cardCozy" data-lumen="700">
             <div class="card-icon">
@@ -660,7 +660,7 @@
             </div>
             <div class="card-title">아늑한 휴식 공간</div>
             <div class="card-desc">"호텔이나 감성 카페처럼 눈이 편안하고 따뜻한 밝기"</div>
-            <div class="card-meta">평당 700 lm (약 210 lx)</div>
+            <div class="card-meta">평당 700 lm</div>
           </div>
         </div>
       </div>

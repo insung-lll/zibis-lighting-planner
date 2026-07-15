@@ -7794,6 +7794,10 @@ function updateAuthUI(user, profile) {
   const btnMenuQuoteHistory = document.getElementById('btnMenuQuoteHistory');
   if (btnMenuQuoteConsult) btnMenuQuoteConsult.style.display = canSeeConsultation ? 'flex' : 'none';
   if (btnMenuQuoteHistory) btnMenuQuoteHistory.style.display = canSeeConsultation ? 'flex' : 'none';
+
+  // 비회원은 드롭다운 토글 없이 견적 다운로드 버튼만 노출
+  const quoteMenuWrap = document.getElementById('quoteMenuWrap');
+  if (quoteMenuWrap) quoteMenuWrap.classList.toggle('guest-mode', !user);
 }
 
 // Load My Estimates List
