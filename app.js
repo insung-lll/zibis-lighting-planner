@@ -394,8 +394,9 @@ const state = {
   activeProductLine: 'zibis_iot',
   selectedZoneId: null,
   selectedDimensionId: null,
+  requiredHub: false, // IoT 조명이 프로젝트에 1개라도 있으면 true (프로젝트 단위, 존 단위 아님)
 
-  
+
   // Items Arrays
   lights: [],
   zones: [],
@@ -699,13 +700,13 @@ const zoneColors = ['#007aff', '#34c759', '#ff9500', '#ff3b30', '#af52de', '#5ac
 const CATEGORY_PILLS_BY_LINE = {
   zibis_iot: [
     { key: 'downlight', label: '다운라이트' },
-    { key: 'direct', label: '직부등' },
+    { key: 'direct', label: '메인등' },
     { key: 'multi', label: '멀티매입등' },
     { key: 'linebar', label: '라인/마그네틱' }
   ],
   zibis_general: [
-    { key: 'direct', label: '직부등' },
-    { key: 'sensor', label: '센서' }
+    { key: 'direct', label: '현관/베란다등' },
+    { key: 'sensor', label: '센서등' }
   ]
 };
 
@@ -3910,8 +3911,8 @@ function renderSuggestTags(zoneType) {
   
   tagsContainer.innerHTML = '';
   
-  const cozyTags = ['안방/침실', '거실 (휴식용)', '복도', '드레스룸'];
-  const focusTags = ['주방/부엌', '거실 (작업용)', '서재', '공부방', '화장실'];
+  const cozyTags = ['안방/침실', '거실 (휴식용)', '복도'];
+  const focusTags = ['주방/부엌', '거실 (작업용)', '서재', '공부방', '화장실', '드레스룸'];
   const tags = zoneType === 'cozy' ? cozyTags : focusTags;
   
   tags.forEach(tag => {
@@ -4268,7 +4269,13 @@ function recalculateAllZones() {
       });
     }
   });
-  
+
+  // IoT 조명이 프로젝트 전체에 1개라도 설치되면 허브 1개 자동 추가 (존 단위가 아닌 프로젝트 단위)
+  state.requiredHub = state.lights.some(l => {
+    const spec = fixtureDatabase.find(f => f.id === l.typeId);
+    return spec && spec.productLine === 'zibis_iot';
+  });
+
   // Detect overlapping lights across all zones
   detectOverlappingLights();
 
@@ -4539,6 +4546,7 @@ function renderBOMTable() {
         groups[l.typeId] = {
           name: l.name,
           category: spec ? spec.category : '',
+          productLine: spec ? spec.productLine : null,
           watt: isLine ? 0 : l.watt,
           lumen: isLine ? 0 : l.lumen,
           price: currentPrice,
@@ -4617,14 +4625,14 @@ function renderBOMTable() {
     totalCost += magneticGroupTotalCost;
   }
 
-  // Helper for type labels
-  function getFixtureTypeLabel(category) {
+  // Helper for type labels (direct/sensor는 라인에 따라 명칭이 다름)
+  function getFixtureTypeLabel(category, productLine) {
     if (category === 'downlight') return '매입 다운라이트';
     if (category === 'linebar') return '라인/마그네틱';
     if (category === 'multi') return '멀티매입등';
     if (category === 'roomlight') return '방등/거실등';
-    if (category === 'direct') return '직부등';
-    if (category === 'sensor') return '센서';
+    if (category === 'direct') return productLine === 'zibis_general' ? '현관/베란다등' : '메인등';
+    if (category === 'sensor') return '센서등';
     if (category === 'smarthome') return '스마트홈 기기';
     if (category === 'etc') return '기타';
     return '조명';
@@ -4693,7 +4701,7 @@ function renderBOMTable() {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td><strong>${g.name}</strong></td>
-      <td>${getFixtureTypeLabel(g.category)}</td>
+      <td>${getFixtureTypeLabel(g.category, g.productLine)}</td>
       <td>${g.watt}W</td>
       <td>${g.lumen} lm</td>
       <td>${g.qty}개</td>
@@ -4764,7 +4772,27 @@ function renderBOMTable() {
       });
     }
   });
-  
+
+  // 2.3 허브 (프로젝트 전체에 IoT 조명이 1개라도 있으면 1개, 존 필터가 "전체"일 때만 노출)
+  if (state.bomFilterZoneId === null && state.requiredHub) {
+    const hubPrice = getDBProductPrice('허브', 200000);
+    totalCost += hubPrice;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>허브</strong></td>
+      <td>허브</td>
+      <td>-</td>
+      <td>-</td>
+      <td>1개</td>
+      <td><strong>₩${hubPrice.toLocaleString()}</strong></td>
+      <td>
+        <span style="font-size:11px;color:var(--text-dim);">자동 배정</span>
+      </td>
+    `;
+    els.bomTableBody.appendChild(tr);
+  }
+
   // 3. Render total cost row
   const totalTr = document.createElement('tr');
   totalTr.style.borderTop = '2px solid var(--border)';
@@ -6044,7 +6072,7 @@ async function exportToExcel() {
     { key: 'C', width: 35 }, // 조명 모델 / 자재명
     { key: 'D', width: 18 }, // 구분 (타입)
     { key: 'E', width: 14 }, // 소비전력 (W)
-    { key: 'F', width: 14 }, // 광량 (lm)
+    { key: 'F', width: 14 }, // 총 와트수
     { key: 'G', width: 12 }, // 배치 수량
     { key: 'H', width: 16 }, // 예상 금액
     { key: 'I', width: 18 }  // 품번 (이카운트 ERP)
@@ -6118,8 +6146,8 @@ async function exportToExcel() {
           : spec.category === 'linebar'   ? '라인/마그네틱'
           : spec.category === 'multi'     ? '멀티매입등'
           : spec.category === 'roomlight' ? '방등/거실등'
-          : spec.category === 'direct'    ? '직부등'
-          : spec.category === 'sensor'    ? '센서'
+          : spec.category === 'direct'    ? (spec.productLine === 'zibis_general' ? '현관/베란다등' : '메인등')
+          : spec.category === 'sensor'    ? '센서등'
           : spec.category === 'smarthome' ? '스마트홈 기기'
           : spec.category === 'etc'       ? '기타'
           : '조명';
@@ -6198,6 +6226,19 @@ async function exportToExcel() {
       });
     }
   });
+
+  // 5.3 허브 (프로젝트 전체에 IoT 조명이 1개라도 있으면 1개, 존 단위 아님)
+  if (state.requiredHub) {
+    allProducts['hub'] = {
+      name: '허브',
+      type: '허브',
+      color: null,
+      price: getDBProductPrice('허브', 200000),
+      ecountProdCd: getDBProductProdCd('허브'),
+      qty: 1,
+      isLine: false
+    };
+  }
 
   // Helper to format cells
   function applyRowStyles(row, isItalic) {
@@ -6384,7 +6425,7 @@ async function exportToExcel() {
   worksheet.getRow(currentRowNum).height = 28;
   currentRowNum++;
   
-  const bomHeaders = ['공간 분류', '조명 모델 / 자재명', '구분 (타입)', '소비전력 (W)', '광량 (lm)', '배치 수량', '예상 금액', '품번'];
+  const bomHeaders = ['공간 분류', '조명 모델 / 자재명', '구분 (타입)', '소비전력 (W)', '총 와트수', '배치 수량', '예상 금액', '품번'];
   const bomHeaderRow = worksheet.getRow(currentRowNum);
   bomHeaderRow.height = 25;
   
@@ -6448,8 +6489,8 @@ async function exportToExcel() {
             : spec.category === 'linebar'   ? '라인/마그네틱'
             : spec.category === 'multi'     ? '멀티매입등'
             : spec.category === 'roomlight' ? '방등/거실등'
-            : spec.category === 'direct'    ? '직부등'
-            : spec.category === 'sensor'    ? '센서'
+            : spec.category === 'direct'    ? (spec.productLine === 'zibis_general' ? '현관/베란다등' : '메인등')
+            : spec.category === 'sensor'    ? '센서등'
             : spec.category === 'smarthome' ? '스마트홈 기기'
             : spec.category === 'etc'       ? '기타'
             : '조명';
@@ -6487,7 +6528,7 @@ async function exportToExcel() {
       row.getCell(3).value = g.name;
       row.getCell(4).value = g.type;
       row.getCell(5).value = g.watt ? g.watt + 'W' : '-';
-      row.getCell(6).value = g.lumen ? g.lumen + ' lm' : '-';
+      row.getCell(6).value = g.watt ? (g.watt * g.qty) + 'W' : '-';
       row.getCell(7).value = g.qty;
       row.getCell(8).value = rowCost;
       row.getCell(8).numFmt = '#,##0';
@@ -6564,7 +6605,29 @@ async function exportToExcel() {
       mergedCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
     }
   });
-  
+
+  // 허브 (프로젝트 전체에 IoT 조명이 1개라도 있으면 1개, 존 단위 아님)
+  if (state.requiredHub) {
+    const hubPrice = getDBProductPrice('허브', 200000);
+    totalCost += hubPrice;
+
+    const row = worksheet.getRow(currentRowNum);
+    row.height = 22;
+
+    row.getCell(2).value = '전체';
+    row.getCell(3).value = '허브';
+    row.getCell(4).value = '허브';
+    row.getCell(5).value = '-';
+    row.getCell(6).value = '-';
+    row.getCell(7).value = 1;
+    row.getCell(8).value = hubPrice;
+    row.getCell(8).numFmt = '#,##0';
+    row.getCell(9).value = getDBProductProdCd('허브') || '-';
+
+    applyRowStyles(row, false);
+    currentRowNum++;
+  }
+
   // Process lights outside any zone
   if (outsideLights.length > 0) {
     const startRow = currentRowNum;
@@ -6601,8 +6664,8 @@ async function exportToExcel() {
             : spec.category === 'linebar'   ? '라인/마그네틱'
             : spec.category === 'multi'     ? '멀티매입등'
             : spec.category === 'roomlight' ? '방등/거실등'
-            : spec.category === 'direct'    ? '직부등'
-            : spec.category === 'sensor'    ? '센서'
+            : spec.category === 'direct'    ? (spec.productLine === 'zibis_general' ? '현관/베란다등' : '메인등')
+            : spec.category === 'sensor'    ? '센서등'
             : spec.category === 'smarthome' ? '스마트홈 기기'
             : spec.category === 'etc'       ? '기타'
             : '조명';
@@ -6639,7 +6702,7 @@ async function exportToExcel() {
       row.getCell(3).value = g.name;
       row.getCell(4).value = g.type;
       row.getCell(5).value = g.watt ? g.watt + 'W' : '-';
-      row.getCell(6).value = g.lumen ? g.lumen + ' lm' : '-';
+      row.getCell(6).value = g.watt ? (g.watt * g.qty) + 'W' : '-';
       row.getCell(7).value = g.qty;
       row.getCell(8).value = rowCost;
       row.getCell(8).numFmt = '#,##0';
