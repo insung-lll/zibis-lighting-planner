@@ -8,6 +8,8 @@ let allRows = [];       // all fetched consultation records
 let currentRow = null;  // currently opened detail modal record
 let allProducts = [];        // all fetched product records
 let productsLoaded = false;  // lazy-load guard
+let currentBomRows = [];     // BOM rows for the currently opened detail modal (for excel export)
+let currentBomTotal = 0;     // BOM total for the currently opened detail modal
 
 // ==================== AUTH GATE ====================
 async function checkAdminAuth() {
@@ -44,8 +46,8 @@ async function checkAdminAuth() {
     adminMain.style.display = 'block';
   }, 400);
 
-  // 4. 데이터 로드
-  await loadConsultations();
+  // 4. 데이터 로드 (제품 목록은 상담 상세 BOM의 품번 조회에도 필요해 함께 로드)
+  await Promise.all([loadConsultations(), loadProducts()]);
   bindEvents();
 }
 
@@ -93,7 +95,7 @@ function renderTable(rows) {
     const dateStr = dt.toLocaleDateString('ko-KR', { year: '2-digit', month: '2-digit', day: '2-digit' }) +
       ' ' + dt.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
     const phone = formatPhone(r.phone);
-    const statusClass = 'status-' + (r.status || '상담대기');
+    const statusClass = 'status-' + (r.status || '상담대기').replace(/\s+/g, '');
     const statusLabel = r.status || '상담대기';
     return `
       <tr>
@@ -132,7 +134,7 @@ function applyFilter() {
 async function loadProducts() {
   const { data, error } = await sb
     .from('products')
-    .select('id, name, category, product_line, price')
+    .select('id, name, category, product_line, price, ecount_prod_cd')
     .order('name', { ascending: true });
 
   if (error) {
@@ -267,6 +269,8 @@ async function loadBom(quoteId) {
   bomBody.innerHTML = '';
   noBom.style.display = 'none';
   lblTotal.textContent = '₩0';
+  currentBomRows = [];
+  currentBomTotal = 0;
 
   if (!quoteId) { noBom.style.display = 'block'; return; }
 
@@ -281,39 +285,101 @@ async function loadBom(quoteId) {
   const lights = quote.project_data.lights || [];
   if (lights.length === 0) { noBom.style.display = 'block'; return; }
 
-  // Aggregate by typeId
+  // Aggregate by typeId, resolving 품번/단가 from the products table when available
   const agg = {};
   lights.forEach(l => {
     if (!agg[l.typeId]) {
+      const product = allProducts.find(p => p.id === l.typeId);
       agg[l.typeId] = {
-        name: l.label || l.typeId,
-        category: l.category || '-',
+        code: (product && product.ecount_prod_cd) || '-',
+        name: l.name || (product && product.name) || l.typeId,
         count: 0,
-        price: l.consumerPrice || 0
+        price: typeof l.price === 'number' ? l.price : Number((product && product.price) || 0)
       };
     }
     agg[l.typeId].count++;
   });
 
-  let total = 0;
-  Object.values(agg).forEach(item => {
+  currentBomRows = Object.values(agg);
+  currentBomRows.forEach(item => {
     const subtotal = item.price * item.count;
-    total += subtotal;
+    currentBomTotal += subtotal;
     bomBody.innerHTML += `
       <tr>
-        <td style="color:var(--text-dim);">${item.category}</td>
+        <td style="color:var(--text-dim); font-size:11px;">${item.code}</td>
         <td>${item.name}</td>
         <td style="text-align:center;">${item.count}</td>
         <td style="text-align:right;">${item.price > 0 ? '₩' + item.price.toLocaleString() : '-'}</td>
       </tr>`;
   });
 
-  lblTotal.textContent = total > 0 ? '₩' + total.toLocaleString() : '정보 없음';
+  lblTotal.textContent = '₩' + currentBomTotal.toLocaleString();
 }
 
 function closeDetail() {
   document.getElementById('detailModal').classList.remove('open');
   currentRow = null;
+}
+
+// ==================== EXCEL EXPORT ====================
+async function exportQuoteToExcel() {
+  if (!currentRow) return;
+  if (currentBomRows.length === 0) {
+    showToast('다운로드할 자재 정보가 없습니다.');
+    return;
+  }
+
+  const workbook = new ExcelJS.Workbook();
+  const ws = workbook.addWorksheet('견적서');
+  ws.getColumn(1).width = 20;
+  ws.getColumn(2).width = 42;
+  ws.getColumn(3).width = 10;
+  ws.getColumn(4).width = 14;
+  ws.getColumn(5).width = 16;
+
+  const titleRow = ws.addRow(['ZIBIS 견적서']);
+  titleRow.getCell(1).font = { name: 'Malgun Gothic', bold: true, size: 16 };
+  ws.addRow([]);
+
+  const addInfoRow = (label, value) => {
+    const row = ws.addRow([label, value]);
+    row.getCell(1).font = { name: 'Malgun Gothic', bold: true, color: { argb: 'FF999999' } };
+    row.getCell(2).font = { name: 'Malgun Gothic' };
+  };
+  addInfoRow('성함', currentRow.name || '-');
+  addInfoRow('연락처', formatPhone(currentRow.phone) || '-');
+  addInfoRow('시공지 주소', currentRow.address || '-');
+  addInfoRow('희망 시공일', currentRow.hope_date || '미정');
+  ws.addRow([]);
+
+  const headerRow = ws.addRow(['품번', '자재명', '수량', '단가', '합계']);
+  headerRow.eachCell(cell => {
+    cell.font = { name: 'Malgun Gothic', bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } };
+    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+  });
+
+  currentBomRows.forEach(item => {
+    const subtotal = item.price * item.count;
+    const row = ws.addRow([item.code, item.name, item.count, item.price, subtotal]);
+    row.getCell(3).alignment = { horizontal: 'center' };
+    row.getCell(4).numFmt = '#,##0';
+    row.getCell(5).numFmt = '#,##0';
+  });
+
+  const totalRow = ws.addRow(['', '', '', '총 금액', currentBomTotal]);
+  totalRow.getCell(4).font = { name: 'Malgun Gothic', bold: true };
+  totalRow.getCell(5).font = { name: 'Malgun Gothic', bold: true };
+  totalRow.getCell(5).numFmt = '#,##0';
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${currentRow.name || '견적'}_지비스_견적서_${Date.now()}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ==================== STATUS UPDATE ====================
@@ -365,6 +431,7 @@ function bindEvents() {
   document.getElementById('btnRefresh').addEventListener('click', loadConsultations);
   document.getElementById('btnModalClose').addEventListener('click', closeDetail);
   document.getElementById('btnSaveStatus').addEventListener('click', saveStatus);
+  document.getElementById('btnExportExcel').addEventListener('click', exportQuoteToExcel);
 
   // Close modal on backdrop click
   document.getElementById('detailModal').addEventListener('click', (e) => {
