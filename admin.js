@@ -261,6 +261,27 @@ async function openDetail(id) {
   modal.classList.add('open');
 }
 
+// ==================== BOM ACCESSORY LOOKUPS (mirrors app.js auto-added 컨버터/컨트롤러/허브 pricing) ====================
+function findAdminProductByName(namePattern) {
+  return allProducts.find(p => (p.name || '').includes(namePattern));
+}
+function findAdminConverter(watt) {
+  return allProducts.find(p => (p.category || '').trim() === '컨버터' && (p.name || '').includes(`${watt}W`));
+}
+function findAdminController() {
+  return allProducts.find(p => (p.category || '').trim() === '컨트롤러' || (p.name || '').includes('컨트롤러'));
+}
+function toBomItem(product, fallbackName, fallbackPrice, qty) {
+  return {
+    code: (product && product.ecount_prod_cd) || '-',
+    name: product ? product.name : fallbackName,
+    count: qty,
+    price: product ? Number(product.price) : fallbackPrice
+  };
+}
+
+const MAGNETIC_RAIL_TYPE_IDS = ['magnetic-rail', 'fe1f7195-3630-49c0-8cda-f5ea732cfe57'];
+
 async function loadBom(quoteId) {
   const bomBody = document.getElementById('bomBody');
   const noBom = document.getElementById('noBom');
@@ -282,12 +303,25 @@ async function loadBom(quoteId) {
 
   if (error || !quote || !quote.project_data) { noBom.style.display = 'block'; return; }
 
-  const lights = quote.project_data.lights || [];
+  const pd = quote.project_data;
+  const lights = pd.lights || [];
+  const zones = pd.zones || [];
   if (lights.length === 0) { noBom.style.display = 'block'; return; }
 
-  // Aggregate by typeId, resolving 품번/단가 from the products table when available
+  const rows = [];
+
+  // 1) 일반 조명 기구: typeId별 집계 (마그네틱 레일은 2)에서 별도 처리)
   const agg = {};
+  let magneticTotalLenM = 0;
+  const ppm = pd.pixelsPerMeter || 50;
   lights.forEach(l => {
+    if (MAGNETIC_RAIL_TYPE_IDS.includes(l.typeId)) {
+      const dx = (l.x2 ?? l.x) - l.x;
+      const dy = (l.y2 ?? l.y) - l.y;
+      const lenPx = Math.sqrt(dx * dx + dy * dy);
+      magneticTotalLenM += ppm > 0 ? lenPx / ppm : 0;
+      return;
+    }
     if (!agg[l.typeId]) {
       const product = allProducts.find(p => p.id === l.typeId);
       agg[l.typeId] = {
@@ -299,9 +333,47 @@ async function loadBom(quoteId) {
     }
     agg[l.typeId].count++;
   });
+  rows.push(...Object.values(agg));
 
-  currentBomRows = Object.values(agg);
-  currentBomRows.forEach(item => {
+  // 2) 마그네틱 레일 시스템 (레일 + 전용 컨버터/컨트롤러/부자재, 2M 단위 올림 계산)
+  if (magneticTotalLenM > 0) {
+    const n2 = Math.ceil(Math.ceil(magneticTotalLenM) / 2);
+    const nConn = Math.max(0, n2 - 1);
+    if (n2 > 0) rows.push(toBomItem(findAdminProductByName('마그네틱 레일 2M'), '마그네틱 레일 2M', 46560, n2));
+    rows.push(toBomItem(findAdminConverter(150), '마그네틱 컨버터 150W (유니온)', 44100, 1));
+    rows.push(toBomItem(findAdminController(), '마그네틱 컨트롤러', 35000, 1));
+    if (nConn > 0) rows.push(toBomItem(findAdminProductByName('마그네틱 연결선'), '마그네틱 연결선', 18720, nConn));
+    rows.push(toBomItem(findAdminProductByName('마그네틱 전원선'), '마그네틱 전원선', 16320, 1));
+    rows.push(toBomItem(findAdminProductByName('마그네틱 마감캡'), '마그네틱 마감캡', 360, 1));
+  }
+
+  // 3) 존별 자동 산출된 컨버터(SMPS)/컨트롤러를 프로젝트 단위로 합산
+  const smpsCounts = {};
+  let controllerQty = 0;
+  zones.forEach(zone => {
+    (zone.requiredSMPS || []).forEach(cap => { smpsCounts[cap] = (smpsCounts[cap] || 0) + 1; });
+    (zone.requiredControllers || []).forEach(ctrl => {
+      controllerQty += typeof ctrl === 'string' ? 1 : (ctrl.qty || 1);
+    });
+  });
+  Object.entries(smpsCounts).forEach(([cap, qty]) => {
+    rows.push(toBomItem(findAdminConverter(cap), `IoT 컨버터 ${cap}W`, 0, qty));
+  });
+  if (controllerQty > 0) {
+    rows.push(toBomItem(findAdminController(), 'IoT 컨트롤러', 0, controllerQty));
+  }
+
+  // 4) 허브: 프로젝트 전체에 IoT 조명이 1개라도 있으면 1개 (존 단위 아님)
+  const hasIot = lights.some(l => {
+    const product = allProducts.find(p => p.id === l.typeId);
+    return product ? product.product_line === 'zibis_iot' : true; // 매칭 안되는 레거시 typeId는 대부분 IoT 라인이므로 기본 포함
+  });
+  if (hasIot) {
+    rows.push(toBomItem(findAdminProductByName('허브'), '허브', 200000, 1));
+  }
+
+  currentBomRows = rows;
+  rows.forEach(item => {
     const subtotal = item.price * item.count;
     currentBomTotal += subtotal;
     bomBody.innerHTML += `

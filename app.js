@@ -5875,13 +5875,18 @@ function loadProjectData(data) {
     state.uploadedImage = img;
     state.pixelsPerMeter = data.pixelsPerMeter || 50;
     state.ceilingHeight = data.ceilingHeight || 2.4;
-    // 불러온 조명의 price 및 typeId를 fixtureDatabase 최신 단가 및 ID로 갱신
+    // 불러온 조명의 name/price/typeId를 fixtureDatabase 최신 정보로 갱신
     state.lights = (data.lights || []).map(l => {
       let spec = fixtureDatabase.find(f => f.id === l.typeId);
       if (!spec && l.name) {
         spec = fixtureDatabase.find(f => f.name === l.name);
       }
-      return spec ? { ...l, typeId: spec.id, price: spec.price } : l;
+      // 카탈로그 개편(예: 색상별 품목 분리)으로 이름이 완전히 일치하지 않는 경우를 대비한 보조 매칭.
+      // fixtureDatabase는 init()에서 이미 정렬되어 있어 동일 접두사 후보 중 항상 같은 항목이 결정적으로 선택된다.
+      if (!spec && l.name) {
+        spec = fixtureDatabase.find(f => f.name && f.name.startsWith(l.name));
+      }
+      return spec ? { ...l, typeId: spec.id, name: spec.name, price: spec.price } : l;
     });
     state.zones = data.zones || [];
     state.bomFilterZoneId = null;
