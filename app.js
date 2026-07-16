@@ -7002,6 +7002,7 @@ function setupAuthEventListeners() {
   const changePasswordOverlay = document.getElementById('changePasswordOverlay');
   const myEstimatesOverlay = document.getElementById('myEstimatesOverlay');
   const myConsultationsOverlay = document.getElementById('myConsultationsOverlay');
+  const controllerMarkOverlay = document.getElementById('controllerMarkOverlay');
   const feedbackOverlay = document.getElementById('feedbackOverlay');
 
   // 견적 통합 드롭다운 (다운로드 / 상담하기 / 상담내역)
@@ -7025,6 +7026,7 @@ function setupAuthEventListeners() {
   const btnCloseChangePassword = document.getElementById('btnCloseChangePassword');
   const btnCloseMyEstimates = document.getElementById('btnCloseMyEstimates');
   const btnCloseMyConsultations = document.getElementById('btnCloseMyConsultations');
+  const btnCloseControllerMark = document.getElementById('btnCloseControllerMark');
   const btnCloseFeedback = document.getElementById('btnCloseFeedback');
 
   // Modal Transitions
@@ -7214,6 +7216,14 @@ function setupAuthEventListeners() {
   if (btnCloseChangePassword) btnCloseChangePassword.onclick = () => changePasswordOverlay.style.display = 'none';
   if (btnCloseMyEstimates) btnCloseMyEstimates.onclick = () => myEstimatesOverlay.style.display = 'none';
   if (btnCloseMyConsultations) btnCloseMyConsultations.onclick = () => myConsultationsOverlay.style.display = 'none';
+  if (btnCloseControllerMark) btnCloseControllerMark.onclick = () => closeControllerMarkModal();
+  const btnControllerMarkClear = document.getElementById('btnControllerMarkClear');
+  const btnControllerMarkSave = document.getElementById('btnControllerMarkSave');
+  if (btnControllerMarkClear) btnControllerMarkClear.onclick = () => {
+    controllerMarkState.markers = [];
+    renderControllerMarkPins();
+  };
+  if (btnControllerMarkSave) btnControllerMarkSave.onclick = () => saveControllerMarkers();
   if (btnCloseFeedback) btnCloseFeedback.onclick = () => feedbackOverlay.style.display = 'none';
   
   const btnCloseOnboarding = document.getElementById('btnCloseOnboarding');
@@ -7974,6 +7984,8 @@ async function loadMyEstimatesList() {
 function getConsultStatusBadge(status) {
   if (status === '상담대기') return { cls: 'waiting', label: '상담대기' };
   if (status === '취소') return { cls: 'cancelled', label: '취소됨' };
+  if (status === '견적 발송') return { cls: 'sent', label: '견적 발송' };
+  if (status === '발주 확정') return { cls: 'confirmed', label: '발주 확정' };
   return { cls: 'done', label: '상담완료' };
 }
 
@@ -7987,7 +7999,7 @@ async function loadMyConsultations() {
 
   const { data, error } = await supabaseClient
     .from('ConsultationRequest')
-    .select('id, address, hope_date, status, created_at')
+    .select('id, address, hope_date, status, created_at, image_url, controller_markers, controller_confirmed')
     .eq('user_id', authUser.id)
     .order('created_at', { ascending: false });
 
@@ -8008,6 +8020,10 @@ async function loadMyConsultations() {
     const dateStr = new Date(item.created_at).toLocaleString();
     const badge = getConsultStatusBadge(item.status);
     const canCancel = item.status === '상담대기';
+    const markerCount = (item.controller_markers || []).length;
+    const markLabel = item.controller_confirmed ? '컨트롤러 확인완료'
+      : markerCount > 0 ? `컨트롤러 위치 수정 (${markerCount})`
+      : '컨트롤러 위치 표시';
 
     el.innerHTML = `
       <div class="estimate-info">
@@ -8016,9 +8032,15 @@ async function loadMyConsultations() {
       </div>
       <div class="estimate-actions">
         <span class="consult-status-badge ${badge.cls}">${badge.label}</span>
+        ${item.image_url ? `<button class="btn-est-action load" data-mark-id="${item.id}">${markLabel}</button>` : ''}
         ${canCancel ? `<button class="btn-est-action delete" data-id="${item.id}">취소</button>` : ''}
       </div>
     `;
+
+    const markBtn = el.querySelector('[data-mark-id]');
+    if (markBtn) {
+      markBtn.onclick = () => openControllerMarkModal(item);
+    }
 
     if (canCancel) {
       el.querySelector('.delete').onclick = async () => {
@@ -8040,6 +8062,80 @@ async function loadMyConsultations() {
 
     listContainer.appendChild(el);
   });
+}
+
+// ==================== CONTROLLER MARKING (컨트롤러 위치 표시) ====================
+const controllerMarkState = {
+  requestId: null,
+  markers: [] // [{ x, y }] normalized 0~1 relative to the floor plan image
+};
+
+function openControllerMarkModal(item) {
+  controllerMarkState.requestId = item.id;
+  controllerMarkState.markers = (item.controller_markers || []).map(m => ({ x: m.x, y: m.y }));
+
+  const overlay = document.getElementById('controllerMarkOverlay');
+  const img = document.getElementById('controllerMarkImg');
+  img.src = item.image_url;
+  overlay.style.display = 'flex';
+  renderControllerMarkPins();
+
+  const wrap = document.getElementById('controllerMarkCanvasWrap');
+  wrap.onclick = (e) => {
+    if (e.target.closest('.controller-mark-pin')) return; // 핀 클릭은 별도 핸들러(삭제)에서 처리
+    const rect = img.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    if (x < 0 || x > 1 || y < 0 || y > 1) return;
+    controllerMarkState.markers.push({ x, y });
+    renderControllerMarkPins();
+  };
+}
+
+function closeControllerMarkModal() {
+  document.getElementById('controllerMarkOverlay').style.display = 'none';
+  controllerMarkState.requestId = null;
+  controllerMarkState.markers = [];
+}
+
+function renderControllerMarkPins() {
+  const pinsContainer = document.getElementById('controllerMarkPins');
+  pinsContainer.innerHTML = '';
+  controllerMarkState.markers.forEach((m, idx) => {
+    const pin = document.createElement('div');
+    pin.className = 'controller-mark-pin';
+    pin.style.left = (m.x * 100) + '%';
+    pin.style.top = (m.y * 100) + '%';
+    pin.textContent = idx + 1;
+    pin.title = '클릭해서 삭제';
+    pin.onclick = (e) => {
+      e.stopPropagation();
+      controllerMarkState.markers.splice(idx, 1);
+      renderControllerMarkPins();
+    };
+    pinsContainer.appendChild(pin);
+  });
+  document.getElementById('controllerMarkCount').textContent = `${controllerMarkState.markers.length}개 표시됨`;
+}
+
+async function saveControllerMarkers() {
+  if (!controllerMarkState.requestId) return;
+
+  const { error } = await supabaseClient
+    .from('ConsultationRequest')
+    .update({
+      controller_markers: controllerMarkState.markers,
+      controller_confirmed: false // 마킹이 바뀌면 담당자가 다시 확인해야 하므로 재확인 대기 상태로 되돌림
+    })
+    .eq('id', controllerMarkState.requestId);
+
+  if (error) {
+    alert('저장 실패: ' + error.message);
+    return;
+  }
+
+  closeControllerMarkModal();
+  loadMyConsultations();
 }
 
 // Load Feedback History

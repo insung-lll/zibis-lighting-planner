@@ -1026,6 +1026,30 @@
     </div>
   </div>
 
+  <!-- Controller Marking Modal (견적 상담내역 하위) -->
+  <div class="confirm-overlay" id="controllerMarkOverlay" style="display: none; z-index: 999;">
+    <div class="confirm-dialog controller-mark-dialog" style="position: relative;">
+      <button class="modal-close-btn" id="btnCloseControllerMark">
+        <svg viewBox="0 0 15.5 15.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14.75 0.75L0.75 14.75M0.750014 0.75L14.75 14.75"/>
+        </svg>
+      </button>
+      <h2 class="auth-title" style="text-align: left; margin-bottom: 6px !important;">컨트롤러 위치 표시</h2>
+      <p class="auth-subtitle" style="margin-bottom: 14px;">도면 이미지를 클릭해 IoT 컨트롤러를 설치할 위치를 표시해주세요. 담당자가 확인 후 발주를 진행합니다.</p>
+      <div class="controller-mark-canvas-wrap" id="controllerMarkCanvasWrap">
+        <img id="controllerMarkImg" src="" alt="도면">
+        <div id="controllerMarkPins"></div>
+      </div>
+      <div class="controller-mark-footer">
+        <span class="controller-mark-count" id="controllerMarkCount">0개 표시됨</span>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn-est-action delete" id="btnControllerMarkClear">전체 삭제</button>
+          <button class="btn btn-primary" id="btnControllerMarkSave">저장</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Feedback / Request Modal -->
   <div class="confirm-overlay" id="feedbackOverlay" style="display: none; z-index: 997;">
     <div class="confirm-dialog auth-card" style="height: 560px; max-height: 85vh; display: flex; flex-direction: column; position: relative; text-align: center;">

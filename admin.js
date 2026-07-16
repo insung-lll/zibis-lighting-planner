@@ -10,6 +10,7 @@ let allProducts = [];        // all fetched product records
 let productsLoaded = false;  // lazy-load guard
 let currentBomRows = [];     // BOM rows for the currently opened detail modal (for excel export)
 let currentBomTotal = 0;     // BOM total for the currently opened detail modal
+let currentQuoteHasIot = false; // 현재 모달의 견적이 IoT 제품을 포함하는지 (컨트롤러 확인 소프트 게이트에 사용)
 
 // ==================== AUTH GATE ====================
 async function checkAdminAuth() {
@@ -243,22 +244,39 @@ async function openDetail(id) {
   const sel = document.getElementById('selectModalStatus');
   sel.value = currentRow.status || '상담대기';
 
-  // Blueprint image
+  // Blueprint image + controller markers (고객이 상담내역에서 표시한 위치, 읽기 전용)
+  const wrap = document.getElementById('adminBlueprintWrap');
   const img = document.getElementById('imgBlueprint');
   const noImg = document.getElementById('lblNoImg');
   if (currentRow.image_url) {
     img.src = currentRow.image_url;
-    img.style.display = 'block';
+    wrap.style.display = 'inline-block';
     noImg.style.display = 'none';
   } else {
-    img.style.display = 'none';
+    wrap.style.display = 'none';
     noImg.style.display = 'block';
   }
+  renderAdminMarkerPins(currentRow.controller_markers || []);
+  document.getElementById('lblMarkerCount').textContent = (currentRow.controller_markers || []).length;
+  document.getElementById('chkControllerConfirmed').checked = !!currentRow.controller_confirmed;
 
   // BOM from linked quote
   await loadBom(currentRow.quote_id);
 
   modal.classList.add('open');
+}
+
+function renderAdminMarkerPins(markers) {
+  const pinsContainer = document.getElementById('adminMarkerPins');
+  pinsContainer.innerHTML = '';
+  markers.forEach((m, idx) => {
+    const pin = document.createElement('div');
+    pin.className = 'admin-marker-pin';
+    pin.style.left = (m.x * 100) + '%';
+    pin.style.top = (m.y * 100) + '%';
+    pin.textContent = idx + 1;
+    pinsContainer.appendChild(pin);
+  });
 }
 
 // ==================== BOM ACCESSORY LOOKUPS (mirrors app.js auto-added 컨버터/컨트롤러/허브 pricing) ====================
@@ -292,6 +310,7 @@ async function loadBom(quoteId) {
   lblTotal.textContent = '₩0';
   currentBomRows = [];
   currentBomTotal = 0;
+  currentQuoteHasIot = false;
 
   if (!quoteId) { noBom.style.display = 'block'; return; }
 
@@ -364,11 +383,11 @@ async function loadBom(quoteId) {
   }
 
   // 4) 허브: 프로젝트 전체에 IoT 조명이 1개라도 있으면 1개 (존 단위 아님)
-  const hasIot = lights.some(l => {
+  currentQuoteHasIot = lights.some(l => {
     const product = allProducts.find(p => p.id === l.typeId);
     return product ? product.product_line === 'zibis_iot' : true; // 매칭 안되는 레거시 typeId는 대부분 IoT 라인이므로 기본 포함
   });
-  if (hasIot) {
+  if (currentQuoteHasIot) {
     rows.push(toBomItem(findAdminProductByName('허브'), '허브', 200000, 1));
   }
 
@@ -458,9 +477,17 @@ async function exportQuoteToExcel() {
 async function saveStatus() {
   if (!currentRow) return;
   const newStatus = document.getElementById('selectModalStatus').value;
+  const confirmed = document.getElementById('chkControllerConfirmed').checked;
+
+  // 소프트 게이트: IoT 견적을 발주 확정으로 바꾸는데 컨트롤러 위치 확인이 안 됐으면 한 번 더 확인
+  if (newStatus === '발주 확정' && currentQuoteHasIot && !confirmed) {
+    const proceed = confirm('컨트롤러 위치 확인이 아직 체크되지 않았습니다. 그래도 발주 확정으로 저장하시겠습니까?');
+    if (!proceed) return;
+  }
+
   const { error } = await sb
     .from('ConsultationRequest')
-    .update({ status: newStatus })
+    .update({ status: newStatus, controller_confirmed: confirmed })
     .eq('id', currentRow.id);
 
   if (error) {
@@ -470,8 +497,12 @@ async function saveStatus() {
 
   // Reflect locally
   currentRow.status = newStatus;
+  currentRow.controller_confirmed = confirmed;
   const idx = allRows.findIndex(r => r.id === currentRow.id);
-  if (idx !== -1) allRows[idx].status = newStatus;
+  if (idx !== -1) {
+    allRows[idx].status = newStatus;
+    allRows[idx].controller_confirmed = confirmed;
+  }
 
   showToast(`상태가 '${newStatus}'(으)로 저장되었습니다.`);
   applyFilter();

@@ -2379,6 +2379,76 @@ body {
   background-color: rgba(255, 69, 58, 0.15);
   color: #ff453a;
 }
+.consult-status-badge.sent {
+  background-color: rgba(167, 139, 250, 0.15);
+  color: #a78bfa;
+}
+.consult-status-badge.confirmed {
+  background-color: rgba(0, 112, 243, 0.15);
+  color: var(--accent);
+}
+
+/* Controller Marking Modal */
+.controller-mark-dialog {
+  width: 720px !important;
+  max-width: 95vw;
+  padding: 28px 32px 24px 32px !important;
+  background-color: #1e1e1e !important;
+  border: 1px solid #3a3a3a !important;
+  border-radius: 28px !important;
+  box-sizing: border-box;
+}
+.controller-mark-canvas-wrap {
+  position: relative;
+  width: 100%;
+  max-height: 60vh;
+  overflow: auto;
+  background-color: #0a0a0a;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: crosshair;
+  line-height: 0;
+}
+.controller-mark-canvas-wrap img {
+  display: block;
+  width: 100%;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+}
+.controller-mark-pin {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  margin-left: -13px;
+  margin-top: -13px;
+  background-color: var(--accent);
+  color: #000;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  transition: transform 0.1s;
+}
+.controller-mark-pin:hover {
+  transform: scale(1.15);
+  background-color: #ff453a;
+}
+.controller-mark-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+}
+.controller-mark-count {
+  font-size: 12px;
+  color: var(--text-dim);
+}
 
 /* Feedback List Item Styling */
 .feedback-item {
