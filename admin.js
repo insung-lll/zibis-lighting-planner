@@ -165,7 +165,7 @@ function renderProductTable(rows) {
         <td style="color:var(--text-dim); font-size:12px;">${p.category || '-'}</td>
         <td><span class="line-badge line-${p.product_line || 'zibis_iot'}">${lineLabel}</span></td>
         <td style="text-align:right;">
-          <input type="number" class="price-input" data-id="${p.id}" data-original="${p.price}" value="${p.price}">
+          <input type="text" inputmode="numeric" pattern="[0-9]*" class="price-input" data-id="${p.id}" data-original="${p.price}" value="${p.price}">
           <button class="btn-price-save" data-id="${p.id}">저장</button>
         </td>
       </tr>`;
@@ -385,6 +385,8 @@ function bindEvents() {
   productTbody.addEventListener('input', (e) => {
     if (!e.target.classList.contains('price-input')) return;
     const input = e.target;
+    const digitsOnly = input.value.replace(/[^0-9]/g, '');
+    if (input.value !== digitsOnly) input.value = digitsOnly;
     const btn = input.nextElementSibling;
     const isDirty = Number(input.value) !== Number(input.dataset.original);
     input.classList.toggle('dirty', isDirty);
