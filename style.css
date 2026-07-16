@@ -711,6 +711,19 @@ body {
   outline: none;
 }
 
+/* 스케일 보정: 실제 길이 입력은 스피너 화살표 없이 직접 입력만 가능하도록 */
+#popupRefDistance,
+#referenceDistance {
+  -moz-appearance: textfield;
+}
+#popupRefDistance::-webkit-outer-spin-button,
+#popupRefDistance::-webkit-inner-spin-button,
+#referenceDistance::-webkit-outer-spin-button,
+#referenceDistance::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 /* Zone List inside analytics panel */
 .zone-list {
   display: flex;
