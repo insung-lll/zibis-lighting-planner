@@ -1717,10 +1717,15 @@ function setupEventListeners() {
 
         try {
           const edgeUrl = 'https://wezywuqfzyyylpxsfdgu.supabase.co/functions/v1/send-flow-notification';
+          // Edge Function이 JWT 검증을 요구하므로 로그인 세션 토큰을 함께 전송
+          const { data: { session } } = await supabaseClient.auth.getSession();
+          const accessToken = session ? session.access_token : SUPABASE_ANON_KEY;
           const edgeResponse = await fetch(edgeUrl, {
             method: 'POST',
             headers: {
-              'Content-Type': 'application/json'
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${accessToken}`,
+              'apikey': SUPABASE_ANON_KEY
             },
             body: JSON.stringify({
               name: name,
