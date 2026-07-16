@@ -7857,9 +7857,6 @@ function setupPasswordToggle(btnId, inputId) {
   }
 }
 
-// 견적 상담하기 / 상담내역: 디자인·테스트 완료 전까지 아래 계정에게만 노출
-const CONSULTATION_FEATURE_TESTERS = ['dpdltmwjd@gmail.com'];
-
 function updateAuthUI(user, profile) {
   const headerAuthLinks = document.getElementById('headerAuthLinks');
   const profileMenuContainer = document.getElementById('profileMenuContainer');
@@ -7872,7 +7869,8 @@ function updateAuthUI(user, profile) {
   }
 
   // btnConsultation 자체는 "견적" 드롭다운에서 위임 호출하는 숨김 버튼이라 항상 display:none 유지
-  const canSeeConsultation = !!(user && user.email && CONSULTATION_FEATURE_TESTERS.includes(user.email));
+  // 견적 상담하기/상담내역은 로그인한 모든 회원에게 노출 (테스트 계정 제한 해제)
+  const canSeeConsultation = !!user;
   const btnMenuQuoteConsult = document.getElementById('btnMenuQuoteConsult');
   const btnMenuQuoteHistory = document.getElementById('btnMenuQuoteHistory');
   if (btnMenuQuoteConsult) btnMenuQuoteConsult.style.display = canSeeConsultation ? 'flex' : 'none';
