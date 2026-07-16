@@ -2558,7 +2558,10 @@ function setupCanvasInteractions() {
         return;
       }
 
-      const isDirectRotate = spec && spec.category === 'direct' && (spec.name.includes('유닛') || spec.name.includes('주방등'));
+      // 직사각형 메인등/직부등(원형·정사각형 제외)은 멀티매입등처럼 점 2개를 찍어 가로/세로로 배치.
+      // 정사각형은 회전이 의미 없으므로 클릭 즉시 배치되는 기존 방식 유지.
+      const isSquareDirect = spec && spec.category === 'direct' && spec.lengthMM && spec.widthMM && spec.lengthMM === spec.widthMM;
+      const isDirectRotate = spec && spec.category === 'direct' && !spec.isRound && !isSquareDirect;
 
       if (isDirectRotate) {
         if (!state.isDrawingLinebar) {
