@@ -1106,46 +1106,52 @@
 
   <!-- Consultation Request Modal -->
   <div class="confirm-overlay" id="consultationOverlay" style="display: none; z-index: 997;">
-    <div class="confirm-dialog auth-card" style="height: auto; max-height: 90vh; display: flex; flex-direction: column; position: relative; text-align: left; padding: 28px; width: 440px; box-sizing: border-box;">
+    <div class="confirm-dialog auth-card" style="position: relative; height: auto; max-height: 90vh; overflow-y: auto; box-sizing: border-box;">
       <button class="modal-close-btn" id="btnCloseConsultation" style="position: absolute; right: 28px; top: 24px; background: none; border: none; font-size: 20px; color: var(--text-dim); cursor: pointer;">×</button>
-      
+
       <!-- Form View -->
-      <div id="consultationFormView" style="display: flex; flex-direction: column; min-height: 0;">
-        <h2 class="auth-title" style="flex-shrink: 0; text-align: center; margin-bottom: 20px !important; font-size: 20px; font-weight: 700; color: #ffffff; font-family: 'Pretendard', sans-serif;">견적 상담 신청</h2>
-        
-        <div class="form-row" style="margin-bottom: 12px;">
-          <label style="font-size: 12px; color: var(--text-dim); margin-bottom: 4px; display: block; font-family: 'Pretendard', sans-serif;">성함 (필수)</label>
-          <input type="text" class="form-input" id="clientName" placeholder="성함을 입력해주세요" style="width: 100%; box-sizing: border-box; font-family: inherit; font-size: 13px; border-radius: 8px; padding: 10px; border: 1px solid #3a3a3a; background: #1a1a1a; color: #fff;">
+      <div id="consultationFormView" style="display: flex; flex-direction: column; gap: 16px; min-height: 0;">
+        <h2 class="auth-title" style="margin-bottom: 0 !important;">견적 상담 신청</h2>
+
+        <div class="form-row">
+          <input type="text" class="form-input" id="clientName" placeholder="성함(필수)">
         </div>
 
-        <div class="form-row" style="margin-bottom: 12px;">
-          <label style="font-size: 12px; color: var(--text-dim); margin-bottom: 4px; display: block; font-family: 'Pretendard', sans-serif;">연락처 (필수)</label>
-          <input type="text" class="form-input" id="clientPhone" placeholder="010-XXXX-XXXX (숫자만)" style="width: 100%; box-sizing: border-box; font-family: inherit; font-size: 13px; border-radius: 8px; padding: 10px; border: 1px solid #3a3a3a; background: #1a1a1a; color: #fff;">
+        <div class="form-row form-input-wrap">
+          <input type="text" class="form-input" id="clientPhone" placeholder="연락처(필수)" style="padding-right: 100px !important;">
+          <span class="input-hint" id="clientPhoneHint">숫자만</span>
         </div>
 
-        <div class="form-row" style="margin-bottom: 12px;">
-          <label style="font-size: 12px; color: var(--text-dim); margin-bottom: 4px; display: block; font-family: 'Pretendard', sans-serif;">시공지 주소 (필수)</label>
-          <input type="text" class="form-input" id="clientAddress" placeholder="지번 또는 도로명 주소" style="width: 100%; box-sizing: border-box; font-family: inherit; font-size: 13px; border-radius: 8px; padding: 10px; border: 1px solid #3a3a3a; background: #1a1a1a; color: #fff;">
+        <div class="form-row form-input-wrap">
+          <input type="text" class="form-input" id="clientAddress" placeholder="시공지 주소(필수)" style="padding-right: 150px !important;">
+          <span class="input-hint" id="clientAddressHint">지번 또는 도로명 주소</span>
         </div>
 
-        <div class="form-row" style="margin-bottom: 12px;">
-          <label style="font-size: 12px; color: var(--text-dim); margin-bottom: 4px; display: block; font-family: 'Pretendard', sans-serif;">희망 시공 예정일</label>
-          <input type="date" class="form-input" id="clientHopeDate" style="width: 100%; box-sizing: border-box; font-family: inherit; font-size: 13px; border-radius: 8px; padding: 10px; border: 1px solid #3a3a3a; background: #1a1a1a; color: #fff; color-scheme: dark;">
+        <div class="form-row form-input-wrap date-field">
+          <input type="date" class="form-input date-input" id="clientHopeDate" style="padding-right: 96px !important; color-scheme: dark;">
+          <span class="date-placeholder" id="clientHopeDatePlaceholder">희망 시공 예정일 YY.MM.DD</span>
+          <button type="button" class="date-picker-btn" id="btnOpenDatePicker" aria-label="날짜 선택">
+            <svg width="16" height="18" viewBox="0 0 16 18" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="0.75" y="2.75" width="14.5" height="14.5" rx="2.5"/>
+              <line x1="0.75" y1="6.75" x2="15.25" y2="6.75"/>
+              <line x1="4.5" y1="0.75" x2="4.5" y2="4.25"/>
+              <line x1="11.5" y1="0.75" x2="11.5" y2="4.25"/>
+            </svg>
+          </button>
         </div>
 
-        <div class="form-row" style="margin-bottom: 16px;">
-          <label style="font-size: 12px; color: var(--text-dim); margin-bottom: 4px; display: block; font-family: 'Pretendard', sans-serif;">요청 사항 / 비고</label>
-          <textarea class="form-input" id="clientRemarks" rows="3" placeholder="추가 문의사항이나 요청을 기재해주세요" style="width: 100%; box-sizing: border-box; resize: none; font-family: inherit; font-size: 13px; border-radius: 8px; padding: 10px; border: 1px solid #3a3a3a; background: #1a1a1a; color: #fff;"></textarea>
+        <div class="form-row">
+          <textarea class="form-input" id="clientRemarks" rows="3" placeholder="추가 문의사항이나 요청을 기재해주세요"></textarea>
         </div>
 
-        <div class="form-row" style="margin-bottom: 20px; display: flex; align-items: flex-start; gap: 8px;">
-          <input type="checkbox" id="privacyConsent" style="margin-top: 3px; cursor: pointer;">
-          <label for="privacyConsent" style="font-size: 11px; color: var(--text-dim); line-height: 1.4; cursor: pointer; user-select: none; font-family: 'Pretendard', sans-serif;">
-            <span style="color: #ff9f0a; font-weight: 600;">[필수]</span> 수집된 개인정보(성함, 연락처, 주소, 비고)는 견적 상담 접수 완료 후 3개월간 보존되며, 3개월 이후에는 안전하게 자동 파기(마스킹)됩니다. 이에 동의합니다.
+        <div class="auth-agreement-box">
+          <label class="auth-checkbox-label" for="privacyConsent">
+            <input type="checkbox" id="privacyConsent">
+            <span class="checkbox-text">(필수) 수집된 개인정보(성함, 연락처, 주소, 비고)는 견적 상담 접수 완료 후 3개월간 보존되며, 3개월 이후에는 안전하게 자동 파기(마스킹)됩니다. 이에 동의합니다.</span>
           </label>
         </div>
 
-        <button class="btn btn-primary" id="btnConsultSubmit" style="width: 100%; background: #10b981; border: none; font-weight: 600; padding: 12px; border-radius: 8px; cursor: pointer; font-family: 'Pretendard', sans-serif;">상담 신청하기</button>
+        <button class="btn btn-primary" id="btnConsultSubmit">상담 신청하기</button>
       </div>
 
       <!-- Success View (Hidden by default) -->
@@ -1180,6 +1186,6 @@
 
 </div>
 
-<script src="app.js?v=67"></script>
+<script src="app.js?v=68"></script>
 </body>
 </html>

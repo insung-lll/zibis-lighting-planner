@@ -2736,6 +2736,72 @@ body {
   display: none !important;
 }
 
+/* 필드 간격은 부모 flex의 gap으로 통일 처리 — .form-row 자체 margin은 무효화 */
+#consultationFormView .form-row {
+  margin-bottom: 0;
+}
+
+#consultationOverlay .auth-card textarea#clientRemarks {
+  height: 120px !important;
+  border-radius: 20px !important;
+  padding: 15px 27px !important;
+  line-height: 1.4 !important;
+  resize: none;
+}
+
+/* 연락처/주소 입력창 우측에 항상 노출되는 안내 텍스트 (플레이스홀더와 별개로 고정 표시) */
+.form-input-wrap { position: relative; }
+.form-input-wrap .input-hint {
+  position: absolute;
+  right: 34px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: 'Pretendard', sans-serif;
+  font-size: 14px;
+  color: #686868;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* 희망 시공 예정일: 네이티브 date input의 텍스트는 감추고, 커스텀 플레이스홀더/버튼을 표시 */
+.date-field .date-input {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+.date-field .date-input::-webkit-calendar-picker-indicator {
+  opacity: 0;
+}
+.date-field .date-placeholder {
+  position: absolute;
+  left: 34px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: 'Pretendard', sans-serif;
+  font-size: 14px;
+  color: #666666;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.date-field .date-placeholder.has-value {
+  color: #ffffff;
+}
+.date-picker-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 72px;
+  height: 44px;
+  border-radius: 60px;
+  background-color: #036cc5;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
 .auth-agreement-box {
   background-color: transparent !important;
   border: none !important;
@@ -2806,7 +2872,7 @@ body {
   box-sizing: border-box;
 }
 
-#btnSignupSubmit, #btnLoginSubmit, #btnForgotPasswordSubmit, #btnOnboardingSubmit, #btnProfileEditSave, #btnFeedbackSubmit {
+#btnSignupSubmit, #btnLoginSubmit, #btnForgotPasswordSubmit, #btnOnboardingSubmit, #btnProfileEditSave, #btnFeedbackSubmit, #btnConsultSubmit {
   width: 100%;
   height: 60px !important;
   border: 1px solid #3a3a3a !important;
@@ -2820,7 +2886,7 @@ body {
   transition: all 0.2s ease;
 }
 
-#btnSignupSubmit.active-btn, #btnLoginSubmit.active-btn, #btnForgotPasswordSubmit.active-btn, #btnOnboardingSubmit.active-btn, #btnProfileEditSave.active-btn, #btnFeedbackSubmit.active-btn {
+#btnSignupSubmit.active-btn, #btnLoginSubmit.active-btn, #btnForgotPasswordSubmit.active-btn, #btnOnboardingSubmit.active-btn, #btnProfileEditSave.active-btn, #btnFeedbackSubmit.active-btn, #btnConsultSubmit.active-btn {
   background-color: #036cc5 !important;
   border-color: #036cc5 !important;
   color: #ffffff !important;

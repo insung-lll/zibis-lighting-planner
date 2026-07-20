@@ -323,6 +323,7 @@ async function openDetail(id) {
 
   // BOM from linked quote
   await loadBom(currentRow.quote_id);
+  renderAdminZoneHoverTargets('adminZoneHoverTargets', img);
   renderAdminLightHoverTargets('adminLightHoverTargets', img);
 
   // 최종 견적 품목: 이미 편집/저장된 값이 있으면 그걸, 없으면 자동 계산값을 초기값으로 사용
@@ -361,12 +362,47 @@ function openBlueprintLightbox() {
   const lightboxImg = document.getElementById('lightboxImg');
   lightboxImg.src = currentRow.image_url;
   renderAdminMarkerPins(currentRow.controller_markers || [], 'lightboxPins');
+  renderAdminZoneHoverTargets('lightboxZoneHoverTargets', lightboxImg);
   renderAdminLightHoverTargets('lightboxLightHoverTargets', lightboxImg);
   document.getElementById('blueprintLightbox').classList.add('open');
 }
 
 function closeBlueprintLightbox() {
   document.getElementById('blueprintLightbox').classList.remove('open');
+}
+
+// 도면 위 빈 공간(방)에 마우스를 올리면 공간명을 툴팁으로 표시 (SVG 폴리곤, 조명 점 호버보다 아래 레이어)
+const SVG_NS = 'http://www.w3.org/2000/svg';
+function renderAdminZoneHoverTargets(containerId, imgEl) {
+  const container = document.getElementById(containerId);
+  if (!container || !imgEl) return;
+
+  const render = () => {
+    container.innerHTML = '';
+    const w = imgEl.naturalWidth || 0;
+    const h = imgEl.naturalHeight || 0;
+    if (!w || !h) return;
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('class', 'admin-zone-hover-svg');
+    svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    svg.setAttribute('preserveAspectRatio', 'none');
+    currentQuoteZones.forEach(zone => {
+      if (!zone.points || zone.points.length < 3) return;
+      const polygon = document.createElementNS(SVG_NS, 'polygon');
+      polygon.setAttribute('points', zone.points.map(p => `${p.x},${p.y}`).join(' '));
+      const title = document.createElementNS(SVG_NS, 'title');
+      title.textContent = zone.name;
+      polygon.appendChild(title);
+      svg.appendChild(polygon);
+    });
+    container.appendChild(svg);
+  };
+
+  if (imgEl.complete && imgEl.naturalWidth > 0) {
+    render();
+  } else {
+    imgEl.addEventListener('load', render, { once: true });
+  }
 }
 
 // 도면 위 조명 위치에 마우스를 올리면 어떤 제품인지 툴팁으로 표시
@@ -398,7 +434,7 @@ function renderAdminLightHoverTargets(containerId, imgEl) {
   if (imgEl.complete && imgEl.naturalWidth > 0) {
     render();
   } else {
-    imgEl.onload = render;
+    imgEl.addEventListener('load', render, { once: true });
   }
 }
 

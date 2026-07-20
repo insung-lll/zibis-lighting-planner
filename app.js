@@ -580,8 +580,12 @@ const els = {
   consultationFormView: document.getElementById('consultationFormView'),
   clientName: document.getElementById('clientName'),
   clientPhone: document.getElementById('clientPhone'),
+  clientPhoneHint: document.getElementById('clientPhoneHint'),
   clientAddress: document.getElementById('clientAddress'),
+  clientAddressHint: document.getElementById('clientAddressHint'),
   clientHopeDate: document.getElementById('clientHopeDate'),
+  clientHopeDatePlaceholder: document.getElementById('clientHopeDatePlaceholder'),
+  btnOpenDatePicker: document.getElementById('btnOpenDatePicker'),
   clientRemarks: document.getElementById('clientRemarks'),
   privacyConsent: document.getElementById('privacyConsent'),
   btnConsultSubmit: document.getElementById('btnConsultSubmit'),
@@ -1554,6 +1558,78 @@ function setupEventListeners() {
   }
 
   // Consultation Request Modal Event Listeners
+  let consultSubmitInFlight = false; // 제출 중 폴링(updateConsultSubmitBtnState)이 버튼을 재활성화하지 않도록 하는 가드
+
+  // 연락처/주소 입력창의 우측 안내 텍스트: 값이 채워지면 숨기고, 비우면 다시 표시
+  function updateConsultInputHint(inputEl, hintEl) {
+    if (!inputEl || !hintEl) return;
+    hintEl.style.display = inputEl.value.trim() ? 'none' : '';
+  }
+  if (els.clientPhone && els.clientPhoneHint) {
+    els.clientPhone.addEventListener('input', () => updateConsultInputHint(els.clientPhone, els.clientPhoneHint));
+  }
+  if (els.clientAddress && els.clientAddressHint) {
+    els.clientAddress.addEventListener('input', () => updateConsultInputHint(els.clientAddress, els.clientAddressHint));
+  }
+
+  // 희망 시공 예정일: 네이티브 date input의 값을 커스텀 플레이스홀더(YY.MM.DD)에 반영
+  function updateConsultHopeDatePlaceholder() {
+    const el = els.clientHopeDate;
+    const label = els.clientHopeDatePlaceholder;
+    if (!el || !label) return;
+    if (el.value) {
+      const [y, m, d] = el.value.split('-');
+      label.textContent = `${y.slice(2)}.${m}.${d}`;
+      label.classList.add('has-value');
+    } else {
+      label.textContent = '희망 시공 예정일 YY.MM.DD';
+      label.classList.remove('has-value');
+    }
+  }
+  if (els.clientHopeDate) {
+    els.clientHopeDate.addEventListener('input', updateConsultHopeDatePlaceholder);
+    els.clientHopeDate.addEventListener('change', updateConsultHopeDatePlaceholder);
+  }
+  if (els.btnOpenDatePicker && els.clientHopeDate) {
+    els.btnOpenDatePicker.addEventListener('click', () => {
+      if (typeof els.clientHopeDate.showPicker === 'function') {
+        els.clientHopeDate.showPicker();
+      } else {
+        els.clientHopeDate.focus();
+      }
+    });
+  }
+
+  // 필수값(성함/연락처/주소/개인정보 동의)이 모두 채워지면 제출 버튼을 #036CC5로 활성화
+  function updateConsultSubmitBtnState() {
+    if (!els.btnConsultSubmit) return;
+    if (consultSubmitInFlight) return; // 제출 처리 중에는 폴링이 disabled 상태를 되돌리지 않도록 방지
+    const name = els.clientName ? els.clientName.value.trim() : '';
+    const phoneDigits = els.clientPhone ? els.clientPhone.value.trim().replace(/[^0-9]/g, '') : '';
+    const address = els.clientAddress ? els.clientAddress.value.trim() : '';
+    const consent = els.privacyConsent ? els.privacyConsent.checked : false;
+    const phoneValid = /^010\d{7,8}$/.test(phoneDigits);
+
+    const isValid = !!(name && phoneValid && address && consent);
+    if (isValid) {
+      els.btnConsultSubmit.classList.add('active-btn');
+      els.btnConsultSubmit.disabled = false;
+    } else {
+      els.btnConsultSubmit.classList.remove('active-btn');
+      els.btnConsultSubmit.disabled = true;
+    }
+  }
+  [els.clientName, els.clientPhone, els.clientAddress].forEach(el => {
+    if (el) {
+      el.addEventListener('input', updateConsultSubmitBtnState);
+      el.addEventListener('change', updateConsultSubmitBtnState);
+      el.addEventListener('blur', updateConsultSubmitBtnState);
+    }
+  });
+  if (els.privacyConsent) els.privacyConsent.addEventListener('change', updateConsultSubmitBtnState);
+  updateConsultSubmitBtnState();
+  setInterval(updateConsultSubmitBtnState, 500);
+
   if (els.btnConsultation) {
     els.btnConsultation.addEventListener('click', () => {
       // 1. 비회원 회원가입 유도
@@ -1576,6 +1652,10 @@ function setupEventListeners() {
       if (els.clientHopeDate) els.clientHopeDate.value = '';
       if (els.clientRemarks) els.clientRemarks.value = '';
       if (els.privacyConsent) els.privacyConsent.checked = false;
+      updateConsultHopeDatePlaceholder();
+      updateConsultInputHint(els.clientPhone, els.clientPhoneHint);
+      updateConsultInputHint(els.clientAddress, els.clientAddressHint);
+      updateConsultSubmitBtnState();
 
       if (els.consultationFormView) els.consultationFormView.style.display = 'flex';
       if (els.consultationSuccessView) els.consultationSuccessView.style.display = 'none';
@@ -1624,6 +1704,7 @@ function setupEventListeners() {
       }
 
       // 버튼 로딩 상태 비활성화 및 로딩 오버레이 노출
+      consultSubmitInFlight = true;
       const originalText = els.btnConsultSubmit.textContent;
       els.btnConsultSubmit.disabled = true;
       els.btnConsultSubmit.textContent = "상담 접수 중...";
@@ -1792,11 +1873,12 @@ function setupEventListeners() {
         console.error('상담 신청 실패:', err);
         alert('상담 신청 처리 중 오류가 발생했습니다: ' + err.message);
       } finally {
-        els.btnConsultSubmit.disabled = false;
+        consultSubmitInFlight = false;
         els.btnConsultSubmit.textContent = originalText;
         if (els.consultLoadingOverlay) {
           els.consultLoadingOverlay.style.display = 'none';
         }
+        updateConsultSubmitBtnState();
       }
     });
   }
@@ -6051,7 +6133,7 @@ async function exportToExcel() {
     projectName = userInput.trim() || '나의 조명 설계';
   }
 
-  // 합계 행(H:I 병합 셀)의 행 번호 — 로컬 다운로드본에서 품번 열을 지울 때 이 행들은 건드리지 않기 위함
+  // 합계 행(B:H 병합 셀)의 행 번호 — 로컬 다운로드본에서 품번 열(C)을 지울 때 이 행들은 건드리지 않기 위함
   // (병합 셀의 비-마스터 셀 값을 지우면 마스터 셀 값까지 같이 사라지는 문제가 있었음)
   const totalRowNumbers = [];
 
@@ -6199,13 +6281,13 @@ async function exportToExcel() {
   worksheet.columns = [
     { key: 'A', width: 4 },
     { key: 'B', width: 16 }, // 공간 분류
-    { key: 'C', width: 35 }, // 조명 모델 / 자재명
-    { key: 'D', width: 18 }, // 구분 (타입)
-    { key: 'E', width: 14 }, // 소비전력 (W)
-    { key: 'F', width: 14 }, // 총 와트수
-    { key: 'G', width: 12 }, // 배치 수량
-    { key: 'H', width: 16 }, // 예상 금액
-    { key: 'I', width: 18 }  // 품번 (이카운트 ERP)
+    { key: 'C', width: 18 }, // 품번 (이카운트 ERP)
+    { key: 'D', width: 35 }, // 조명 모델 / 자재명
+    { key: 'E', width: 18 }, // 구분 (타입)
+    { key: 'F', width: 14 }, // 소비전력 (W)
+    { key: 'G', width: 14 }, // 총 와트수
+    { key: 'H', width: 12 }, // 배치 수량
+    { key: 'I', width: 16 }  // 예상 금액
   ];
   
   // 3. Title Style & Merges
@@ -6381,9 +6463,9 @@ async function exportToExcel() {
         bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } },
         right: { style: 'thin', color: { argb: 'FFE0E0E0' } }
       };
-      if (c === 2 || c === 3) {
+      if (c === 2 || c === 4) {
         cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
-      } else if (c === 8) {
+      } else if (c === 9) {
         cell.alignment = { vertical: 'middle', horizontal: 'right' };
         if (!isItalic) {
           cell.font = { name: 'Malgun Gothic', size: 10, bold: true };
@@ -6410,7 +6492,7 @@ async function exportToExcel() {
   summaryTitle.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
   worksheet.getRow(tableStartRow).height = 28;
   
-  const summaryHeaders = ['제품 컬러', '제품명 / 자재명', '구분 (타입)', '단가 (원)', '총 주문 수량', '비고', '총 합계 금액', '품번'];
+  const summaryHeaders = ['제품 컬러', '품번', '제품명 / 자재명', '구분 (타입)', '단가 (원)', '총 주문 수량', '비고', '총 합계 금액'];
   const summaryHeaderRow = worksheet.getRow(tableStartRow + 1);
   summaryHeaderRow.height = 25;
   
@@ -6450,12 +6532,13 @@ async function exportToExcel() {
       cellB.value = '-';
     }
     
-    row.getCell(3).value = p.name;
-    row.getCell(4).value = p.type;
-    row.getCell(5).value = p.price;
-    row.getCell(5).numFmt = '#,##0';
-    row.getCell(6).value = p.qty;
-    
+    row.getCell(3).value = p.ecountProdCd || '-';
+    row.getCell(4).value = p.name;
+    row.getCell(5).value = p.type;
+    row.getCell(6).value = p.price;
+    row.getCell(6).numFmt = '#,##0';
+    row.getCell(7).value = p.qty;
+
     // Remarks
     let remarkVal = '-';
     if (p.isLine) {
@@ -6463,32 +6546,31 @@ async function exportToExcel() {
     } else if (p.price === 0) {
       remarkVal = '포함 자재';
     }
-    row.getCell(7).value = remarkVal;
-    
-    row.getCell(8).value = rowCost;
-    row.getCell(8).numFmt = '#,##0';
-    row.getCell(9).value = p.ecountProdCd || '-';
+    row.getCell(8).value = remarkVal;
+
+    row.getCell(9).value = rowCost;
+    row.getCell(9).numFmt = '#,##0';
 
     for (let c = 2; c <= 9; c++) {
       const cell = row.getCell(c);
       if (c === 2 && p.color) {
         const cleanColor = p.color.replace('#', '');
         cell.font = { name: 'Malgun Gothic', size: 14, color: { argb: 'FF' + cleanColor } };
-      } else if (c === 8) {
+      } else if (c === 9) {
         cell.font = { name: 'Malgun Gothic', size: 10, bold: true };
       } else {
         cell.font = { name: 'Malgun Gothic', size: 10 };
       }
-      
+
       cell.border = {
         top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
         left: { style: 'thin', color: { argb: 'FFE0E0E0' } },
         bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } },
         right: { style: 'thin', color: { argb: 'FFE0E0E0' } }
       };
-      if (c === 3) {
+      if (c === 4) {
         cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
-      } else if (c === 8) {
+      } else if (c === 9) {
         cell.alignment = { vertical: 'middle', horizontal: 'right' };
       } else {
         cell.alignment = { vertical: 'middle', horizontal: 'center' };
@@ -6501,8 +6583,8 @@ async function exportToExcel() {
   totalRowNumbers.push(currentRowNum);
   const aggTotalRow = worksheet.getRow(currentRowNum);
   aggTotalRow.height = 30;
-  worksheet.mergeCells(`B${currentRowNum}:G${currentRowNum}`);
-  
+  worksheet.mergeCells(`B${currentRowNum}:H${currentRowNum}`);
+
   const aggLabelCell = aggTotalRow.getCell(2);
   aggLabelCell.value = '제품 주문 총 예상 합계:';
   aggLabelCell.font = { name: 'Malgun Gothic', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -6512,18 +6594,18 @@ async function exportToExcel() {
     pattern: 'solid',
     fgColor: { argb: 'FF1F2233' }
   };
-  
-  for (let col = 2; col <= 7; col++) {
+
+  for (let col = 2; col <= 8; col++) {
     aggTotalRow.getCell(col).border = {
       top: { style: 'medium', color: { argb: 'FF2D6ABF' } },
       bottom: { style: 'medium', color: { argb: 'FF2D6ABF' } },
       left: col === 2 ? { style: 'thin', color: { argb: 'FF44475A' } } : undefined,
-      right: col === 7 ? { style: 'thin', color: { argb: 'FF44475A' } } : undefined
+      right: col === 8 ? { style: 'thin', color: { argb: 'FF44475A' } } : undefined
     };
   }
-  
-  worksheet.mergeCells(`H${currentRowNum}:I${currentRowNum}`);
-  const aggValueCell = aggTotalRow.getCell(8);
+
+  // 총 합계 금액 열(I)에 제품 주문 총 예상 합계 값을 배치
+  const aggValueCell = aggTotalRow.getCell(9);
   aggValueCell.value = grandTotalCost;
   aggValueCell.numFmt = '#,##0';
   aggValueCell.font = { name: 'Malgun Gothic', size: 12, bold: true, color: { argb: 'FF2D6ABF' } };
@@ -6536,6 +6618,7 @@ async function exportToExcel() {
   aggValueCell.border = {
     top: { style: 'medium', color: { argb: 'FF2D6ABF' } },
     bottom: { style: 'medium', color: { argb: 'FF2D6ABF' } },
+    left: { style: 'thin', color: { argb: 'FF44475A' } },
     right: { style: 'thin', color: { argb: 'FF44475A' } }
   };
 
@@ -6555,7 +6638,7 @@ async function exportToExcel() {
   worksheet.getRow(currentRowNum).height = 28;
   currentRowNum++;
   
-  const bomHeaders = ['공간 분류', '조명 모델 / 자재명', '구분 (타입)', '소비전력 (W)', '총 와트수', '배치 수량', '예상 금액', '품번'];
+  const bomHeaders = ['공간 분류', '품번', '조명 모델 / 자재명', '구분 (타입)', '소비전력 (W)', '총 와트수', '배치 수량', '예상 금액'];
   const bomHeaderRow = worksheet.getRow(currentRowNum);
   bomHeaderRow.height = 25;
   
@@ -6655,14 +6738,14 @@ async function exportToExcel() {
       row.height = 22;
 
       row.getCell(2).value = zone.name;
-      row.getCell(3).value = g.name;
-      row.getCell(4).value = g.type;
-      row.getCell(5).value = g.watt ? g.watt + 'W' : '-';
-      row.getCell(6).value = g.watt ? (g.watt * g.qty) + 'W' : '-';
-      row.getCell(7).value = g.qty;
-      row.getCell(8).value = rowCost;
-      row.getCell(8).numFmt = '#,##0';
-      row.getCell(9).value = g.ecountProdCd || '-';
+      row.getCell(3).value = g.ecountProdCd || '-';
+      row.getCell(4).value = g.name;
+      row.getCell(5).value = g.type;
+      row.getCell(6).value = g.watt ? g.watt + 'W' : '-';
+      row.getCell(7).value = g.watt ? (g.watt * g.qty) + 'W' : '-';
+      row.getCell(8).value = g.qty;
+      row.getCell(9).value = rowCost;
+      row.getCell(9).numFmt = '#,##0';
 
       applyRowStyles(row, false);
       currentRowNum++;
@@ -6685,14 +6768,14 @@ async function exportToExcel() {
         totalCost += smpsCost;
 
         row.getCell(2).value = zone.name;
-        row.getCell(3).value = `${cap}W 안정기`;
-        row.getCell(4).value = '안정기 (SMPS)';
-        row.getCell(5).value = cap + 'W';
-        row.getCell(6).value = '-';
-        row.getCell(7).value = qty;
-        row.getCell(8).value = smpsCost;
-        row.getCell(8).numFmt = '#,##0';
-        row.getCell(9).value = getDBConverterProdCd(capNum) || '-';
+        row.getCell(3).value = getDBConverterProdCd(capNum) || '-';
+        row.getCell(4).value = `${cap}W 안정기`;
+        row.getCell(5).value = '안정기 (SMPS)';
+        row.getCell(6).value = cap + 'W';
+        row.getCell(7).value = '-';
+        row.getCell(8).value = qty;
+        row.getCell(9).value = smpsCost;
+        row.getCell(9).numFmt = '#,##0';
 
         applyRowStyles(row, false);
         currentRowNum++;
@@ -6712,14 +6795,14 @@ async function exportToExcel() {
         totalCost += ctrlCost;
 
         row.getCell(2).value = zone.name;
-        row.getCell(3).value = ctrlName;
-        row.getCell(4).value = '컨트롤러';
-        row.getCell(5).value = '-';
+        row.getCell(3).value = getDBControllerProdCd() || '-';
+        row.getCell(4).value = ctrlName;
+        row.getCell(5).value = '컨트롤러';
         row.getCell(6).value = '-';
-        row.getCell(7).value = qty;
-        row.getCell(8).value = ctrlCost;
-        row.getCell(8).numFmt = '#,##0';
-        row.getCell(9).value = getDBControllerProdCd() || '-';
+        row.getCell(7).value = '-';
+        row.getCell(8).value = qty;
+        row.getCell(9).value = ctrlCost;
+        row.getCell(9).numFmt = '#,##0';
 
         applyRowStyles(row, false);
         currentRowNum++;
@@ -6745,14 +6828,14 @@ async function exportToExcel() {
     row.height = 22;
 
     row.getCell(2).value = '전체';
-    row.getCell(3).value = '허브';
+    row.getCell(3).value = getDBProductProdCd('허브') || '-';
     row.getCell(4).value = '허브';
-    row.getCell(5).value = '-';
+    row.getCell(5).value = '허브';
     row.getCell(6).value = '-';
-    row.getCell(7).value = 1;
-    row.getCell(8).value = hubPrice;
-    row.getCell(8).numFmt = '#,##0';
-    row.getCell(9).value = getDBProductProdCd('허브') || '-';
+    row.getCell(7).value = '-';
+    row.getCell(8).value = 1;
+    row.getCell(9).value = hubPrice;
+    row.getCell(9).numFmt = '#,##0';
 
     applyRowStyles(row, false);
     currentRowNum++;
@@ -6829,14 +6912,14 @@ async function exportToExcel() {
       row.height = 22;
 
       row.getCell(2).value = '기타 (공간 외)';
-      row.getCell(3).value = g.name;
-      row.getCell(4).value = g.type;
-      row.getCell(5).value = g.watt ? g.watt + 'W' : '-';
-      row.getCell(6).value = g.watt ? (g.watt * g.qty) + 'W' : '-';
-      row.getCell(7).value = g.qty;
-      row.getCell(8).value = rowCost;
-      row.getCell(8).numFmt = '#,##0';
-      row.getCell(9).value = g.ecountProdCd || '-';
+      row.getCell(3).value = g.ecountProdCd || '-';
+      row.getCell(4).value = g.name;
+      row.getCell(5).value = g.type;
+      row.getCell(6).value = g.watt ? g.watt + 'W' : '-';
+      row.getCell(7).value = g.watt ? (g.watt * g.qty) + 'W' : '-';
+      row.getCell(8).value = g.qty;
+      row.getCell(9).value = rowCost;
+      row.getCell(9).numFmt = '#,##0';
 
       applyRowStyles(row, false);
       currentRowNum++;
@@ -6855,8 +6938,8 @@ async function exportToExcel() {
   totalRowNumbers.push(currentRowNum);
   const totalRow = worksheet.getRow(currentRowNum);
   totalRow.height = 30;
-  worksheet.mergeCells(`B${currentRowNum}:G${currentRowNum}`);
-  
+  worksheet.mergeCells(`B${currentRowNum}:H${currentRowNum}`);
+
   const labelCell = totalRow.getCell(2);
   labelCell.value = '최종 예상 가견적 합계:';
   labelCell.font = { name: 'Malgun Gothic', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -6866,18 +6949,18 @@ async function exportToExcel() {
     pattern: 'solid',
     fgColor: { argb: 'FF1F2233' }
   };
-  
-  for (let col = 2; col <= 7; col++) {
+
+  for (let col = 2; col <= 8; col++) {
     totalRow.getCell(col).border = {
       top: { style: 'medium', color: { argb: 'FF2D6ABF' } },
       bottom: { style: 'medium', color: { argb: 'FF2D6ABF' } },
       left: col === 2 ? { style: 'thin', color: { argb: 'FF44475A' } } : undefined,
-      right: col === 7 ? { style: 'thin', color: { argb: 'FF44475A' } } : undefined
+      right: col === 8 ? { style: 'thin', color: { argb: 'FF44475A' } } : undefined
     };
   }
-  
-  worksheet.mergeCells(`H${currentRowNum}:I${currentRowNum}`);
-  const valueCell = totalRow.getCell(8);
+
+  // 총 합계 금액 열(I)에 최종 예상 가견적 합계 값을 배치
+  const valueCell = totalRow.getCell(9);
   valueCell.value = grandTotalCost; // 상단 제품 주문 총 예상 합계와 동일하게 통일
   valueCell.numFmt = '#,##0';
   valueCell.font = { name: 'Malgun Gothic', size: 12, bold: true, color: { argb: 'FF2D6ABF' } };
@@ -6890,6 +6973,7 @@ async function exportToExcel() {
   valueCell.border = {
     top: { style: 'medium', color: { argb: 'FF2D6ABF' } },
     bottom: { style: 'medium', color: { argb: 'FF2D6ABF' } },
+    left: { style: 'thin', color: { argb: 'FF44475A' } },
     right: { style: 'thin', color: { argb: 'FF44475A' } }
   };
   
@@ -6897,7 +6981,7 @@ async function exportToExcel() {
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 
-  // 10.1 어드민 계정은 품번을 그대로 노출하고, 일반 사용자는 로컬 다운로드본에서 품번(9번째 열)을 제거
+  // 10.1 어드민 계정은 품번을 그대로 노출하고, 일반 사용자는 로컬 다운로드본에서 품번(3번째 열)을 제거
   const isAdminDownload = authProfile && authProfile.role === 'admin';
   let downloadBlob = blob;
   if (!isAdminDownload) {
@@ -6905,15 +6989,15 @@ async function exportToExcel() {
     await localWorkbook.xlsx.load(buffer);
     const localWorksheet = localWorkbook.worksheets[0];
     localWorksheet.eachRow((row) => {
-      if (totalRowNumbers.includes(row.number)) return; // H:I 병합된 합계 행은 건드리지 않음 (마스터 셀 값 손상 방지)
+      if (totalRowNumbers.includes(row.number)) return; // B:H 병합된 합계 행은 건드리지 않음 (마스터 셀 값 손상 방지)
       try {
-        row.getCell(9).value = null;
+        row.getCell(3).value = null;
       } catch (e) {
         // 병합 셀 등 값 설정이 막히는 경우 무시
       }
     });
-    localWorksheet.getColumn(9).width = 0;
-    localWorksheet.getColumn(9).hidden = true;
+    localWorksheet.getColumn(3).width = 0;
+    localWorksheet.getColumn(3).hidden = true;
     const localBuffer = await localWorkbook.xlsx.writeBuffer();
     downloadBlob = new Blob([localBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   }
