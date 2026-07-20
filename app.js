@@ -394,6 +394,7 @@ const state = {
   activeProductLine: 'zibis_iot',
   selectedZoneId: null,
   selectedDimensionId: null,
+  selectedControllerMarkId: null,
   requiredHub: false, // IoT 조명이 프로젝트에 1개라도 있으면 true (프로젝트 단위, 존 단위 아님)
 
 
@@ -401,14 +402,16 @@ const state = {
   lights: [],
   zones: [],
   dimensions: [],
-  
+  controllerMarkers: [], // IoT 컨트롤러 설치 위치 표시 (선택 사항, 가격/BOM에 영향 없는 순수 주석)
+
   tempZoneData: null,
   pendingZoneData: null,
-  
+
   // Placed lights count ID
   nextLightId: 1,
   nextZoneId: 1,
   nextDimId: 1,
+  nextControllerMarkId: 1,
   bomFilterZoneId: null,
   expandedBOMGroups: { 'magnetic-system': false },
   magneticRailToastShown: false,
@@ -513,6 +516,7 @@ const els = {
   btnDrawZoneRect: document.getElementById('btnDrawZoneRect'),
   eyeZone: document.getElementById('eyeZone'),
   tabMeasure: document.getElementById('tabMeasure'),
+  tabControllerMark: document.getElementById('tabControllerMark'),
   eyeDimension: document.getElementById('eyeDimension'),
   tabHeight: document.getElementById('tabHeight'),
   lblCeilingHeight: document.getElementById('lblCeilingHeight'),
@@ -838,9 +842,11 @@ function checkAndRestoreOauthTempProject() {
     state.lights = restored.lights || [];
     state.zones = restored.zones || [];
     state.dimensions = restored.dimensions || [];
+    state.controllerMarkers = restored.controllerMarkers || [];
     state.nextLightId = restored.nextLightId || 1;
     state.nextZoneId = restored.nextZoneId || 1;
     state.nextDimId = restored.nextDimId || 1;
+    state.nextControllerMarkId = restored.nextControllerMarkId || 1;
     state.activeQuoteId = restored.activeQuoteId || null;
     
     if (restored.imageBase64) {
@@ -1026,6 +1032,7 @@ function resetTools() {
   state.selectedLightIds = [];
   state.selectedZoneId = null;
   state.selectedDimensionId = null;
+  state.selectedControllerMarkId = null;
   state.editingZoneId = null;
   state.draggingLightId = null;
   state.draggingZoneId = null;
@@ -1046,6 +1053,7 @@ function resetTools() {
   if (els.btnSelectMode) els.btnSelectMode.classList.add('active');
   if (els.tabAddZone) els.tabAddZone.classList.remove('active');
   els.tabMeasure.classList.remove('active');
+  if (els.tabControllerMark) els.tabControllerMark.classList.remove('active');
   
   if (els.btnDrawZonePolygon) els.btnDrawZonePolygon.classList.remove('active');
   if (els.btnDrawZoneRect) els.btnDrawZoneRect.classList.remove('active');
@@ -1071,6 +1079,7 @@ function clearProjectState() {
   state.lights = [];
   state.zones = [];
   state.dimensions = [];
+  state.controllerMarkers = [];
   state.activeQuoteId = null;
   state.zoom = 1.0;
   state.panX = 0;
@@ -1079,12 +1088,14 @@ function clearProjectState() {
   state.selectedZoneId = null;
   state.selectedFixtureId = null;
   state.selectedDimensionId = null;
+  state.selectedControllerMarkId = null;
   state.selectedLightIds = [];
   state.tempZoneData = null;
   state.pendingZoneData = null;
   state.nextLightId = 1;
   state.nextZoneId = 1;
   state.nextDimId = 1;
+  state.nextControllerMarkId = 1;
 
   // Clear file inputs so change events fire even for the same file
   if (els.fileInput) els.fileInput.value = '';
@@ -1265,6 +1276,16 @@ function setupEventListeners() {
     if (els.btnSelectMode) els.btnSelectMode.classList.remove('active');
     if (els.canvasContainer) els.canvasContainer.classList.add('crosshair-cursor');
   });
+
+  if (els.tabControllerMark) {
+    els.tabControllerMark.addEventListener('click', () => {
+      resetTools();
+      state.activeTool = 'controller-mark';
+      els.tabControllerMark.classList.add('active');
+      if (els.btnSelectMode) els.btnSelectMode.classList.remove('active');
+      if (els.canvasContainer) els.canvasContainer.classList.add('crosshair-cursor');
+    });
+  }
 
   if (els.eyeDimension) {
     els.eyeDimension.addEventListener('click', () => {
@@ -1669,9 +1690,11 @@ function setupEventListeners() {
           lights: lightsWithProductCode,
           zones: state.zones,
           dimensions: state.dimensions,
+          controllerMarkers: state.controllerMarkers,
           nextLightId: state.nextLightId,
           nextZoneId: state.nextZoneId,
-          nextDimId: state.nextDimId
+          nextDimId: state.nextDimId,
+          nextControllerMarkId: state.nextControllerMarkId
         };
 
         const { data: quoteData, error: quoteErr } = await supabaseClient
@@ -1690,6 +1713,14 @@ function setupEventListeners() {
           finalQuoteId = quoteData[0].id;
         }
 
+        // 설계 화면에서 미리 찍어둔 컨트롤러 위치를 정규화(0~1) 좌표로 변환해 상담 신청에 함께 전달
+        const normalizedControllerMarkers = (state.uploadedImage && state.controllerMarkers.length > 0)
+          ? state.controllerMarkers.map(m => ({
+              x: m.x / state.uploadedImage.width,
+              y: m.y / state.uploadedImage.height
+            }))
+          : [];
+
         // C. ConsultationRequest 테이블에 인서트
         const { data: consultData, error: consultErr } = await supabaseClient
           .from('ConsultationRequest')
@@ -1702,7 +1733,8 @@ function setupEventListeners() {
             image_url: imageUrl,
             quote_id: finalQuoteId,
             status: '상담대기',
-            user_id: authUser.id
+            user_id: authUser.id,
+            controller_markers: normalizedControllerMarkers
           })
           .select();
 
@@ -2442,6 +2474,7 @@ function setupCanvasInteractions() {
       state.selectedLightIds = [];
       state.selectedZoneId = null;
       state.selectedDimensionId = null;
+      state.selectedControllerMarkId = null;
       renderAll();
     }
   });
@@ -2502,27 +2535,41 @@ function setupCanvasInteractions() {
         
         state.selectedZoneId = null;
         state.selectedDimensionId = null;
+        state.selectedControllerMarkId = null;
         renderAll();
       } else {
         if (!e.shiftKey) {
           state.selectedLightIds = [];
         }
-        
+
         // Check if clicked a dimension line
         const clickedDim = findDimensionAt(pt.x, pt.y);
         if (clickedDim) {
           state.selectedDimensionId = clickedDim.id;
           state.selectedZoneId = null;
           state.selectedLightIds = [];
+          state.selectedControllerMarkId = null;
 
           state.draggingDimensionId = clickedDim.id;
           state.dragOffsetX = pt.x;
           state.dragOffsetY = pt.y;
           renderAll();
         } else {
+          // Check if clicked a controller marker
+          const clickedMarker = findControllerMarkerAt(pt.x, pt.y);
+          if (clickedMarker) {
+            state.selectedControllerMarkId = clickedMarker.id;
+            state.selectedZoneId = null;
+            state.selectedDimensionId = null;
+            state.selectedLightIds = [];
+            renderAll();
+            return;
+          }
+
           // Select 도구에서는 공간(zone)은 선택 대상에서 제외 — 제품(조명)만 선택 가능
           state.selectedZoneId = null;
           state.selectedDimensionId = null;
+          state.selectedControllerMarkId = null;
 
           // Clicked outside active zone or handles: reset vertex editing mode
           if (state.vertexEditingZoneId !== null) {
@@ -2708,6 +2755,20 @@ function setupCanvasInteractions() {
       const startPt = (state.measurePhase === 1) ? state.measureStart : null;
       const snapped = getSnappedPoint(startPt, pt, e.shiftKey);
       handleMeasureClick(snapped.x, snapped.y);
+    } else if (state.activeTool === 'controller-mark') {
+      // 클릭: 새 핀 추가 / 기존 핀 클릭: 삭제 (가격에 영향 없는 순수 설치위치 주석)
+      const hitRadius = 12 / state.zoom;
+      const hitIdx = state.controllerMarkers.findIndex(m => {
+        const dx = m.x - pt.x, dy = m.y - pt.y;
+        return Math.sqrt(dx * dx + dy * dy) <= hitRadius;
+      });
+      if (hitIdx !== -1) {
+        state.controllerMarkers.splice(hitIdx, 1);
+      } else {
+        state.controllerMarkers.push({ id: state.nextControllerMarkId++, x: pt.x, y: pt.y });
+      }
+      saveStateToHistory();
+      renderAll();
     }
   });
 
@@ -3381,6 +3442,14 @@ function findDimensionAt(x, y) {
   });
 }
 
+function findControllerMarkerAt(x, y) {
+  const hitRadius = 12 / state.zoom;
+  return state.controllerMarkers.slice().reverse().find(m => {
+    const dx = m.x - x, dy = m.y - y;
+    return Math.sqrt(dx * dx + dy * dy) <= hitRadius;
+  });
+}
+
 function findZoneAt(x, y) {
   for (let i = state.zones.length - 1; i >= 0; i--) {
     const zone = state.zones[i];
@@ -3698,6 +3767,10 @@ function handleKeyDown(e) {
       state.dimensions = state.dimensions.filter(d => d.id !== state.selectedDimensionId);
       state.selectedDimensionId = null;
       deletedSomething = true;
+    } else if (state.selectedControllerMarkId !== null) {
+      state.controllerMarkers = state.controllerMarkers.filter(m => m.id !== state.selectedControllerMarkId);
+      state.selectedControllerMarkId = null;
+      deletedSomething = true;
     }
 
     if (deletedSomething) {
@@ -3727,8 +3800,12 @@ function handleKeyDown(e) {
       state.dimensions = state.dimensions.filter(d => d.id !== state.selectedDimensionId);
       state.selectedDimensionId = null;
       deletedSomething = true;
+    } else if (state.selectedControllerMarkId !== null) {
+      state.controllerMarkers = state.controllerMarkers.filter(m => m.id !== state.selectedControllerMarkId);
+      state.selectedControllerMarkId = null;
+      deletedSomething = true;
     }
-    
+
     if (deletedSomething) {
       recalculateAllZones();
       updateStats();
@@ -5413,9 +5490,44 @@ function renderInteractionLayer() {
   const c = els.interactionLayer;
   const ctx = ctxs.interaction;
   ctx.clearRect(0, 0, c.width, c.height);
-  
+
   ctx.save();
-  
+
+  // 컨트롤러 설치 위치 표시 (선택 사항, BOM/가격에 영향 없는 주석)
+  // interactionLayer에 그리는 이유: captureMergedFloorplan()이 이 레이어는 포함하지 않으므로
+  // 상담 신청 시 캡처되는 도면 사진에 마커가 영구적으로 찍혀버리는 걸 방지
+  if (state.controllerMarkers && state.controllerMarkers.length > 0) {
+    state.controllerMarkers.forEach(m => {
+      const isSelected = state.selectedControllerMarkId === m.id;
+      if (isSelected) {
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, 16, 0, 2 * Math.PI);
+        ctx.fillStyle = 'rgba(242, 162, 0, 0.3)';
+        ctx.fill();
+      }
+
+      ctx.beginPath();
+      ctx.arc(m.x, m.y, 11, 0, 2 * Math.PI);
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = 'rgba(0,0,0,0.5)';
+      ctx.shadowBlur = 6;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      ctx.beginPath();
+      ctx.arc(m.x, m.y, 8, 0, 2 * Math.PI);
+      ctx.fillStyle = '#10b981';
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 9px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('C', m.x, m.y + 0.5);
+    });
+    ctx.textBaseline = 'alphabetic';
+  }
+
   // 1. Ghost placement pointer
   if (state.activeTool === 'place' && state.isDrawingLinebar && state.linebarStart && state.linebarEnd) {
     ctx.globalAlpha = 0.8;
@@ -5807,9 +5919,11 @@ function saveProjectFile() {
     lights: state.lights,
     zones: state.zones,
     dimensions: state.dimensions,
+    controllerMarkers: state.controllerMarkers,
     nextLightId: state.nextLightId,
     nextZoneId: state.nextZoneId,
-    nextDimId: state.nextDimId
+    nextDimId: state.nextDimId,
+    nextControllerMarkId: state.nextControllerMarkId
   };
 
   const jsonStr = JSON.stringify(projectData, null, 2);
@@ -5900,9 +6014,11 @@ function loadProjectData(data) {
     });
 
     state.dimensions = data.dimensions || [];
+    state.controllerMarkers = data.controllerMarkers || [];
     state.nextLightId = data.nextLightId || 1;
     state.nextZoneId = data.nextZoneId || 1;
     state.nextDimId = data.nextDimId || 1;
+    state.nextControllerMarkId = data.nextControllerMarkId || 1;
 
     if (els.ceilingHeightInput) els.ceilingHeightInput.value = state.ceilingHeight;
     if (els.lblCeilingHeight) els.lblCeilingHeight.textContent = state.ceilingHeight.toFixed(1);
@@ -5915,7 +6031,8 @@ function loadProjectData(data) {
     resetHistory({
       lights: JSON.parse(JSON.stringify(state.lights)),
       zones: JSON.parse(JSON.stringify(state.zones)),
-      dimensions: JSON.parse(JSON.stringify(state.dimensions))
+      dimensions: JSON.parse(JSON.stringify(state.dimensions)),
+      controllerMarkers: JSON.parse(JSON.stringify(state.controllerMarkers))
     });
     renderAll();
   };
@@ -6780,25 +6897,29 @@ async function exportToExcel() {
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 
-  // 10.1 로컬 다운로드용은 품번(9번째 열)을 제거한 별도 사본으로 생성 — 서버 저장본과 로컬 다운로드본을 분리
-  const localWorkbook = new ExcelJS.Workbook();
-  await localWorkbook.xlsx.load(buffer);
-  const localWorksheet = localWorkbook.worksheets[0];
-  localWorksheet.eachRow((row) => {
-    if (totalRowNumbers.includes(row.number)) return; // H:I 병합된 합계 행은 건드리지 않음 (마스터 셀 값 손상 방지)
-    try {
-      row.getCell(9).value = null;
-    } catch (e) {
-      // 병합 셀 등 값 설정이 막히는 경우 무시
-    }
-  });
-  localWorksheet.getColumn(9).width = 0;
-  localWorksheet.getColumn(9).hidden = true;
-  const localBuffer = await localWorkbook.xlsx.writeBuffer();
-  const localBlob = new Blob([localBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  // 10.1 어드민 계정은 품번을 그대로 노출하고, 일반 사용자는 로컬 다운로드본에서 품번(9번째 열)을 제거
+  const isAdminDownload = authProfile && authProfile.role === 'admin';
+  let downloadBlob = blob;
+  if (!isAdminDownload) {
+    const localWorkbook = new ExcelJS.Workbook();
+    await localWorkbook.xlsx.load(buffer);
+    const localWorksheet = localWorkbook.worksheets[0];
+    localWorksheet.eachRow((row) => {
+      if (totalRowNumbers.includes(row.number)) return; // H:I 병합된 합계 행은 건드리지 않음 (마스터 셀 값 손상 방지)
+      try {
+        row.getCell(9).value = null;
+      } catch (e) {
+        // 병합 셀 등 값 설정이 막히는 경우 무시
+      }
+    });
+    localWorksheet.getColumn(9).width = 0;
+    localWorksheet.getColumn(9).hidden = true;
+    const localBuffer = await localWorkbook.xlsx.writeBuffer();
+    downloadBlob = new Blob([localBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
 
-  // 10.2 Download Excel workbook (품번 미포함)
-  const url = URL.createObjectURL(localBlob);
+  // 10.2 Download Excel workbook (관리자는 품번 포함, 일반 사용자는 미포함)
+  const url = URL.createObjectURL(downloadBlob);
 
   const a = document.createElement('a');
   a.href = url;
@@ -6856,9 +6977,11 @@ async function exportToExcel() {
         lights: lightsWithProductCode,
         zones: state.zones,
         dimensions: state.dimensions,
+        controllerMarkers: state.controllerMarkers,
         nextLightId: state.nextLightId,
         nextZoneId: state.nextZoneId,
-        nextDimId: state.nextDimId
+        nextDimId: state.nextDimId,
+        nextControllerMarkId: state.nextControllerMarkId
       };
 
       // 3. Insert or Update metadata and excel_url in quotes table
@@ -6912,7 +7035,8 @@ function saveStateToHistory() {
   const snapshot = {
     lights: JSON.parse(JSON.stringify(state.lights)),
     zones: JSON.parse(JSON.stringify(state.zones)),
-    dimensions: JSON.parse(JSON.stringify(state.dimensions))
+    dimensions: JSON.parse(JSON.stringify(state.dimensions)),
+    controllerMarkers: JSON.parse(JSON.stringify(state.controllerMarkers))
   };
   
   if (undoStack.length > 0) {
@@ -6940,7 +7064,8 @@ function resetHistory(initialState) {
     undoStack.push({
       lights: [],
       zones: [],
-      dimensions: []
+      dimensions: [],
+      controllerMarkers: []
     });
   }
   updateUndoRedoButtons();
@@ -6962,7 +7087,8 @@ function undo() {
   state.lights = JSON.parse(JSON.stringify(prevState.lights));
   state.zones = JSON.parse(JSON.stringify(prevState.zones));
   state.dimensions = JSON.parse(JSON.stringify(prevState.dimensions));
-  
+  state.controllerMarkers = JSON.parse(JSON.stringify(prevState.controllerMarkers || []));
+
   recalculateAllZones();
   updateStats();
   renderAll();
@@ -6977,7 +7103,8 @@ function redo() {
   state.lights = JSON.parse(JSON.stringify(nextState.lights));
   state.zones = JSON.parse(JSON.stringify(nextState.zones));
   state.dimensions = JSON.parse(JSON.stringify(nextState.dimensions));
-  
+  state.controllerMarkers = JSON.parse(JSON.stringify(nextState.controllerMarkers || []));
+
   recalculateAllZones();
   updateStats();
   renderAll();
@@ -7511,9 +7638,11 @@ function setupAuthEventListeners() {
         lights: state.lights,
         zones: state.zones,
         dimensions: state.dimensions,
+        controllerMarkers: state.controllerMarkers,
         nextLightId: state.nextLightId,
         nextZoneId: state.nextZoneId,
         nextDimId: state.nextDimId,
+        nextControllerMarkId: state.nextControllerMarkId,
         activeQuoteId: state.activeQuoteId
       };
       sessionStorage.setItem('temp_project_oauth', JSON.stringify(tempState));
@@ -8000,7 +8129,7 @@ async function loadMyConsultations() {
 
   const { data, error } = await supabaseClient
     .from('ConsultationRequest')
-    .select('id, address, hope_date, status, created_at, image_url, controller_markers, controller_confirmed')
+    .select('id, address, hope_date, status, created_at, image_url, controller_markers, controller_confirmed, final_quote_excel_url, final_floorplan_url')
     .eq('user_id', authUser.id)
     .order('created_at', { ascending: false });
 
@@ -8025,6 +8154,8 @@ async function loadMyConsultations() {
     const markLabel = item.controller_confirmed ? '컨트롤러 확인완료'
       : markerCount > 0 ? `컨트롤러 위치 수정 (${markerCount})`
       : '컨트롤러 위치 표시';
+    const hasFinalQuote = !!item.final_quote_excel_url;
+    const canOrder = item.status === '견적 발송';
 
     el.innerHTML = `
       <div class="estimate-info">
@@ -8033,7 +8164,9 @@ async function loadMyConsultations() {
       </div>
       <div class="estimate-actions">
         <span class="consult-status-badge ${badge.cls}">${badge.label}</span>
+        ${hasFinalQuote ? `<button class="btn-est-action excel-dl" data-quote-dl="${item.id}">견적서 다운로드</button>` : ''}
         ${item.image_url ? `<button class="btn-est-action load" data-mark-id="${item.id}">${markLabel}</button>` : ''}
+        ${canOrder ? `<button class="btn-est-action order" data-order-id="${item.id}">발주하기</button>` : ''}
         ${canCancel ? `<button class="btn-est-action delete" data-id="${item.id}">취소</button>` : ''}
       </div>
     `;
@@ -8041,6 +8174,30 @@ async function loadMyConsultations() {
     const markBtn = el.querySelector('[data-mark-id]');
     if (markBtn) {
       markBtn.onclick = () => openControllerMarkModal(item);
+    }
+
+    const dlBtn = el.querySelector('[data-quote-dl]');
+    if (dlBtn) {
+      dlBtn.onclick = () => downloadFinalQuote(item);
+    }
+
+    const orderBtn = el.querySelector('[data-order-id]');
+    if (orderBtn) {
+      orderBtn.onclick = async () => {
+        const confirmOrder = confirm('최종 견적서를 확인하셨나요? 발주를 확정하시겠습니까?\n발주 확정 후에는 되돌릴 수 없습니다.');
+        if (!confirmOrder) return;
+
+        const { error: orderErr } = await supabaseClient
+          .from('ConsultationRequest')
+          .update({ status: '발주 확정' })
+          .eq('id', item.id);
+
+        if (orderErr) {
+          alert('발주 확정 실패: ' + orderErr.message);
+        } else {
+          loadMyConsultations();
+        }
+      };
     }
 
     if (canCancel) {
@@ -8063,6 +8220,28 @@ async function loadMyConsultations() {
 
     listContainer.appendChild(el);
   });
+}
+
+async function downloadFinalQuote(item) {
+  if (!item.final_quote_excel_url) return;
+
+  const { data: excelSigned, error: excelErr } = await supabaseClient.storage
+    .from('consultation-quotes')
+    .createSignedUrl(item.final_quote_excel_url, 300);
+  if (excelErr || !excelSigned) {
+    alert('견적서 다운로드 링크 생성에 실패했습니다: ' + (excelErr ? excelErr.message : ''));
+    return;
+  }
+  window.open(excelSigned.signedUrl, '_blank');
+
+  if (item.final_floorplan_url) {
+    const { data: fpSigned } = await supabaseClient.storage
+      .from('consultation-quotes')
+      .createSignedUrl(item.final_floorplan_url, 300);
+    if (fpSigned) {
+      window.open(fpSigned.signedUrl, '_blank');
+    }
+  }
 }
 
 // ==================== CONTROLLER MARKING (컨트롤러 위치 표시) ====================

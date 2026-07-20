@@ -11,6 +11,9 @@ let productsLoaded = false;  // lazy-load guard
 let currentBomRows = [];     // BOM rows for the currently opened detail modal (for excel export)
 let currentBomTotal = 0;     // BOM total for the currently opened detail modal
 let currentQuoteHasIot = false; // 현재 모달의 견적이 IoT 제품을 포함하는지 (컨트롤러 확인 소프트 게이트에 사용)
+let currentFinalBom = []; // 담당자가 직접 수정 가능한 최종 발송용 견적 품목 (자동 계산 BOM과 별개, ConsultationRequest.final_bom에 저장)
+let settingsLoaded = false;  // 설정 탭 lazy-load guard
+let companyStampPath = null; // company-assets 버킷 내 도장 이미지 경로 (비공개 버킷이라 URL 아닌 경로로 보관, 필요 시 서명 URL 생성)
 
 // ==================== AUTH GATE ====================
 async function checkAdminAuth() {
@@ -213,15 +216,71 @@ async function saveProductPrice(id, input, btn) {
 
 // ==================== TAB SWITCHING ====================
 function switchTab(tab) {
-  const isConsult = tab === 'consult';
-  document.getElementById('tabBtnConsult').classList.toggle('active', isConsult);
-  document.getElementById('tabBtnProducts').classList.toggle('active', !isConsult);
-  document.getElementById('viewConsult').style.display = isConsult ? 'block' : 'none';
-  document.getElementById('viewProducts').style.display = isConsult ? 'none' : 'block';
+  document.getElementById('tabBtnConsult').classList.toggle('active', tab === 'consult');
+  document.getElementById('tabBtnProducts').classList.toggle('active', tab === 'products');
+  document.getElementById('tabBtnSettings').classList.toggle('active', tab === 'settings');
+  document.getElementById('viewConsult').style.display = tab === 'consult' ? 'block' : 'none';
+  document.getElementById('viewProducts').style.display = tab === 'products' ? 'block' : 'none';
+  document.getElementById('viewSettings').style.display = tab === 'settings' ? 'block' : 'none';
 
-  if (!isConsult && !productsLoaded) {
+  if (tab === 'products' && !productsLoaded) {
     loadProducts();
   }
+  if (tab === 'settings' && !settingsLoaded) {
+    loadCompanySettings();
+  }
+}
+
+// ==================== SETTINGS (회사 도장) ====================
+async function loadCompanySettings() {
+  const { data, error } = await sb.from('company_settings').select('stamp_url').eq('id', 1).single();
+  settingsLoaded = true;
+  if (error || !data || !data.stamp_url) {
+    companyStampPath = null;
+    renderStampPreview(null);
+    return;
+  }
+
+  companyStampPath = data.stamp_url;
+  const { data: signed, error: signErr } = await sb.storage.from('company-assets').createSignedUrl(data.stamp_url, 3600);
+  renderStampPreview(signErr ? null : signed.signedUrl);
+}
+
+function renderStampPreview(url) {
+  const img = document.getElementById('stampPreview');
+  const noStamp = document.getElementById('lblNoStamp');
+  if (url) {
+    img.src = url;
+    img.style.display = 'block';
+    noStamp.style.display = 'none';
+  } else {
+    img.style.display = 'none';
+    noStamp.style.display = 'block';
+  }
+}
+
+async function uploadStamp(file) {
+  if (!file) return;
+  if (file.type !== 'image/png') {
+    showToast('PNG 파일만 업로드할 수 있습니다.');
+    return;
+  }
+
+  const path = `stamp_${Date.now()}.png`;
+  const { error: uploadErr } = await sb.storage.from('company-assets').upload(path, file, { contentType: 'image/png' });
+  if (uploadErr) {
+    showToast('업로드 실패: ' + uploadErr.message);
+    return;
+  }
+
+  const { error: updateErr } = await sb.from('company_settings').update({ stamp_url: path }).eq('id', 1);
+  if (updateErr) {
+    showToast('설정 저장 실패: ' + updateErr.message);
+    return;
+  }
+
+  showToast('도장 이미지가 저장되었습니다.');
+  loadCompanySettings();
 }
 
 // ==================== DETAIL MODAL ====================
@@ -262,6 +321,13 @@ async function openDetail(id) {
 
   // BOM from linked quote
   await loadBom(currentRow.quote_id);
+
+  // 최종 견적 품목: 이미 편집/저장된 값이 있으면 그걸, 없으면 자동 계산값을 초기값으로 사용
+  currentFinalBom = (currentRow.final_bom && currentRow.final_bom.length > 0)
+    ? JSON.parse(JSON.stringify(currentRow.final_bom))
+    : JSON.parse(JSON.stringify(currentBomRows));
+  renderFinalBomTable();
+  renderSendStatusNote();
 
   modal.classList.add('open');
 }
@@ -407,6 +473,41 @@ async function loadBom(quoteId) {
   lblTotal.textContent = '₩' + currentBomTotal.toLocaleString();
 }
 
+// ==================== FINAL BOM (발송용, 담당자 직접 수정) ====================
+function escapeAttr(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+function renderFinalBomTable() {
+  const tbody = document.getElementById('finalBomBody');
+  tbody.innerHTML = currentFinalBom.map((item, idx) => `
+    <tr>
+      <td><input type="text" class="bom-edit-input" data-idx="${idx}" data-field="code" value="${escapeAttr(item.code || '')}"></td>
+      <td><input type="text" class="bom-edit-input" data-idx="${idx}" data-field="name" value="${escapeAttr(item.name || '')}"></td>
+      <td><input type="text" inputmode="numeric" pattern="[0-9]*" class="bom-edit-input num" data-idx="${idx}" data-field="count" value="${item.count}"></td>
+      <td><input type="text" inputmode="numeric" pattern="[0-9]*" class="bom-edit-input num" data-idx="${idx}" data-field="price" value="${item.price}"></td>
+      <td><button class="btn-final-bom-del" data-idx="${idx}" title="삭제">×</button></td>
+    </tr>`).join('');
+  renderFinalBomTotal();
+}
+
+function renderFinalBomTotal() {
+  const total = currentFinalBom.reduce((sum, item) => sum + (Number(item.count) || 0) * (Number(item.price) || 0), 0);
+  document.getElementById('lblFinalBomTotal').textContent = '₩' + total.toLocaleString();
+}
+
+async function saveFinalBom() {
+  if (!currentRow) return;
+  const { error } = await sb.from('ConsultationRequest').update({ final_bom: currentFinalBom }).eq('id', currentRow.id);
+  if (error) {
+    showToast('최종 견적 저장 실패: ' + error.message);
+    return;
+  }
+  currentRow.final_bom = currentFinalBom;
+  const idx = allRows.findIndex(r => r.id === currentRow.id);
+  if (idx !== -1) allRows[idx].final_bom = currentFinalBom;
+}
+
 function closeDetail() {
   document.getElementById('detailModal').classList.remove('open');
   currentRow = null;
@@ -473,17 +574,300 @@ async function exportQuoteToExcel() {
   URL.revokeObjectURL(url);
 }
 
+// ==================== FINAL QUOTE SEND (정식 양식 견적서 발송) ====================
+const ZIBIS_SUPPLIER = {
+  regNo: '361-86-01586',
+  name: '주식회사 지비스',
+  ceo: '박효실,윤재동',
+  address: '경기도 성남시 판교역로240 삼환하이펙스 a동 601호',
+  bizType: '제조업',
+  bizItem: 'LED등기구. 도어락, 온도조절기'
+};
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+function loadImageEl(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+async function generateFloorplanWithPins() {
+  if (!currentRow.image_url) return null;
+  try {
+    const img = await loadImageEl(currentRow.image_url);
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+
+    const markers = currentRow.controller_markers || [];
+    markers.forEach((m, idx) => {
+      const x = m.x * canvas.width;
+      const y = m.y * canvas.height;
+      const r = Math.max(canvas.width, canvas.height) * 0.014;
+      ctx.beginPath();
+      ctx.arc(x, y, r * 1.35, 0, 2 * Math.PI);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, 2 * Math.PI);
+      ctx.fillStyle = '#10b981';
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `bold ${Math.round(r)}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(idx + 1), x, y + r * 0.05);
+    });
+
+    return await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+  } catch (e) {
+    console.warn('도면 합성 실패, 도면 없이 진행합니다:', e);
+    return null;
+  }
+}
+
+async function generateFormalQuoteExcel() {
+  const workbook = new ExcelJS.Workbook();
+  const ws = workbook.addWorksheet('견적서');
+  const GREEN = 'FF2E7D32';
+  ws.columns = [
+    { width: 7 }, { width: 7 }, { width: 30 }, { width: 8 },
+    { width: 12 }, { width: 14 }, { width: 12 }, { width: 18 }
+  ];
+
+  const thinBorder = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+  const applyBorder = (r1, r2, c1, c2) => {
+    for (let r = r1; r <= r2; r++) for (let c = c1; c <= c2; c++) ws.getCell(r, c).border = thinBorder;
+  };
+
+  // 상단 타이틀 + 프로젝트명
+  ws.mergeCells('A1:B4');
+  const titleCell = ws.getCell('A1');
+  titleCell.value = '견적서';
+  titleCell.font = { name: 'Malgun Gothic', size: 20, bold: true };
+  titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+  ws.mergeCells('A5:B6');
+  const projectCell = ws.getCell('A5');
+  projectCell.value = currentRow.address || '';
+  projectCell.font = { name: 'Malgun Gothic', size: 11, bold: true };
+  projectCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+
+  ws.mergeCells('C1:C6');
+  const gongGeupJaCell = ws.getCell('C1');
+  gongGeupJaCell.value = '공급자';
+  gongGeupJaCell.font = { name: 'Malgun Gothic', bold: true };
+  gongGeupJaCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+
+  const supplierRows = [
+    ['등록번호', ZIBIS_SUPPLIER.regNo],
+    ['상   호', ZIBIS_SUPPLIER.name],
+    ['대 표 자', ZIBIS_SUPPLIER.ceo],
+    ['주   소', ZIBIS_SUPPLIER.address],
+    ['업   태', ZIBIS_SUPPLIER.bizType],
+    ['종   목', ZIBIS_SUPPLIER.bizItem]
+  ];
+  supplierRows.forEach((row, i) => {
+    const r = i + 1;
+    const labelCell = ws.getCell(r, 4);
+    labelCell.value = row[0];
+    labelCell.font = { name: 'Malgun Gothic', bold: true, size: 10 };
+    labelCell.alignment = { vertical: 'middle', horizontal: 'center' };
+    ws.mergeCells(r, 5, r, 8);
+    const valCell = ws.getCell(r, 5);
+    valCell.value = row[1];
+    valCell.font = { name: 'Malgun Gothic', size: 10 };
+    valCell.alignment = { vertical: 'middle', horizontal: 'center' };
+  });
+  applyBorder(1, 6, 1, 8);
+
+  // 회사 도장 (설정 탭에서 업로드한 이미지, 고정 위치)
+  if (companyStampPath) {
+    try {
+      const { data: stampBlob } = await sb.storage.from('company-assets').download(companyStampPath);
+      if (stampBlob) {
+        const stampBase64 = await blobToBase64(stampBlob);
+        const imgId = workbook.addImage({ base64: stampBase64, extension: 'png' });
+        ws.addImage(imgId, { tl: { col: 6.4, row: 0.6 }, ext: { width: 85, height: 85 } });
+      }
+    } catch (e) {
+      console.warn('도장 이미지 삽입 실패:', e);
+    }
+  }
+
+  // 품목 테이블 헤더
+  const headerRow = 8;
+  ['월', '일', '품목', '수량', '단가', '공급가액', '세액', '비고'].forEach((h, i) => {
+    const cell = ws.getCell(headerRow, i + 1);
+    cell.value = h;
+    cell.font = { name: 'Malgun Gothic', bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GREEN } };
+    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+  });
+  applyBorder(headerRow, headerRow, 1, 8);
+
+  const now = new Date();
+  let rowNum = headerRow + 1;
+  let totalSupply = 0, totalTax = 0;
+  currentFinalBom.forEach((item, idx) => {
+    const qty = Number(item.count) || 0;
+    const price = Number(item.price) || 0;
+    const supply = qty * price;
+    const tax = Math.round(supply * 0.1);
+    totalSupply += supply;
+    totalTax += tax;
+
+    if (idx === 0) {
+      ws.getCell(rowNum, 1).value = now.getMonth() + 1;
+      ws.getCell(rowNum, 2).value = now.getDate();
+    }
+    ws.getCell(rowNum, 3).value = item.name || '';
+    ws.getCell(rowNum, 4).value = qty;
+    ws.getCell(rowNum, 5).value = price;
+    ws.getCell(rowNum, 5).numFmt = '#,##0';
+    ws.getCell(rowNum, 6).value = supply;
+    ws.getCell(rowNum, 6).numFmt = '#,##0';
+    ws.getCell(rowNum, 7).value = tax;
+    ws.getCell(rowNum, 7).numFmt = '#,##0';
+
+    for (let c = 1; c <= 8; c++) {
+      ws.getCell(rowNum, c).font = { name: 'Malgun Gothic', size: 10 };
+      ws.getCell(rowNum, c).alignment = { vertical: 'middle', horizontal: c === 3 ? 'left' : (c >= 4 && c <= 7 ? 'right' : 'center') };
+    }
+    applyBorder(rowNum, rowNum, 1, 8);
+    rowNum++;
+  });
+
+  // 합계
+  ws.mergeCells(rowNum, 1, rowNum, 2);
+  ws.getCell(rowNum, 1).value = '공급가액';
+  ws.mergeCells(rowNum, 3, rowNum, 4);
+  ws.getCell(rowNum, 3).value = totalSupply;
+  ws.getCell(rowNum, 3).numFmt = '#,##0';
+  ws.getCell(rowNum, 5).value = '부가세';
+  ws.getCell(rowNum, 6).value = totalTax;
+  ws.getCell(rowNum, 6).numFmt = '#,##0';
+  ws.getCell(rowNum, 7).value = '합계';
+  ws.getCell(rowNum, 8).value = totalSupply + totalTax;
+  ws.getCell(rowNum, 8).numFmt = '#,##0';
+  for (let c = 1; c <= 8; c++) {
+    ws.getCell(rowNum, c).font = { name: 'Malgun Gothic', bold: true };
+    ws.getCell(rowNum, c).alignment = { vertical: 'middle', horizontal: 'center' };
+  }
+  applyBorder(rowNum, rowNum, 1, 8);
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
+
+async function sendFinalQuote() {
+  if (!currentRow) return;
+  if (currentFinalBom.length === 0) {
+    showToast('발송할 견적 품목이 없습니다.');
+    return;
+  }
+  if (!currentRow.user_id) {
+    showToast('회원가입 없이 접수된 상담 건은 발송할 수 없습니다.');
+    return;
+  }
+  if (currentQuoteHasIot && !document.getElementById('chkControllerConfirmed').checked) {
+    const proceed = confirm('컨트롤러 위치 확인이 아직 체크되지 않았습니다. 그래도 견적서를 발송하시겠습니까?');
+    if (!proceed) return;
+  }
+
+  const btn = document.getElementById('btnSendFinalQuote');
+  btn.disabled = true;
+  btn.textContent = '발송 중...';
+
+  try {
+    const excelBlob = await generateFormalQuoteExcel();
+    const floorplanBlob = await generateFloorplanWithPins();
+
+    const basePath = `${currentRow.user_id}/${currentRow.id}`;
+    const stamp = Date.now();
+    const excelPath = `${basePath}/견적서_${stamp}.xlsx`;
+
+    const { error: excelErr } = await sb.storage.from('consultation-quotes')
+      .upload(excelPath, excelBlob, { contentType: excelBlob.type, upsert: true });
+    if (excelErr) throw new Error('견적서 업로드 실패: ' + excelErr.message);
+
+    let floorplanPath = null;
+    if (floorplanBlob) {
+      floorplanPath = `${basePath}/도면_${stamp}.png`;
+      const { error: fpErr } = await sb.storage.from('consultation-quotes')
+        .upload(floorplanPath, floorplanBlob, { contentType: 'image/png', upsert: true });
+      if (fpErr) {
+        console.warn('도면 업로드 실패, 견적서만 발송합니다:', fpErr.message);
+        floorplanPath = null;
+      }
+    }
+
+    const { error: updateErr } = await sb.from('ConsultationRequest').update({
+      final_bom: currentFinalBom,
+      final_quote_excel_url: excelPath,
+      final_floorplan_url: floorplanPath,
+      status: '견적 발송'
+    }).eq('id', currentRow.id);
+    if (updateErr) throw new Error('상태 저장 실패: ' + updateErr.message);
+
+    Object.assign(currentRow, { final_bom: currentFinalBom, final_quote_excel_url: excelPath, final_floorplan_url: floorplanPath, status: '견적 발송' });
+    const idx = allRows.findIndex(r => r.id === currentRow.id);
+    if (idx !== -1) Object.assign(allRows[idx], currentRow);
+
+    document.getElementById('selectModalStatus').value = '견적 발송';
+    renderSendStatusNote();
+    showToast('최종 견적서가 발송되었습니다.');
+    applyFilter();
+    updateWidgets(allRows);
+  } catch (err) {
+    console.error(err);
+    showToast(err.message || '발송 중 오류가 발생했습니다.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '최종 견적서 발송하기';
+  }
+}
+
+async function renderSendStatusNote() {
+  const note = document.getElementById('sendStatusNote');
+  if (!currentRow.final_quote_excel_url) {
+    note.style.display = 'none';
+    note.innerHTML = '';
+    return;
+  }
+  note.style.display = 'block';
+  note.innerHTML = '최근 발송된 견적서가 있습니다 (다시 발송하면 이전 파일을 덮어씁니다) — <span id="sendStatusLinks">링크 불러오는 중...</span>';
+
+  const links = [];
+  const { data: excelSigned } = await sb.storage.from('consultation-quotes').createSignedUrl(currentRow.final_quote_excel_url, 300);
+  if (excelSigned) links.push(`<a href="${excelSigned.signedUrl}" target="_blank" rel="noopener">엑셀 확인</a>`);
+  if (currentRow.final_floorplan_url) {
+    const { data: fpSigned } = await sb.storage.from('consultation-quotes').createSignedUrl(currentRow.final_floorplan_url, 300);
+    if (fpSigned) links.push(`<a href="${fpSigned.signedUrl}" target="_blank" rel="noopener">도면 확인</a>`);
+  }
+  const linksEl = document.getElementById('sendStatusLinks');
+  if (linksEl) linksEl.innerHTML = links.length > 0 ? links.join(' · ') : '(링크 생성 실패)';
+}
+
 // ==================== STATUS UPDATE ====================
 async function saveStatus() {
   if (!currentRow) return;
   const newStatus = document.getElementById('selectModalStatus').value;
   const confirmed = document.getElementById('chkControllerConfirmed').checked;
-
-  // 소프트 게이트: IoT 견적을 발주 확정으로 바꾸는데 컨트롤러 위치 확인이 안 됐으면 한 번 더 확인
-  if (newStatus === '발주 확정' && currentQuoteHasIot && !confirmed) {
-    const proceed = confirm('컨트롤러 위치 확인이 아직 체크되지 않았습니다. 그래도 발주 확정으로 저장하시겠습니까?');
-    if (!proceed) return;
-  }
 
   const { error } = await sb
     .from('ConsultationRequest')
@@ -535,6 +919,45 @@ function bindEvents() {
   document.getElementById('btnModalClose').addEventListener('click', closeDetail);
   document.getElementById('btnSaveStatus').addEventListener('click', saveStatus);
   document.getElementById('btnExportExcel').addEventListener('click', exportQuoteToExcel);
+  document.getElementById('btnSendFinalQuote').addEventListener('click', sendFinalQuote);
+
+  // 최종 견적 품목 편집 (인라인 input, 이벤트 위임)
+  const finalBomBody = document.getElementById('finalBomBody');
+  finalBomBody.addEventListener('input', (e) => {
+    const input = e.target;
+    if (!input.classList.contains('bom-edit-input')) return;
+    const idx = Number(input.dataset.idx);
+    const field = input.dataset.field;
+    if (field === 'count' || field === 'price') {
+      const digitsOnly = input.value.replace(/[^0-9]/g, '');
+      if (input.value !== digitsOnly) input.value = digitsOnly;
+      currentFinalBom[idx][field] = Number(digitsOnly) || 0;
+    } else {
+      currentFinalBom[idx][field] = input.value;
+    }
+    renderFinalBomTotal();
+  });
+  finalBomBody.addEventListener('change', (e) => {
+    if (!e.target.classList.contains('bom-edit-input')) return;
+    saveFinalBom();
+  });
+  finalBomBody.addEventListener('click', (e) => {
+    const btn = e.target.closest('.btn-final-bom-del');
+    if (!btn) return;
+    currentFinalBom.splice(Number(btn.dataset.idx), 1);
+    renderFinalBomTable();
+    saveFinalBom();
+  });
+  document.getElementById('btnFinalBomAddRow').addEventListener('click', () => {
+    currentFinalBom.push({ code: '-', name: '', count: 1, price: 0 });
+    renderFinalBomTable();
+  });
+  document.getElementById('btnFinalBomReset').addEventListener('click', () => {
+    if (!confirm('직접 수정한 내용을 버리고 자동 계산값으로 되돌리시겠습니까?')) return;
+    currentFinalBom = JSON.parse(JSON.stringify(currentBomRows));
+    renderFinalBomTable();
+    saveFinalBom();
+  });
 
   // Close modal on backdrop click
   document.getElementById('detailModal').addEventListener('click', (e) => {
@@ -544,6 +967,14 @@ function bindEvents() {
   // Tabs
   document.getElementById('tabBtnConsult').addEventListener('click', () => switchTab('consult'));
   document.getElementById('tabBtnProducts').addEventListener('click', () => switchTab('products'));
+  document.getElementById('tabBtnSettings').addEventListener('click', () => switchTab('settings'));
+
+  const stampFileInput = document.getElementById('stampFileInput');
+  document.getElementById('btnUploadStamp').addEventListener('click', () => stampFileInput.click());
+  stampFileInput.addEventListener('change', (e) => {
+    uploadStamp(e.target.files[0]);
+    stampFileInput.value = '';
+  });
 
   // Product filter/search
   document.getElementById('productSearchInput').addEventListener('input', applyProductFilter);

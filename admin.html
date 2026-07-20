@@ -123,6 +123,21 @@
     .line-badge { display:inline-block; font-size:10px; font-weight:700; padding:3px 9px; border-radius:20px; }
     .line-zibis_iot { background:rgba(59,130,246,0.15); color:#60a5fa; }
     .line-zibis_general { background:rgba(167,139,250,0.15); color:#a78bfa; }
+
+    .send-status-note { margin-top:8px; font-size:11px; color:var(--text-dim); text-align:center; }
+    .send-status-note a { color:var(--accent-blue); }
+    .final-bom-actions { display:flex; gap:8px; margin-top:8px; }
+    .btn-est-action-sm { background:none; border:1px solid var(--border); color:var(--text-dim); padding:6px 10px; border-radius:6px; font-size:11px; cursor:pointer; font-family:inherit; transition:all 0.15s; }
+    .btn-est-action-sm:hover { background:var(--bg-hover); color:var(--text); }
+    .bom-edit-input { width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:5px; padding:5px 7px; font-size:12px; font-family:inherit; outline:none; box-sizing:border-box; }
+    .bom-edit-input:focus { border-color:var(--accent); }
+    .bom-edit-input.num { text-align:right; }
+    .btn-final-bom-del { background:none; border:none; color:#f87171; font-size:16px; cursor:pointer; line-height:1; padding:0; }
+
+    .settings-card { max-width:520px; background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:24px; }
+    .settings-desc { font-size:12px; color:var(--text-dim); line-height:1.6; margin:8px 0 18px 0; }
+    .stamp-preview-wrap { width:100%; height:140px; background:var(--bg); border:1px dashed var(--border); border-radius:10px; display:flex; align-items:center; justify-content:center; margin-bottom:14px; overflow:hidden; }
+    .stamp-preview-wrap img { max-width:100%; max-height:100%; object-fit:contain; }
   </style>
 </head>
 <body>
@@ -151,6 +166,7 @@
   <div class="tab-bar">
     <button class="tab-btn active" id="tabBtnConsult">상담 신청 관리</button>
     <button class="tab-btn" id="tabBtnProducts">제품 가격 관리</button>
+    <button class="tab-btn" id="tabBtnSettings">설정</button>
   </div>
 
   <div id="viewConsult">
@@ -230,6 +246,19 @@
       <div id="productEmptyMsg" class="empty-msg" style="display:none;">등록된 제품이 없습니다.</div>
     </div>
   </div>
+
+  <div id="viewSettings" style="display:none;">
+    <div class="settings-card">
+      <div class="sec-label">회사 도장</div>
+      <p class="settings-desc">최종 견적서를 발송할 때 자동으로 찍히는 도장 이미지입니다. 배경이 투명한 PNG 파일을 업로드해주세요. 업로드하면 이후 발송되는 모든 견적서에 항상 같은 위치로 삽입됩니다.</p>
+      <div class="stamp-preview-wrap">
+        <img id="stampPreview" src="" alt="도장 미리보기" style="display:none;">
+        <span id="lblNoStamp" style="color:var(--text-dim); font-size:12px;">등록된 도장 이미지가 없습니다.</span>
+      </div>
+      <input type="file" id="stampFileInput" accept="image/png" style="display:none;">
+      <button class="btn-save" id="btnUploadStamp" style="width:auto;">도장 이미지 업로드</button>
+    </div>
+  </div>
 </div>
 
 <!-- Detail Modal -->
@@ -259,7 +288,7 @@
           </div>
         </div>
         <div>
-          <div class="sec-label">배치 조명 명세 (BOM)</div>
+          <div class="sec-label">배치 조명 명세 (BOM) — 자동 계산 (참고용)</div>
           <div class="bom-wrap">
             <table class="bom-table">
               <thead><tr><th style="width:90px;">품번</th><th>자재명</th><th style="text-align:center; width:46px;">수량</th><th style="text-align:right; width:90px;">단가</th></tr></thead>
@@ -274,6 +303,23 @@
           <button class="btn-export" id="btnExportExcel">견적 저장하기 (Excel 다운로드)</button>
         </div>
         <div>
+          <div class="sec-label">최종 견적 품목 (발송용, 직접 수정 가능)</div>
+          <div class="bom-wrap">
+            <table class="bom-table">
+              <thead><tr><th style="width:90px;">품번</th><th>자재명</th><th style="text-align:center; width:60px;">수량</th><th style="text-align:right; width:90px;">단가</th><th style="width:30px;"></th></tr></thead>
+              <tbody id="finalBomBody"></tbody>
+            </table>
+          </div>
+          <div class="final-bom-actions">
+            <button class="btn-est-action-sm" id="btnFinalBomAddRow">+ 품목 추가</button>
+            <button class="btn-est-action-sm" id="btnFinalBomReset">자동 계산값으로 초기화</button>
+          </div>
+          <div class="bom-total" style="margin-top:12px;">
+            <span>최종 견적 합계</span>
+            <span id="lblFinalBomTotal">₩0</span>
+          </div>
+        </div>
+        <div>
           <div class="sec-label">고객 요청사항</div>
           <div class="remarks-box" id="mRemarks"></div>
         </div>
@@ -284,14 +330,17 @@
             컨트롤러 위치 확인 완료 (<span id="lblMarkerCount">0</span>개 표시됨)
           </label>
         </div>
+        <div>
+          <button class="btn-export" id="btnSendFinalQuote" style="border-color:var(--accent-blue); color:var(--accent-blue);">최종 견적서 발송하기</button>
+          <div class="send-status-note" id="sendStatusNote" style="display:none;"></div>
+        </div>
         <div class="status-row">
           <div>
-            <div class="slabel">처리 상태 변경</div>
+            <div class="slabel">처리 상태 변경 (발주 확정은 고객이 직접 진행)</div>
             <select class="modal-status-sel" id="selectModalStatus">
               <option value="상담대기">상담대기</option>
               <option value="상담완료">상담완료</option>
               <option value="견적 발송">견적 발송</option>
-              <option value="발주 확정">발주 확정</option>
               <option value="취소">취소</option>
             </select>
           </div>
