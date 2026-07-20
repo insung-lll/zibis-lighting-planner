@@ -12,6 +12,8 @@ let currentBomRows = [];     // BOM rows for the currently opened detail modal (
 let currentBomTotal = 0;     // BOM total for the currently opened detail modal
 let currentQuoteHasIot = false; // 현재 모달의 견적이 IoT 제품을 포함하는지 (컨트롤러 확인 소프트 게이트에 사용)
 let currentFinalBom = []; // 담당자가 직접 수정 가능한 최종 발송용 견적 품목 (자동 계산 BOM과 별개, ConsultationRequest.final_bom에 저장)
+let currentQuoteLights = []; // 현재 모달의 견적에 배치된 조명 원본 데이터 (도면 위 호버 툴팁용)
+let currentQuoteZones = [];  // 현재 모달의 견적 존 데이터 (도면 위 호버 툴팁의 공간명 판별용)
 let settingsLoaded = false;  // 설정 탭 lazy-load guard
 let companyStampPath = null; // company-assets 버킷 내 도장 이미지 경로 (비공개 버킷이라 URL 아닌 경로로 보관, 필요 시 서명 URL 생성)
 
@@ -321,19 +323,27 @@ async function openDetail(id) {
 
   // BOM from linked quote
   await loadBom(currentRow.quote_id);
+  renderAdminLightHoverTargets('adminLightHoverTargets', img);
 
   // 최종 견적 품목: 이미 편집/저장된 값이 있으면 그걸, 없으면 자동 계산값을 초기값으로 사용
   currentFinalBom = (currentRow.final_bom && currentRow.final_bom.length > 0)
     ? JSON.parse(JSON.stringify(currentRow.final_bom))
     : JSON.parse(JSON.stringify(currentBomRows));
+  // 공간 컬럼 추가 이전에 저장된 최종 견적은 zone이 비어있을 수 있어, 자동계산 BOM에서 매칭해 보완
+  currentFinalBom.forEach(item => {
+    if (!item.zone) {
+      const match = currentBomRows.find(r => r.code === item.code && r.name === item.name);
+      item.zone = match ? match.zone : '-';
+    }
+  });
   renderFinalBomTable();
   renderSendStatusNote();
 
   modal.classList.add('open');
 }
 
-function renderAdminMarkerPins(markers) {
-  const pinsContainer = document.getElementById('adminMarkerPins');
+function renderAdminMarkerPins(markers, containerId) {
+  const pinsContainer = document.getElementById(containerId || 'adminMarkerPins');
   pinsContainer.innerHTML = '';
   markers.forEach((m, idx) => {
     const pin = document.createElement('div');
@@ -343,6 +353,53 @@ function renderAdminMarkerPins(markers) {
     pin.textContent = idx + 1;
     pinsContainer.appendChild(pin);
   });
+}
+
+// ==================== 도면 확대 보기 (라이트박스) ====================
+function openBlueprintLightbox() {
+  if (!currentRow || !currentRow.image_url) return;
+  const lightboxImg = document.getElementById('lightboxImg');
+  lightboxImg.src = currentRow.image_url;
+  renderAdminMarkerPins(currentRow.controller_markers || [], 'lightboxPins');
+  renderAdminLightHoverTargets('lightboxLightHoverTargets', lightboxImg);
+  document.getElementById('blueprintLightbox').classList.add('open');
+}
+
+function closeBlueprintLightbox() {
+  document.getElementById('blueprintLightbox').classList.remove('open');
+}
+
+// 도면 위 조명 위치에 마우스를 올리면 어떤 제품인지 툴팁으로 표시
+function renderAdminLightHoverTargets(containerId, imgEl) {
+  const container = document.getElementById(containerId);
+  if (!container || !imgEl) return;
+
+  const render = () => {
+    container.innerHTML = '';
+    const w = imgEl.naturalWidth || 0;
+    const h = imgEl.naturalHeight || 0;
+    if (!w || !h) return;
+    currentQuoteLights.forEach(l => {
+      if (MAGNETIC_RAIL_TYPE_IDS.includes(l.typeId)) return; // 레일(선분)은 점 호버로 표현하기 애매해 제외
+      const px = l.x2 !== undefined ? (l.x + l.x2) / 2 : l.x;
+      const py = l.y2 !== undefined ? (l.y + l.y2) / 2 : l.y;
+      const product = allProducts.find(p => p.id === l.typeId);
+      const productLabel = l.name || (product && product.name) || l.typeId;
+      const zoneName = findZoneNameForLight(l, currentQuoteZones);
+      const dot = document.createElement('div');
+      dot.className = 'admin-light-hover-dot';
+      dot.style.left = (px / w * 100) + '%';
+      dot.style.top = (py / h * 100) + '%';
+      dot.title = zoneName !== '-' ? `${zoneName}\n${productLabel}` : productLabel;
+      container.appendChild(dot);
+    });
+  };
+
+  if (imgEl.complete && imgEl.naturalWidth > 0) {
+    render();
+  } else {
+    imgEl.onload = render;
+  }
 }
 
 // ==================== BOM ACCESSORY LOOKUPS (mirrors app.js auto-added 컨버터/컨트롤러/허브 pricing) ====================
@@ -355,8 +412,9 @@ function findAdminConverter(watt) {
 function findAdminController() {
   return allProducts.find(p => (p.category || '').trim() === '컨트롤러' || (p.name || '').includes('컨트롤러'));
 }
-function toBomItem(product, fallbackName, fallbackPrice, qty) {
+function toBomItem(product, fallbackName, fallbackPrice, qty, zone) {
   return {
+    zone: zone || '-',
     code: (product && product.ecount_prod_cd) || '-',
     name: product ? product.name : fallbackName,
     count: qty,
@@ -365,6 +423,27 @@ function toBomItem(product, fallbackName, fallbackPrice, qty) {
 }
 
 const MAGNETIC_RAIL_TYPE_IDS = ['magnetic-rail', 'fe1f7195-3630-49c0-8cda-f5ea732cfe57'];
+
+// app.js의 isPointInPolygon/isLightInPolygon과 동일한 판별 로직 (조명이 속한 공간명 파악용)
+function isPointInPolygon(pt, poly) {
+  let isInside = false;
+  const n = poly.length;
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    if (((poly[i].y > pt.y) !== (poly[j].y > pt.y)) &&
+        (pt.x < (poly[j].x - poly[i].x) * (pt.y - poly[i].y) / (poly[j].y - poly[i].y) + poly[i].x)) {
+      isInside = !isInside;
+    }
+  }
+  return isInside;
+}
+
+function findZoneNameForLight(l, zones) {
+  const pt = (l.x2 !== undefined && l.y2 !== undefined)
+    ? { x: (l.x + l.x2) / 2, y: (l.y + l.y2) / 2 }
+    : { x: l.x, y: l.y };
+  const zone = zones.find(z => isPointInPolygon(pt, z.points));
+  return zone ? zone.name : '-';
+}
 
 async function loadBom(quoteId) {
   const bomBody = document.getElementById('bomBody');
@@ -377,6 +456,8 @@ async function loadBom(quoteId) {
   currentBomRows = [];
   currentBomTotal = 0;
   currentQuoteHasIot = false;
+  currentQuoteLights = [];
+  currentQuoteZones = [];
 
   if (!quoteId) { noBom.style.display = 'block'; return; }
 
@@ -391,11 +472,13 @@ async function loadBom(quoteId) {
   const pd = quote.project_data;
   const lights = pd.lights || [];
   const zones = pd.zones || [];
+  currentQuoteLights = lights;
+  currentQuoteZones = zones;
   if (lights.length === 0) { noBom.style.display = 'block'; return; }
 
   const rows = [];
 
-  // 1) 일반 조명 기구: typeId별 집계 (마그네틱 레일은 2)에서 별도 처리)
+  // 1) 일반 조명 기구: (공간, typeId)별 집계 (마그네틱 레일은 2)에서 별도 처리)
   const agg = {};
   let magneticTotalLenM = 0;
   const ppm = pd.pixelsPerMeter || 50;
@@ -407,16 +490,19 @@ async function loadBom(quoteId) {
       magneticTotalLenM += ppm > 0 ? lenPx / ppm : 0;
       return;
     }
-    if (!agg[l.typeId]) {
+    const zoneName = findZoneNameForLight(l, zones);
+    const key = zoneName + '||' + l.typeId;
+    if (!agg[key]) {
       const product = allProducts.find(p => p.id === l.typeId);
-      agg[l.typeId] = {
+      agg[key] = {
+        zone: zoneName,
         code: (product && product.ecount_prod_cd) || '-',
         name: l.name || (product && product.name) || l.typeId,
         count: 0,
         price: typeof l.price === 'number' ? l.price : Number((product && product.price) || 0)
       };
     }
-    agg[l.typeId].count++;
+    agg[key].count++;
   });
   rows.push(...Object.values(agg));
 
@@ -432,21 +518,22 @@ async function loadBom(quoteId) {
     rows.push(toBomItem(findAdminProductByName('마그네틱 마감캡'), '마그네틱 마감캡', 360, 1));
   }
 
-  // 3) 존별 자동 산출된 컨버터(SMPS)/컨트롤러를 프로젝트 단위로 합산
-  const smpsCounts = {};
-  let controllerQty = 0;
+  // 3) 존별 자동 산출된 컨버터(SMPS)/컨트롤러 — 공간별로 행을 나눠서 표시
   zones.forEach(zone => {
+    const smpsCounts = {};
     (zone.requiredSMPS || []).forEach(cap => { smpsCounts[cap] = (smpsCounts[cap] || 0) + 1; });
+    Object.entries(smpsCounts).forEach(([cap, qty]) => {
+      rows.push(toBomItem(findAdminConverter(cap), `IoT 컨버터 ${cap}W`, 0, qty, zone.name));
+    });
+
+    let controllerQty = 0;
     (zone.requiredControllers || []).forEach(ctrl => {
       controllerQty += typeof ctrl === 'string' ? 1 : (ctrl.qty || 1);
     });
+    if (controllerQty > 0) {
+      rows.push(toBomItem(findAdminController(), 'IoT 컨트롤러', 0, controllerQty, zone.name));
+    }
   });
-  Object.entries(smpsCounts).forEach(([cap, qty]) => {
-    rows.push(toBomItem(findAdminConverter(cap), `IoT 컨버터 ${cap}W`, 0, qty));
-  });
-  if (controllerQty > 0) {
-    rows.push(toBomItem(findAdminController(), 'IoT 컨트롤러', 0, controllerQty));
-  }
 
   // 4) 허브: 프로젝트 전체에 IoT 조명이 1개라도 있으면 1개 (존 단위 아님)
   currentQuoteHasIot = lights.some(l => {
@@ -457,12 +544,22 @@ async function loadBom(quoteId) {
     rows.push(toBomItem(findAdminProductByName('허브'), '허브', 200000, 1));
   }
 
+  // 공간(존)별로 묶어서 정렬 — 도면에 등록된 순서 기준, 특정 공간이 없는 품목(허브 등)은 맨 뒤로
+  const zoneOrder = {};
+  zones.forEach((z, i) => { zoneOrder[z.name] = i; });
+  rows.sort((a, b) => {
+    const oa = a.zone && a.zone !== '-' ? (zoneOrder[a.zone] ?? 999) : 999;
+    const ob = b.zone && b.zone !== '-' ? (zoneOrder[b.zone] ?? 999) : 999;
+    return oa - ob;
+  });
+
   currentBomRows = rows;
   rows.forEach(item => {
     const subtotal = item.price * item.count;
     currentBomTotal += subtotal;
     bomBody.innerHTML += `
       <tr>
+        <td style="color:var(--text-dim); font-size:11px;">${item.zone || '-'}</td>
         <td style="color:var(--text-dim); font-size:11px;">${item.code}</td>
         <td>${item.name}</td>
         <td style="text-align:center;">${item.count}</td>
@@ -482,6 +579,7 @@ function renderFinalBomTable() {
   const tbody = document.getElementById('finalBomBody');
   tbody.innerHTML = currentFinalBom.map((item, idx) => `
     <tr>
+      <td><input type="text" class="bom-edit-input" data-idx="${idx}" data-field="zone" value="${escapeAttr(item.zone || '')}"></td>
       <td><input type="text" class="bom-edit-input" data-idx="${idx}" data-field="code" value="${escapeAttr(item.code || '')}"></td>
       <td><input type="text" class="bom-edit-input" data-idx="${idx}" data-field="name" value="${escapeAttr(item.name || '')}"></td>
       <td><input type="text" inputmode="numeric" pattern="[0-9]*" class="bom-edit-input num" data-idx="${idx}" data-field="count" value="${item.count}"></td>
@@ -921,6 +1019,18 @@ function bindEvents() {
   document.getElementById('btnExportExcel').addEventListener('click', exportQuoteToExcel);
   document.getElementById('btnSendFinalQuote').addEventListener('click', sendFinalQuote);
 
+  // 도면 확대 보기 (라이트박스)
+  document.getElementById('imgBlueprint').addEventListener('click', openBlueprintLightbox);
+  document.getElementById('btnCloseLightbox').addEventListener('click', closeBlueprintLightbox);
+  document.getElementById('blueprintLightbox').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeBlueprintLightbox();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.getElementById('blueprintLightbox').classList.contains('open')) {
+      closeBlueprintLightbox();
+    }
+  });
+
   // 최종 견적 품목 편집 (인라인 input, 이벤트 위임)
   const finalBomBody = document.getElementById('finalBomBody');
   finalBomBody.addEventListener('input', (e) => {
@@ -949,7 +1059,7 @@ function bindEvents() {
     saveFinalBom();
   });
   document.getElementById('btnFinalBomAddRow').addEventListener('click', () => {
-    currentFinalBom.push({ code: '-', name: '', count: 1, price: 0 });
+    currentFinalBom.push({ zone: '-', code: '-', name: '', count: 1, price: 0 });
     renderFinalBomTable();
   });
   document.getElementById('btnFinalBomReset').addEventListener('click', () => {
