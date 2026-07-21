@@ -336,16 +336,14 @@ function getMagneticRailBOM(lengthM) {
   const ctrlPrice = getDBControllerPrice();
   const powerLinePrice = getDBProductPrice('마그네틱 전원선', 16320);
   const connectorPrice = getDBProductPrice('마그네틱 연결선', 18720);
-  const endcapPrice = getDBProductPrice('마그네틱 마감캡', 360);
   const rail2mPrice = getDBProductPrice('마그네틱 레일 2M', 46560);
-  
+
   return [
     { type: 'rail-2m', name: '마그네틱 레일 2M', price: rail2mPrice, ecountProdCd: getDBProductProdCd('마그네틱 레일 2M'), qty: n2, watt: 0, lumen: 0, typeLabel: '라인/마그네틱' },
     { type: 'magnetic-converter', name: '마그네틱 컨버터 150W (유니온)', price: convPrice, ecountProdCd: getDBConverterProdCd(150), qty: 1, watt: 0, lumen: 0, typeLabel: '안정기 (SMPS)' },
     { type: 'magnetic-controller', name: '마그네틱 컨트롤러', price: ctrlPrice, ecountProdCd: getDBControllerProdCd(), qty: 1, watt: 0, lumen: 0, typeLabel: '컨트롤러' },
     { type: 'magnetic-connector', name: '마그네틱 연결선', price: connectorPrice, ecountProdCd: getDBProductProdCd('마그네틱 연결선'), qty: nConn, watt: 0, lumen: 0, typeLabel: '부자재' },
-    { type: 'magnetic-powerline', name: '마그네틱 전원선', price: powerLinePrice, ecountProdCd: getDBProductProdCd('마그네틱 전원선'), qty: 1, watt: 0, lumen: 0, typeLabel: '부자재' },
-    { type: 'magnetic-endcap', name: '마그네틱 마감캡', price: endcapPrice, ecountProdCd: getDBProductProdCd('마그네틱 마감캡'), qty: 1, watt: 0, lumen: 0, typeLabel: '부자재' }
+    { type: 'magnetic-powerline', name: '마그네틱 전원선', price: powerLinePrice, ecountProdCd: getDBProductProdCd('마그네틱 전원선'), qty: 1, watt: 0, lumen: 0, typeLabel: '부자재' }
   ].filter(item => item.qty > 0);
 }
 
@@ -4756,7 +4754,7 @@ function renderBOMTable() {
   let totalCost = 0;
   
   // Group keys for magnetic rail system
-  const groupKeys = ['rail-2m', 'magnetic-converter', 'magnetic-controller', 'magnetic-connector', 'magnetic-powerline', 'magnetic-endcap'];
+  const groupKeys = ['rail-2m', 'magnetic-converter', 'magnetic-controller', 'magnetic-connector', 'magnetic-powerline'];
   
   // Check if magnetic system is active in BOM
   const hasMagneticSystem = groupKeys.some(key => groups[key] && groups[key].qty > 0);

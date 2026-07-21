@@ -551,7 +551,6 @@ async function loadBom(quoteId) {
     rows.push(toBomItem(findAdminController(), '마그네틱 컨트롤러', 35000, 1));
     if (nConn > 0) rows.push(toBomItem(findAdminProductByName('마그네틱 연결선'), '마그네틱 연결선', 18720, nConn));
     rows.push(toBomItem(findAdminProductByName('마그네틱 전원선'), '마그네틱 전원선', 16320, 1));
-    rows.push(toBomItem(findAdminProductByName('마그네틱 마감캡'), '마그네틱 마감캡', 360, 1));
   }
 
   // 3) 존별 자동 산출된 컨버터(SMPS)/컨트롤러 — 공간별로 행을 나눠서 표시
