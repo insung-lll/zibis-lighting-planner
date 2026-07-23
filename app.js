@@ -2,6 +2,7 @@
 const SUPABASE_URL = 'https://wezywuqfzyyylpxsfdgu.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indlenl3dXFmenl5eWxweHNmZGd1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzNDMxOTgsImV4cCI6MjA5NzkxOTE5OH0.NwqsxnM95LvZQ8Omyc-j9_RsayT5KIJ7QABy2Df43so';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
 
 // ==================== FIXTURE DATABASE ====================
 let fixtureDatabase = [
@@ -1886,35 +1887,75 @@ function setupEventListeners() {
 function handleUpload(file) {
   if (!file) return;
 
-  // Reject non-image files on the start screen drop zone / selector
-  if (!file.type.startsWith('image/')) {
-    alert("올바른 도면 이미지 파일(PNG, JPG)을 업로드해주세요.");
+  const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+  const isImage = file.type.startsWith('image/');
+
+  // Reject unsupported files on the start screen drop zone / selector
+  if (!isImage && !isPdf) {
+    alert("올바른 도면 파일(PNG, JPG, PDF)을 업로드해주세요.");
     return;
   }
 
   // Clear previous project state when uploading a new layout image
   clearProjectState();
 
-  // Handle image files
-  const reader = new FileReader();
-  reader.onload = function(e) {
+  const finishUpload = (dataUrl) => {
     const img = new Image();
     img.onload = function() {
       state.uploadedImage = img;
       setUploadOverlayVisible(false);
-      
+
       // Init canvas size
       initCanvasDimensions(img.width, img.height);
-      
+
       // Open Calibration flow directly
       startCalibrationFlow();
     };
     img.onerror = function() {
       alert("도면 이미지를 불러오는 데 실패했습니다.");
     };
-    img.src = e.target.result;
+    img.src = dataUrl;
+  };
+
+  if (isPdf) {
+    renderPdfToDataUrl(file).then(finishUpload).catch(err => {
+      console.error('PDF 렌더링 실패:', err);
+      alert("PDF 파일을 불러오는 데 실패했습니다. 파일이 손상되지 않았는지 확인해주세요.");
+    });
+    return;
+  }
+
+  // Handle image files
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    finishUpload(e.target.result);
   };
   reader.readAsDataURL(file);
+}
+
+// PDF 첫 페이지를 캔버스에 렌더링해 기존 이미지 업로드 파이프라인에 그대로 태울 data URL로 변환
+async function renderPdfToDataUrl(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const page = await pdf.getPage(1);
+
+  // 도면 정밀도를 위해 긴 변이 약 2400px가 되도록 스케일 조정
+  const baseViewport = page.getViewport({ scale: 1 });
+  const targetLongSide = 2400;
+  const longSide = Math.max(baseViewport.width, baseViewport.height);
+  const scale = Math.min(4, Math.max(1, targetLongSide / longSide));
+  const viewport = page.getViewport({ scale });
+
+  const canvas = document.createElement('canvas');
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  const ctx = canvas.getContext('2d');
+  // PDF는 배경이 투명할 수 있어 흰 배경을 먼저 채워둠
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  await page.render({ canvasContext: ctx, viewport }).promise;
+  return canvas.toDataURL('image/png');
 }
 
 function initCanvasDimensions(w, h) {

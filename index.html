@@ -25,6 +25,7 @@
   <link rel="stylesheet" type="text/css" href="style.css?v=29" />
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 </head>
 <body>
 
@@ -464,18 +465,18 @@
       <!-- Card 1: File Upload & Project Load -->
       <div class="upload-box" id="uploadBox">
         <h2 class="upload-title">평면도 파일 업로드</h2>
-        <p class="upload-subtitle">설계 작업을 시작할 도면 이미지 파일(JPG, PNG)을 업로드하세요</p>
-        
+        <p class="upload-subtitle">설계 작업을 시작할 도면 파일(JPG, PNG, PDF)을 업로드하세요</p>
+
         <div class="main-drop-zone" id="mainDropZone" style="margin-top: 20px; padding: 40px 20px;">
           <div class="drop-icon">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
             </svg>
           </div>
-          <p class="drop-title">이미지를 드래그하거나 클릭하여 선택</p>
-          <p class="drop-hint">지원 이미지 형식: JPG, PNG</p>
+          <p class="drop-title">파일을 드래그하거나 클릭하여 선택</p>
+          <p class="drop-hint">지원 파일 형식: JPG, PNG, PDF</p>
         </div>
-        <input type="file" id="fileInput" accept="image/png, image/jpeg" style="display:none;">
+        <input type="file" id="fileInput" accept="image/png, image/jpeg, application/pdf" style="display:none;">
         
         <div style="display: flex; justify-content: center; margin-top: 15px;">
           <button class="btn" id="btnLoadProjectFirst" style="width: 100%; height: 42px; justify-content: center; gap: 8px; font-weight: 600; border-color: var(--border); background-color: rgba(255, 255, 255, 0.03);">
@@ -1186,6 +1187,6 @@
 
 </div>
 
-<script src="app.js?v=69"></script>
+<script src="app.js?v=70"></script>
 </body>
 </html>
