@@ -709,7 +709,8 @@ const CATEGORY_PILLS_BY_LINE = {
     { key: 'downlight', label: '다운라이트' },
     { key: 'direct', label: '메인등' },
     { key: 'multi', label: '멀티매입등' },
-    { key: 'linebar', label: '라인/마그네틱' }
+    { key: 'linebar', label: '라인/마그네틱' },
+    { key: 'etc', label: '기타' }
   ],
   zibis_general: [
     { key: 'direct', label: '현관/베란다등' },
