@@ -8140,8 +8140,10 @@ function setupPasswordToggle(btnId, inputId) {
 
 function updateAuthUI(user, profile) {
   const tabHomeLudens = document.getElementById('tabHomeLudens');
+  const logoImg = document.querySelector('#logoHome img');
   if (tabHomeLudens) {
     if (profile && profile.company_name === '홈루덴스') {
+      if (logoImg) logoImg.src = 'img/ludence_logo.png';
       tabHomeLudens.style.display = 'flex';
       if (els.libraryTabIndicator) els.libraryTabIndicator.style.width = '33.333%';
       
@@ -8154,6 +8156,7 @@ function updateAuthUI(user, profile) {
         if (els.libraryTabIndicator) els.libraryTabIndicator.style.transform = `translateX(${index * 100}%)`;
       }
     } else {
+      if (logoImg) logoImg.src = 'logo.png';
       tabHomeLudens.style.display = 'none';
       if (els.libraryTabIndicator) els.libraryTabIndicator.style.width = '50%';
       
