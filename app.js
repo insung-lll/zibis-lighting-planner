@@ -6343,8 +6343,11 @@ async function exportToExcel() {
   const base64Image = exportCanvas.toDataURL('image/png');
 
   // 2. Initialize ExcelJS Workbook
+  const isLudens = typeof authProfile !== 'undefined' && authProfile && authProfile.company_name === '홈루덴스';
+  const sheetName = isLudens ? '루덴스 라이팅 조명 설계 보고서' : '지비스 조명 설계 보고서';
+  
   const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet('지비스 조명 설계 보고서');
+  const worksheet = workbook.addWorksheet(sheetName);
   
   // Set sheet gridlines visible
   worksheet.views = [{ showGridLines: true }];
@@ -6365,7 +6368,7 @@ async function exportToExcel() {
   // 3. Title Style & Merges
   worksheet.mergeCells('B2:H2');
   const titleCell = worksheet.getCell('B2');
-  titleCell.value = 'ZIBIS 조명 설계 및 가견적서';
+  titleCell.value = isLudens ? '루덴스 라이팅 조명 설계 및 가견적서' : 'ZIBIS 조명 설계 및 가견적서';
   titleCell.font = { name: 'Malgun Gothic', size: 16, bold: true, color: { argb: 'FF2D6ABF' } };
   titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
   worksheet.getRow(2).height = 40;
@@ -7079,7 +7082,8 @@ async function exportToExcel() {
 
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${projectName}_지비스_가견적서_${Date.now()}.xlsx`;
+  const brandStr = (typeof authProfile !== 'undefined' && authProfile && authProfile.company_name === '홈루덴스') ? '루덴스라이팅' : '지비스';
+  a.download = `${projectName}_${brandStr}_가견적서_${Date.now()}.xlsx`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
