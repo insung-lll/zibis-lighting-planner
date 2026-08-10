@@ -715,6 +715,10 @@ const CATEGORY_PILLS_BY_LINE = {
   zibis_general: [
     { key: 'direct', label: '현관/베란다등' },
     { key: 'sensor', label: '센서등' }
+  ],
+  home_ludens: [
+    { key: 'downlight', label: '다운라이트' },
+    { key: 'multi', label: '멀티매입등' }
   ]
 };
 
@@ -773,6 +777,12 @@ function mapSupabaseProduct(p) {
     lengthMM = heads === 6 ? 114 : 228;
     widthMM = 30;
     length = lengthMM;
+  } else if (p.name && p.name.includes('루핀')) {
+    const match = p.name.match(/(\d+)구/);
+    heads = match ? parseInt(match[1]) : 5;
+    lengthMM = heads === 5 ? 148 : 281;
+    widthMM = 44;
+    length = lengthMM;
   }
   // Parse size_mm if available (e.g. "620×320×26.5" or "1220×200×26.5")
   if (p.size_mm) {
@@ -820,7 +830,7 @@ function mapSupabaseProduct(p) {
     icon,
     size: cutoutMM || (cat === 'downlight' ? 24 : 30),
     cutoutMM,
-    inch: cutoutMM === 55 ? '2인치' : cutoutMM === 75 ? '3인치' : null,
+    inch: (cutoutMM === 55 || cutoutMM === 53) ? '2인치' : cutoutMM === 75 ? '3인치' : null,
     price: p.price,
     image: p.image_url,
     link: null,
@@ -926,7 +936,15 @@ async function init() {
 // Render the side library items
 function renderFixtureLibrary() {
   els.fixtureList.innerHTML = '';
-  let filtered = fixtureDatabase.filter(f => f.productLine === state.activeProductLine);
+  
+  let filtered;
+  if (state.activeProductLine === 'home_ludens') {
+    // 홈루덴스 탭: 이름에 [홈루덴스]가 포함된 제품만 추출 (productLine 무관하게)
+    filtered = fixtureDatabase.filter(f => f.name && f.name.includes('[홈루덴스]'));
+  } else {
+    // 기존 탭(스마트/일반): [홈루덴스] 제품은 숨김
+    filtered = fixtureDatabase.filter(f => f.productLine === state.activeProductLine && (!f.name || !f.name.includes('[홈루덴스]')));
+  }
 
   filtered = state.activeCategory === 'all'
     ? filtered
@@ -947,7 +965,8 @@ function renderFixtureLibrary() {
       f.name.includes('마그네틱 레일 2M') ||
       f.name.includes('마그네틱 레일2M') ||
       f.name.includes('마그네틱 레일 3M') ||
-      f.name.includes('마그네틱 레일3M')
+      f.name.includes('마그네틱 레일3M') ||
+      f.name === '허브'
     );
     return !isAccessory;
   });
@@ -977,7 +996,7 @@ function renderFixtureLibrary() {
         ${thumbHTML}
       </div>
       <div class="fixture-details">
-        <div class="fixture-name">${item.name}</div>
+        <div class="fixture-name">${item.name.replace('[홈루덴스]', '').trim()}</div>
         <div class="fixture-specs">
           <span class="spec-color-dot" style="background-color: ${item.color};"></span>
           <span>${item.watt}W</span>
@@ -1150,7 +1169,13 @@ function setupEventListeners() {
 
     document.querySelectorAll('.library-tab').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
-    els.libraryTabIndicator.classList.toggle('tab2', line === 'zibis_general');
+    
+    const visibleTabs = Array.from(document.querySelectorAll('.library-tab')).filter(t => t.style.display !== 'none');
+    const index = visibleTabs.indexOf(tab);
+    if (els.libraryTabIndicator) {
+      els.libraryTabIndicator.style.transform = `translateX(${index * 100}%)`;
+    }
+    
     state.activeProductLine = line;
 
     // 라인마다 카테고리 체계가 다르므로 전환 시 해당 라인의 카테고리 pill로 교체
@@ -1160,7 +1185,7 @@ function setupEventListeners() {
     ).join('');
     state.activeCategory = pills[0] ? pills[0].key : 'all';
     state.activeSubCategory = 'all';
-    els.subCategoryPillsWrap.style.display = (state.activeCategory === 'downlight') ? 'block' : 'none';
+    els.subCategoryPillsWrap.style.display = (state.activeCategory === 'downlight' && state.activeProductLine !== 'home_ludens') ? 'block' : 'none';
 
     renderFixtureLibrary();
   });
@@ -1173,7 +1198,7 @@ function setupEventListeners() {
       state.activeCategory = e.target.getAttribute('data-category');
       
       // Handle sub-category display
-      if (state.activeCategory === 'downlight') {
+      if (state.activeCategory === 'downlight' && state.activeProductLine !== 'home_ludens') {
         els.subCategoryPillsWrap.style.display = 'block';
       } else {
         els.subCategoryPillsWrap.style.display = 'none';
@@ -8114,6 +8139,38 @@ function setupPasswordToggle(btnId, inputId) {
 }
 
 function updateAuthUI(user, profile) {
+  const tabHomeLudens = document.getElementById('tabHomeLudens');
+  if (tabHomeLudens) {
+    if (profile && profile.company_name === '홈루덴스') {
+      tabHomeLudens.style.display = 'flex';
+      if (els.libraryTabIndicator) els.libraryTabIndicator.style.width = '33.333%';
+      
+      // 홈루덴스 사용자 로그인 시, 기본적으로 홈루덴스 탭을 선택하여 indicator 위치 및 제품 렌더링 동기화
+      if (state.activeProductLine !== 'home_ludens') {
+        tabHomeLudens.click();
+      } else {
+        // 이미 선택된 상태라면 indicator 위치만 재계산
+        const index = Array.from(document.querySelectorAll('.library-tab')).filter(t => t.style.display !== 'none').indexOf(tabHomeLudens);
+        if (els.libraryTabIndicator) els.libraryTabIndicator.style.transform = `translateX(${index * 100}%)`;
+      }
+    } else {
+      tabHomeLudens.style.display = 'none';
+      if (els.libraryTabIndicator) els.libraryTabIndicator.style.width = '50%';
+      
+      // 홈루덴스 탭이 선택된 상태에서 로그아웃/권한 변경 시 IoT 탭으로 이동
+      if (state.activeProductLine === 'home_ludens') {
+        const iotTab = document.querySelector('.library-tab[data-line="zibis_iot"]');
+        if (iotTab) iotTab.click();
+      } else {
+        // 홈루덴스 탭이 사라지면서 나머지 탭들의 indicator 위치 재계산
+        const currentTab = document.querySelector(`.library-tab[data-line="${state.activeProductLine}"]`);
+        if (currentTab) {
+          const index = Array.from(document.querySelectorAll('.library-tab')).filter(t => t.style.display !== 'none').indexOf(currentTab);
+          if (els.libraryTabIndicator) els.libraryTabIndicator.style.transform = `translateX(${index * 100}%)`;
+        }
+      }
+    }
+  }
   const headerAuthLinks = document.getElementById('headerAuthLinks');
   const profileMenuContainer = document.getElementById('profileMenuContainer');
   if (user) {
