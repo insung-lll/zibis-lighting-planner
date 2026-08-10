@@ -925,6 +925,13 @@ async function init() {
       if (name.includes('그리드슬롯') && name.includes('12구') && name.includes('블랙')) return 53;
       if (name.includes('그리드슬롯') && name.includes('12구') && name.includes('화이트')) return 54;
       
+      // 3. 홈루덴스 다운라이트 순서
+      if (name.includes('하이드') && name.includes('주백')) return 61;
+      if (name.includes('하이드') && name.includes('전구')) return 62;
+      if (name.includes('할로')) return 63;
+      if (name.includes('헤이즈')) return 64;
+      if (name.includes('하버')) return 65;
+      
       return 100;
     };
     return getOrder(a) - getOrder(b);
