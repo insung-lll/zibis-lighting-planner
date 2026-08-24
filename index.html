@@ -22,7 +22,7 @@
   <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:image" content="https://zibis-lighting-planner.pages.dev/share.png" />
-  <link rel="stylesheet" type="text/css" href="style.css?v=29" />
+  <link rel="stylesheet" type="text/css" href="style.css?v=30" />
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
@@ -32,9 +32,9 @@
 <div class="app-wrapper" id="appWrapper">
 
   <!-- Top Navigation Bar -->
-  <div class="topbar" style="position: relative; z-index: 300; display: none;">
+  <div class="topbar" style="position: relative; z-index: 300;">
     <div class="topbar-left" style="display:flex; align-items:center; gap:12px; position: relative;">
-      <button class="btn" id="btnHamburgerMenu" title="메뉴" style="background: none; border: none; color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 6px; border-radius: 6px; transition: all 0.2s;">
+      <button class="btn" id="btnHamburgerMenu" title="메뉴" style="background: none; border: none; color: var(--text-dim); cursor: pointer; display: none; align-items: center; justify-content: center; padding: 6px; border-radius: 6px; transition: all 0.2s;">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <line x1="3" y1="12" x2="21" y2="12"></line>
           <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -535,21 +535,23 @@
 
   <!-- Calibration Modal (Scale Calibration) -->
   <div class="calibrate-overlay" id="calibrateOverlay" style="display:none;">
-    <div class="calibrate-header">
-      <div style="display:flex; align-items:center;">
-        <button class="btn-icon" id="btnCalibrateBack" title="뒤로 가기" style="margin-right: 12px; background: none; border: none; color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 4px;">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="19" y1="12" x2="5" y2="12"></line>
-            <polyline points="12 19 5 12 12 5"></polyline>
-          </svg>
-        </button>
-        <span class="calibrate-title">스케일 보정 (Pixel to Meter)</span>
-      </div>
-      <button class="btn" id="btnCancelCalibrate">건너뛰기</button>
-    </div>
     <div class="calibrate-body">
       <div class="calibrate-canvas-wrap" id="calibrateCanvasWrap">
         <canvas id="calibrateCanvas"></canvas>
+
+        <!-- Floating Header (뒤로가기 / 타이틀 / 건너뛰기) — 캔버스 안으로 이동 -->
+        <div class="calibrate-canvas-header">
+          <div style="display:flex; align-items:center;">
+            <button class="btn-icon" id="btnCalibrateBack" title="뒤로 가기" style="margin-right: 12px; background: none; border: none; color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 4px;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+              </svg>
+            </button>
+            <span class="calibrate-title">스케일 보정 (Pixel to Meter)</span>
+          </div>
+          <button class="btn" id="btnCancelCalibrate">건너뛰기</button>
+        </div>
 
         <!-- Floating Calibration Input Popup -->
         <div id="calibrateInputPopup" style="display: none; position: absolute; background: rgba(25, 25, 25, 0.95); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 10px 12px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); z-index: 1000; width: 190px; box-sizing: border-box; color: #fff; pointer-events: auto;">
@@ -1189,6 +1191,6 @@
 
 </div>
 
-<script src="app.js?v=71"></script>
+<script src="app.js?v=73"></script>
 </body>
 </html>

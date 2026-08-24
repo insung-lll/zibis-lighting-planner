@@ -478,6 +478,7 @@ const els = {
   lightOverlay: document.getElementById('lightOverlay'),
   interactionLayer: document.getElementById('interactionLayer'),
   topbar: document.querySelector('.topbar'),
+  btnHamburgerMenu: document.getElementById('btnHamburgerMenu'),
 
   // Calibration Modal
   calibrateOverlay: document.getElementById('calibrateOverlay'),
@@ -597,9 +598,14 @@ const els = {
   consultLoadingText: document.getElementById('consultLoadingText')
 };
 
-// Helper: 도면 화면 진입 전(업로드/스케일보정)에는 .topbar(회원가입/로그인 포함)를 숨김
-function setTopbarVisible(show) {
-  if (els.topbar) els.topbar.style.display = show ? 'flex' : 'none';
+// Helper: .topbar는 모든 화면에서 항상 노출되지만, 햄버거 메뉴(홈으로/스케일 보정/파일
+// 저장/파일 열기/견적 다운로드)는 홈·스케일보정 화면에서는 쓸 일이 없어 메인 설계 화면에서만 노출
+function setDesignScreenMenuVisible(show) {
+  if (els.btnHamburgerMenu) els.btnHamburgerMenu.style.display = show ? 'flex' : 'none';
+  if (!show) {
+    const dropdown = document.getElementById('hamburgerDropdown');
+    if (dropdown) dropdown.style.display = 'none';
+  }
 }
 
 // Helper: 짧게 보였다가 자동으로 사라지는 확인 메시지 (예: 로그아웃 완료)
@@ -688,7 +694,7 @@ function setUploadOverlayVisible(show) {
   const downloadContainer = document.querySelector('.download-container');
   els.uploadOverlay.style.display = show ? 'flex' : 'none';
   if (downloadContainer) downloadContainer.style.display = show ? 'none' : 'flex';
-  if (show) setTopbarVisible(false);
+  if (show) setDesignScreenMenuVisible(false);
 }
 
 // Canvas context refs
@@ -869,7 +875,7 @@ function checkAndRestoreOauthTempProject() {
         state.uploadedImage = img;
         setUploadOverlayVisible(false);
         initCanvasDimensions(img.width, img.height);
-        setTopbarVisible(true);
+        setDesignScreenMenuVisible(true);
         recalculateAllZones();
         updateStats();
         renderAll();
@@ -2117,7 +2123,7 @@ function updateCalibrateZoomText() {
 function startCalibrationFlow() {
   if (!state.uploadedImage) return;
 
-  setTopbarVisible(false);
+  setDesignScreenMenuVisible(false);
 
   if (els.btnBackToCalibrate) {
     els.btnBackToCalibrate.style.display = 'none';
@@ -2473,7 +2479,7 @@ els.btnApplyCalibrate.addEventListener('click', () => {
   els.calibrateCanvas.onmouseleave = null;
   els.calibrateCanvas.onwheel = null;
 
-  setTopbarVisible(true);
+  setDesignScreenMenuVisible(true);
   updateZoomAndPan();
   recalculateAllZones();
   updateBackButtonVisibility();
@@ -2497,7 +2503,7 @@ els.btnCancelCalibrate.addEventListener('click', () => {
   if (!state.uploadedImage) {
     setUploadOverlayVisible(true);
   } else {
-    setTopbarVisible(true);
+    setDesignScreenMenuVisible(true);
     updateZoomAndPan();
     recalculateAllZones();
     renderAll();
@@ -6185,7 +6191,7 @@ function loadProjectData(data) {
 
     setUploadOverlayVisible(false);
     initCanvasDimensions(img.width, img.height);
-    setTopbarVisible(true);
+    setDesignScreenMenuVisible(true);
     recalculateAllZones();
     updateStats();
     resetHistory({
