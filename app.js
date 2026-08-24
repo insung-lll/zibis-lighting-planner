@@ -598,14 +598,16 @@ const els = {
   consultLoadingText: document.getElementById('consultLoadingText')
 };
 
-// Helper: .topbar는 모든 화면에서 항상 노출되지만, 햄버거 메뉴(홈으로/스케일 보정/파일
-// 저장/파일 열기/견적 다운로드)는 홈·스케일보정 화면에서는 쓸 일이 없어 메인 설계 화면에서만 노출
+// Helper: .topbar는 모든 화면에서 항상 노출되지만, 햄버거 메뉴와 견적 다운로드 버튼은
+// 홈·스케일보정 화면에서는 쓸 일이 없어 메인 설계 화면에서만 노출
 function setDesignScreenMenuVisible(show) {
   if (els.btnHamburgerMenu) els.btnHamburgerMenu.style.display = show ? 'flex' : 'none';
   if (!show) {
     const dropdown = document.getElementById('hamburgerDropdown');
     if (dropdown) dropdown.style.display = 'none';
   }
+  const downloadContainer = document.querySelector('.download-container');
+  if (downloadContainer) downloadContainer.style.display = show ? 'flex' : 'none';
 }
 
 // Helper: 짧게 보였다가 자동으로 사라지는 확인 메시지 (예: 로그아웃 완료)
@@ -689,11 +691,9 @@ function maskClientInfo(type, val) {
   return val;
 }
 
-// Helper: uploadOverlay 표시 제어 (download-container 동기화 포함)
+// Helper: uploadOverlay 표시 제어 (download-container는 setDesignScreenMenuVisible에서 함께 제어)
 function setUploadOverlayVisible(show) {
-  const downloadContainer = document.querySelector('.download-container');
   els.uploadOverlay.style.display = show ? 'flex' : 'none';
-  if (downloadContainer) downloadContainer.style.display = show ? 'none' : 'flex';
   if (show) setDesignScreenMenuVisible(false);
 }
 
