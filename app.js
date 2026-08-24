@@ -715,7 +715,8 @@ const CATEGORY_PILLS_BY_LINE = {
     { key: 'downlight', label: '다운라이트' },
     { key: 'direct', label: '메인등' },
     { key: 'multi', label: '멀티매입등' },
-    { key: 'linebar', label: '라인/마그네틱' },
+    { key: 'lineled', label: '라인등' },
+    { key: 'magnetic', label: '마그네틱' },
     { key: 'etc', label: '기타' }
   ],
   zibis_general: [
@@ -965,9 +966,15 @@ function renderFixtureLibrary() {
     filtered = fixtureDatabase.filter(f => f.productLine === state.activeProductLine && (!f.name || !f.name.includes('[홈루덴스]')));
   }
 
+  // '라인/마그네틱' 탭을 '라인등'(플렉시블·스타일컷 실리콘 라인) / '마그네틱'(마그네틱 트랙 시스템)으로 분리
+  const isLineLed = f => f.name && (f.name.includes('플렉시블') || f.name.includes('스타일컷'));
   filtered = state.activeCategory === 'all'
     ? filtered
-    : filtered.filter(f => f.category === state.activeCategory);
+    : state.activeCategory === 'lineled'
+      ? filtered.filter(f => f.category === 'linebar' && isLineLed(f))
+      : state.activeCategory === 'magnetic'
+        ? filtered.filter(f => f.category === 'linebar' && !isLineLed(f))
+        : filtered.filter(f => f.category === state.activeCategory);
 
   if (state.activeProductLine === 'zibis_iot' && state.activeCategory === 'downlight' && state.activeSubCategory !== 'all') {
     filtered = filtered.filter(f => f.subCategory === state.activeSubCategory);
@@ -4998,29 +5005,28 @@ function renderBOMTable() {
       });
     }
     
-    // 2.2 Controllers
+    // 2.2 Controllers — 같은 공간 안에서는 제품 카테고리별로 나뉘어 있어도 한 줄로 합산해서 표시
     if (zone.requiredControllers && zone.requiredControllers.length > 0) {
-      zone.requiredControllers.forEach(ctrl => {
+      const totalCtrlQty = zone.requiredControllers.reduce((sum, ctrl) => sum + (typeof ctrl === 'string' ? 1 : ctrl.qty), 0);
+      if (totalCtrlQty > 0) {
         const tr = document.createElement('tr');
-        const name = typeof ctrl === 'string' ? ctrl : ctrl.name;
-        const qty = typeof ctrl === 'string' ? 1 : ctrl.qty;
         const ctrlPrice = getDBControllerPrice();
-        const ctrlCost = ctrlPrice * qty;
+        const ctrlCost = ctrlPrice * totalCtrlQty;
         totalCost += ctrlCost;
-        
+
         tr.innerHTML = `
-          <td><strong>${zone.name} &gt; ${name}</strong></td>
+          <td><strong>${zone.name} &gt; 컨트롤러</strong></td>
           <td>컨트롤러</td>
           <td>-</td>
           <td>-</td>
-          <td>${qty}개</td>
+          <td>${totalCtrlQty}개</td>
           <td><strong>₩${ctrlCost.toLocaleString()}</strong></td>
           <td>
             <span style="font-size:11px;color:var(--text-dim);">자동 배정</span>
           </td>
         `;
         els.bomTableBody.appendChild(tr);
-      });
+      }
     }
   });
 
@@ -6205,6 +6211,89 @@ function loadProjectData(data) {
   img.src = data.imageBase64;
 }
 
+// 홈루덴스 엑셀 견적서 제목: "Ludens Lighting" 로고 + "조명 견적기" 텍스트를 하나의 이미지로 합성
+// (검정/컬러 로고 파일을 흰 배경 엑셀 시트에 그대로 써도 되도록 img/ludence_logo_black.png 사용)
+async function buildLudensTitleImage() {
+  try {
+    const logoImg = await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = 'img/ludence_logo_black.png';
+    });
+
+    const logoHeight = 176;
+    const logoWidth = logoHeight * (logoImg.width / logoImg.height);
+    const gap = 72;
+    const text = '조명 견적기';
+    const font = 'bold 120px sans-serif';
+
+    const measureCanvas = document.createElement('canvas');
+    const measureCtx = measureCanvas.getContext('2d');
+    measureCtx.font = font;
+    const textWidth = measureCtx.measureText(text).width;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(logoWidth + gap + textWidth + 32);
+    canvas.height = 224;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(logoImg, 0, (canvas.height - logoHeight) / 2, logoWidth, logoHeight);
+    ctx.font = font;
+    ctx.fillStyle = '#111111';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, logoWidth + gap, canvas.height / 2 + 2);
+
+    return { dataUrl: canvas.toDataURL('image/png'), width: canvas.width, height: canvas.height };
+  } catch (e) {
+    console.warn('루덴스 타이틀 로고 이미지 합성 실패:', e);
+    return null;
+  }
+}
+
+// "제품별 총 주문 수량 합계" 표의 지정된 진열 순서:
+// 마그네틱-등기구 → 마그네틱-기타(컨트롤러 포함) → 다운(컷오프→사이렌, 각 2/3인치→확산/집중)
+// → 멀티(6/12구→화이트/블랙) → 라인등(스타일컷→플렉시블) → 메인등 → 안정기(150→60→36) → 컨트롤러 → 허브
+function getZibisIotProductSortRank(p) {
+  const name = p.name || '';
+  const isMagneticFixture = name.includes('마그네틱') && name.includes('등기구');
+  const isMagneticOther = name.includes('마그네틱') && !isMagneticFixture;
+
+  if (isMagneticFixture) return 100;
+  if (isMagneticOther) return 200;
+
+  if (name.includes('컷오프')) {
+    return 300 + (name.includes('3인치') ? 1 : 0);
+  }
+  if (name.includes('사이렌')) {
+    const inchRank = name.includes('3인치') ? 1 : 0;
+    const typeRank = name.includes('집중') ? 1 : 0; // 확산 먼저, 집중 다음
+    return 320 + inchRank * 10 + typeRank;
+  }
+
+  if (name.includes('그리드슬롯')) {
+    const sizeRank = name.includes('12구') ? 1 : 0; // 6구 먼저, 12구 다음
+    const colorRank = name.includes('블랙') ? 1 : 0; // 화이트 먼저, 블랙 다음
+    return 400 + sizeRank * 10 + colorRank;
+  }
+
+  if (name.includes('스타일컷')) return 500;
+  if (name.includes('플렉시블')) return 510;
+
+  if (name.includes('프리미엄 엣지')) return 600;
+
+  if (p.type === '안정기 (SMPS)') {
+    const wattMatch = name.match(/(\d+)W/);
+    const watt = wattMatch ? parseInt(wattMatch[1], 10) : 0;
+    const wattOrder = { 150: 0, 60: 1, 36: 2 };
+    return 700 + (wattOrder[watt] !== undefined ? wattOrder[watt] : 9);
+  }
+
+  if (name === '컨트롤러') return 800;
+  if (name === '허브') return 900;
+
+  return 1000; // 목록에 없는 기타 품목은 마지막
+}
+
 // ==================== IMAGE EXPORT (PNG COMBINED RENDERING) ====================
 // ==================== EXCEL REPORT EXPORT (COMBINED EXCELJS) ====================
 async function exportToExcel() {
@@ -6379,11 +6468,30 @@ async function exportToExcel() {
   
   // 3. Title Style & Merges
   worksheet.mergeCells('B2:H2');
-  const titleCell = worksheet.getCell('B2');
-  titleCell.value = isLudens ? '루덴스 라이팅 조명 설계 및 가견적서' : 'ZIBIS 조명 설계 및 가견적서';
-  titleCell.font = { name: 'Malgun Gothic', size: 16, bold: true, color: { argb: 'FF2D6ABF' } };
-  titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
-  worksheet.getRow(2).height = 40;
+
+  let ludensTitleImage = null;
+  if (isLudens) {
+    ludensTitleImage = await buildLudensTitleImage();
+  }
+
+  if (ludensTitleImage) {
+    // 로고 + "조명 견적기" 합성 이미지를 제목 자리에 삽입 (텍스트 셀 대신)
+    // 행 높이는 이미지 높이(112px ≈ 84pt) + 상단 여백만큼만 잡아서 하단에 빈 공간이 남지 않도록 함
+    worksheet.getRow(2).height = 100;
+    const titleImgId = workbook.addImage({ base64: ludensTitleImage.dataUrl, extension: 'png' });
+    const displayHeight = 112;
+    const displayWidth = ludensTitleImage.width * (displayHeight / ludensTitleImage.height);
+    worksheet.addImage(titleImgId, {
+      tl: { col: 1.15, row: 1.1 },
+      ext: { width: displayWidth, height: displayHeight }
+    });
+  } else {
+    worksheet.getRow(2).height = 40;
+    const titleCell = worksheet.getCell('B2');
+    titleCell.value = isLudens ? '루덴스 라이팅 조명 설계 및 가견적서' : 'ZIBIS 조명 설계 및 가견적서';
+    titleCell.font = { name: 'Malgun Gothic', size: 16, bold: true, color: { argb: 'FF2D6ABF' } };
+    titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+  }
   
   const targetWidth = 640;
   const imageAspectRatio = w / h;
@@ -6603,8 +6711,10 @@ async function exportToExcel() {
   
   let currentRowNum = tableStartRow + 2;
   let grandTotalCost = 0;
-  
-  Object.values(allProducts).forEach(p => {
+
+  const sortedProducts = Object.values(allProducts).sort((a, b) => getZibisIotProductSortRank(a) - getZibisIotProductSortRank(b));
+
+  sortedProducts.forEach(p => {
     const rowCost = p.price * p.qty;
     grandTotalCost += rowCost;
     
@@ -6695,7 +6805,7 @@ async function exportToExcel() {
   const aggValueCell = aggTotalRow.getCell(9);
   aggValueCell.value = grandTotalCost;
   aggValueCell.numFmt = '#,##0';
-  aggValueCell.font = { name: 'Malgun Gothic', size: 12, bold: true, color: { argb: 'FF2D6ABF' } };
+  aggValueCell.font = { name: 'Malgun Gothic', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
   aggValueCell.alignment = { vertical: 'middle', horizontal: 'right' };
   aggValueCell.fill = {
     type: 'pattern',
@@ -6869,31 +6979,30 @@ async function exportToExcel() {
       });
     }
 
-    // Controllers in this zone
+    // Controllers in this zone — 같은 공간 안에서는 제품 카테고리별로 나뉘어 있어도 한 줄로 합산해서 표시
     if (zone.requiredControllers && zone.requiredControllers.length > 0) {
-      zone.requiredControllers.forEach(ctrl => {
+      const totalCtrlQty = zone.requiredControllers.reduce((sum, ctrl) => sum + (typeof ctrl === 'string' ? 1 : ctrl.qty), 0);
+      if (totalCtrlQty > 0) {
         const row = worksheet.getRow(currentRowNum);
         row.height = 22;
 
-        const ctrlName = typeof ctrl === 'string' ? ctrl : ctrl.name;
-        const qty = typeof ctrl === 'string' ? 1 : ctrl.qty;
         const ctrlPrice = getDBControllerPrice();
-        const ctrlCost = ctrlPrice * qty;
+        const ctrlCost = ctrlPrice * totalCtrlQty;
         totalCost += ctrlCost;
 
         row.getCell(2).value = zone.name;
         row.getCell(3).value = getDBControllerProdCd() || '-';
-        row.getCell(4).value = ctrlName;
+        row.getCell(4).value = '컨트롤러';
         row.getCell(5).value = '컨트롤러';
         row.getCell(6).value = '-';
         row.getCell(7).value = '-';
-        row.getCell(8).value = qty;
+        row.getCell(8).value = totalCtrlQty;
         row.getCell(9).value = ctrlCost;
         row.getCell(9).numFmt = '#,##0';
 
         applyRowStyles(row, false);
         currentRowNum++;
-      });
+      }
     }
 
     // Merge Space cells vertically in Column B
@@ -7050,7 +7159,7 @@ async function exportToExcel() {
   const valueCell = totalRow.getCell(9);
   valueCell.value = grandTotalCost; // 상단 제품 주문 총 예상 합계와 동일하게 통일
   valueCell.numFmt = '#,##0';
-  valueCell.font = { name: 'Malgun Gothic', size: 12, bold: true, color: { argb: 'FF2D6ABF' } };
+  valueCell.font = { name: 'Malgun Gothic', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
   valueCell.alignment = { vertical: 'middle', horizontal: 'right' };
   valueCell.fill = {
     type: 'pattern',
