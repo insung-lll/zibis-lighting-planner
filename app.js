@@ -544,6 +544,8 @@ const els = {
   bomTableBody: document.getElementById('bomTableBody'),
   bomSummaryText: document.getElementById('bomSummaryText'),
   btnMaximizeBOM: document.getElementById('btnMaximizeBOM'),
+  bomPanelHeader: document.getElementById('bomPanelHeader'),
+  bomHeaderTotal: document.getElementById('bomHeaderTotal'),
   bomFilterTags: document.getElementById('bomFilterTags'),
   
   // Save & Load
@@ -1425,34 +1427,23 @@ function setupEventListeners() {
   }
   state.showGrid = false;
 
-  // BOM Maximization Click Toggle
-  els.btnMaximizeBOM.addEventListener('click', () => {
-    els.appWrapper.classList.toggle('bom-expanded');
-    const isExpanded = els.appWrapper.classList.contains('bom-expanded');
-    
-    // Update icon and title
-    if (isExpanded) {
-      els.btnMaximizeBOM.setAttribute('title', 'BOM 축소');
-      els.btnMaximizeBOM.innerHTML = `
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="4 14 10 14 10 20"/>
-          <polyline points="20 10 14 10 14 4"/>
-          <line x1="14" y1="10" x2="21" y2="3"/>
-          <line x1="10" y1="14" x2="3" y2="21"/>
-        </svg>
-      `;
-    } else {
-      els.btnMaximizeBOM.setAttribute('title', 'BOM 확대');
-      els.btnMaximizeBOM.innerHTML = `
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="15 3 21 3 21 9"/>
-          <polyline points="9 21 3 21 3 15"/>
-          <line x1="21" y1="3" x2="14" y2="10"/>
-          <line x1="3" y1="21" x2="10" y2="14"/>
-        </svg>
-      `;
-    }
-  });
+  // BOM 패널 펼치기/접기 — 헤더 전체가 클릭 영역
+  if (els.bomPanelHeader) {
+    const toggleBomPanel = () => {
+      els.appWrapper.classList.toggle('bom-expanded');
+      const isExpanded = els.appWrapper.classList.contains('bom-expanded');
+      els.bomPanelHeader.setAttribute('aria-expanded', String(isExpanded));
+      els.bomPanelHeader.setAttribute('title', isExpanded ? '클릭하여 BOM 접기' : '클릭하여 BOM 펼치기');
+    };
+
+    els.bomPanelHeader.addEventListener('click', toggleBomPanel);
+    els.bomPanelHeader.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggleBomPanel();
+      }
+    });
+  }
 
   // Project Saves & Loads
   if (els.btnNewProject) {
@@ -4598,80 +4589,58 @@ function renderZonePanel() {
     const targetLumen = getTargetLumenPerPyung(zone.name);
     const maxLimit = Math.round(targetLumen * 1.2);
     
-    let badgeText = '부족';
+    let badgeText = '부족함';
     let badgeClass = 'low';
     if (lumenPerPyeong >= maxLimit) {
-      badgeText = '충분';
+      badgeText = '충분함';
       badgeClass = 'bright';
     } else if (lumenPerPyeong >= targetLumen) {
-      badgeText = '적당';
+      badgeText = '적당함';
       badgeClass = 'adequate';
     }
-    
-    const percent = Math.min(100, Math.round((lumenPerPyeong / maxLimit) * 100));
-    
-    const eyeIcon = zone.visible
-      ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`
-      : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
 
     const item = document.createElement('div');
     item.className = 'zone-item';
-    item.style.display = 'flex';
-    item.style.flexDirection = 'column';
-    item.style.alignItems = 'stretch';
-    item.style.gap = '8px';
-    item.style.borderLeft = `4px solid ${zone.color}`;
-    
+
+    const switchOptions = [1, 2, 3, 4, 5, 6]
+      .map(n => `<option value="${n}" ${zone.switchCount === n ? 'selected' : ''}>${n}구</option>`)
+      .join('');
+
     item.innerHTML = `
-      <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+      <div class="zone-card-row">
         <div class="zone-item-left">
-          <div>
-            <div class="zone-name" style="display:flex; align-items:center; gap:6px;">
-              <span>${zone.name}</span>
-              <button class="zone-visible-toggleBtn" data-zone-id="${zone.id}" title="${zone.visible ? '숨기기' : '보이기'}" style="background:none; border:none; color:${zone.visible ? 'var(--accent)' : 'var(--text-dim)'}; cursor:pointer; display:inline-flex; align-items:center; padding: 2px;">
-                ${eyeIcon}
-              </button>
-            </div>
-            <div class="zone-meta">${zone.areaM2.toFixed(1)}m² (${pyeong.toFixed(1)}평)</div>
-          </div>
+          <span class="zone-color-indicator" style="background-color:${zone.color};"></span>
+          <span class="zone-name">${zone.name}</span>
+          <button class="zone-visible-toggleBtn${zone.visible ? '' : ' hidden-state'}" data-zone-id="${zone.id}" title="${zone.visible ? '숨기기' : '보이기'}">
+            <img src="img/${zone.visible ? 'zone_eye.svg' : 'zone_eye_off.svg'}" alt="${zone.visible ? '숨기기' : '보이기'}">
+          </button>
         </div>
-        
-        <div style="text-align:right;">
-          <div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">
-            <div class="zone-lux-badge ${badgeClass}" style="display:inline-block;">${badgeText}</div>
-            <div style="font-weight:700;">${(zone.totalLumen || 0).toLocaleString()} lm</div>
-          </div>
-          <div style="font-size:10px; color:var(--text-dim); margin-top:2px;">${lumenPerPyeong.toFixed(0)} / ${targetLumen} lm/평</div>
+        <div class="zone-switch-group">
+          <span class="zone-switch-label">스위치</span>
+          <select class="zone-switch-select" data-zone-id="${zone.id}">${switchOptions}</select>
         </div>
       </div>
-      
-      <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; font-size: 11px;">
-        <div style="display: flex; align-items: center; gap: 4px; color: var(--text-dim);">
-          <span>스위치:</span>
-          <select class="zone-switch-select" style="width: 58px; height: 22px; padding: 0 4px; font-size: 11px; background-color: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 4px; color: var(--text);" data-zone-id="${zone.id}">
-            <option value="1" ${zone.switchCount === 1 ? 'selected' : ''}>1구</option>
-            <option value="2" ${zone.switchCount === 2 ? 'selected' : ''}>2구</option>
-            <option value="3" ${zone.switchCount === 3 ? 'selected' : ''}>3구</option>
-            <option value="4" ${zone.switchCount === 4 ? 'selected' : ''}>4구</option>
-            <option value="5" ${zone.switchCount === 5 ? 'selected' : ''}>5구</option>
-            <option value="6" ${zone.switchCount === 6 ? 'selected' : ''}>6구</option>
-          </select>
+
+      <div class="zone-card-row">
+        <div class="zone-lux-info">
+          <span class="zone-lux-label">조도:</span>
+          <span class="zone-lux-values">
+            <span>평당 ${Math.round(lumenPerPyeong).toLocaleString()}lm</span>
+            <span class="zone-lux-divider"></span>
+            <span>총 ${(zone.totalLumen || 0).toLocaleString()}lm</span>
+          </span>
         </div>
-        <div style="display: flex; gap: 4px; align-items: center;">
-          <button class="zone-edit-btn" data-zone-id="${zone.id}" title="공간 편집" style="background:none; border:none; color:var(--text-dim); cursor:pointer; display:inline-flex; align-items:center; padding:2px; border-radius:4px; transition: color 0.15s;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-              <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
+        <span class="zone-status ${badgeClass}">${badgeText}</span>
+      </div>
+
+      <div class="zone-card-row">
+        <span class="zone-area">${pyeong.toFixed(1)}평</span>
+        <div class="zone-actions">
+          <button class="zone-edit-btn" data-zone-id="${zone.id}" title="공간 편집">
+            <img src="img/zone_edit.svg" alt="공간 편집">
           </button>
-          <button class="zone-delete-btn" data-zone-id="${zone.id}" title="공간 삭제" style="background:none; border:none; color:var(--text-dim); cursor:pointer; display:inline-flex; align-items:center; padding:2px; border-radius:4px; transition: color 0.15s;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="3 6 5 6 21 6"/>
-              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-              <path d="M10 11v6"/>
-              <path d="M14 11v6"/>
-              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-            </svg>
+          <button class="zone-delete-btn" data-zone-id="${zone.id}" title="공간 삭제">
+            <img src="img/zone_delete.svg" alt="공간 삭제">
           </button>
         </div>
       </div>
@@ -4719,6 +4688,28 @@ function renderZonePanel() {
     
     els.zoneList.appendChild(item);
   });
+}
+
+// 접힌 상태에서도 총 예상 비용이 보이도록 BOM 헤더에 표시 (Figma node 1:437 / 2:14)
+// 비회원에게는 '회원가입하고 확인'을 링크로 노출
+function updateBomHeaderTotal(totalCost) {
+  if (!els.bomHeaderTotal) return;
+
+  if (authUser) {
+    els.bomHeaderTotal.textContent = `총 예상 비용: ₩${(totalCost || 0).toLocaleString()}`;
+    return;
+  }
+
+  els.bomHeaderTotal.innerHTML = '총 예상 비용: <span class="bom-signup-link">회원가입하고 확인하기</span>';
+  const link = els.bomHeaderTotal.querySelector('.bom-signup-link');
+  if (link) {
+    link.addEventListener('click', (e) => {
+      // 헤더 전체가 패널 토글 클릭 영역이라 전파를 막아야 함
+      e.stopPropagation();
+      const signupOverlay = document.getElementById('signupOverlay');
+      if (signupOverlay) signupOverlay.style.display = 'flex';
+    });
+  }
 }
 
 function renderBOMTable() {
@@ -4841,6 +4832,7 @@ function renderBOMTable() {
         <td colspan="7" style="text-align:center; color:var(--text-dim); padding:24px;">배치된 조명이 없습니다.</td>
       </tr>
     `;
+    updateBomHeaderTotal(0);
     return;
   }
   
@@ -5068,6 +5060,8 @@ function renderBOMTable() {
   }
   els.bomTableBody.appendChild(totalTr);
 
+  updateBomHeaderTotal(totalCost);
+
   if (!authUser) {
     const btnBomSignupGate = document.getElementById('btnBomSignupGate');
     const signupOverlay = document.getElementById('signupOverlay');
@@ -5146,7 +5140,7 @@ function getFixtureRenderSize(sizeMM) {
 function updateSliderBackground(val) {
   if (els.heatmapOpacitySlider) {
     const percent = (val / 50) * 100;
-    els.heatmapOpacitySlider.style.background = `linear-gradient(to right, var(--accent) 0%, var(--accent) ${percent}%, rgba(255, 255, 255, 0.15) ${percent}%, rgba(255, 255, 255, 0.15) 100%)`;
+    els.heatmapOpacitySlider.style.background = `linear-gradient(to right, #E1E1E1 0%, #E1E1E1 ${percent}%, rgba(255, 255, 255, 0.15) ${percent}%, rgba(255, 255, 255, 0.15) 100%)`;
   }
 }
 

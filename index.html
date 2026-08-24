@@ -22,7 +22,7 @@
   <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:image" content="https://zibis-lighting-planner.pages.dev/share.png" />
-  <link rel="stylesheet" type="text/css" href="style.css?v=30" />
+  <link rel="stylesheet" type="text/css" href="style.css?v=41" />
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
@@ -411,53 +411,54 @@
 
   <!-- Bottom Panel: BOM Table -->
   <div class="bottom-panel" id="bottomPanel">
-    <div class="panel-header" style="justify-content: space-between; align-items: center; display: flex;">
-      <div style="display: flex; align-items: center; gap: 16px;">
-        <span>선택된 조명 목록 (BOM)</span>
-        <div class="bom-filter-tags" id="bomFilterTags" style="display:flex; align-items:center; gap:6px;">
-          <!-- Dynamically populated space tags -->
+    <!-- 헤더 전체가 펼치기/접기 클릭 영역 (Figma node 1:364 / 3:37) -->
+    <div class="panel-header" id="bomPanelHeader" role="button" tabindex="0" aria-expanded="false" aria-controls="bomPanelBody" title="클릭하여 BOM 펼치기">
+      <div class="bom-header-left">
+        <span class="bom-header-title">선택된 조명 목록 (BOM)</span>
+        <span class="bom-header-summary" id="bomSummaryText">총 0개 | 0W</span>
+      </div>
+      <div class="bom-header-right">
+        <span class="bom-header-total" id="bomHeaderTotal"></span>
+        <span class="bom-toggle-btn" id="btnMaximizeBOM" aria-hidden="true">
+          <img src="img/bom_chevron.svg" alt="">
+        </span>
+      </div>
+    </div>
+
+    <!-- 펼쳤을 때만 보이는 본문 (Figma node 3:36) -->
+    <div class="bom-body" id="bomPanelBody">
+      <div class="bom-filter-tags" id="bomFilterTags">
+        <!-- Dynamically populated space tags -->
+      </div>
+      <!-- BOM Toast Message (Option C) -->
+      <div id="bomToastMessage" style="display: none; background: var(--accent-light); border: 1px solid var(--accent); border-radius: 8px; padding: 10px 16px; margin: 0 20px 10px; color: var(--text); font-size: 12px; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 14px;">💡</span>
+          <span>마그네틱 레일 설치 시 필수 부자재(전원선, 연결선, 마감캡)가 자동으로 견적에 포함됩니다.</span>
         </div>
+        <button style="background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 14px; font-weight: bold; padding: 0 4px;" onclick="dismissBOMToast()">×</button>
       </div>
-      <div style="display:flex; align-items:center; gap:12px;">
-        <span style="font-size:12px; color:var(--accent); font-weight:700;" id="bomSummaryText">총 0개 | 0W</span>
-        <button class="btn-icon" id="btnMaximizeBOM" title="BOM 확대" style="background:none; border:none; color:var(--text-dim); cursor:pointer; display:flex; align-items:center; padding: 4px;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="15 3 21 3 21 9"/>
-            <polyline points="9 21 3 21 3 15"/>
-            <line x1="21" y1="3" x2="14" y2="10"/>
-            <line x1="3" y1="21" x2="10" y2="14"/>
-          </svg>
-        </button>
+      <div class="bom-table-wrap">
+        <table class="bom-table">
+          <thead>
+            <tr>
+              <th>조명 모델</th>
+              <th>구분 (타입)</th>
+              <th>소비전력 (W)</th>
+              <th>광량 (lm)</th>
+              <th>배치 수량</th>
+              <th>가격</th>
+              <th>동작</th>
+            </tr>
+          </thead>
+          <tbody id="bomTableBody">
+            <!-- Filled dynamically via JS -->
+            <tr>
+              <td colspan="7" style="text-align:center; color:var(--text-dim); padding:24px;">배치된 조명이 없습니다.</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-    </div>
-    <!-- BOM Toast Message (Option C) -->
-    <div id="bomToastMessage" style="display: none; background: var(--accent-light); border: 1px solid var(--accent); border-radius: 8px; padding: 10px 16px; margin: 10px 16px; color: var(--text); font-size: 12px; align-items: center; justify-content: space-between;">
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 14px;">💡</span>
-        <span>마그네틱 레일 설치 시 필수 부자재(전원선, 연결선, 마감캡)가 자동으로 견적에 포함됩니다.</span>
-      </div>
-      <button style="background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 14px; font-weight: bold; padding: 0 4px;" onclick="dismissBOMToast()">×</button>
-    </div>
-    <div class="bom-table-wrap">
-      <table class="bom-table">
-        <thead>
-          <tr>
-            <th>조명 모델</th>
-            <th>구분 (타입)</th>
-            <th>소비전력 (W)</th>
-            <th>광량 (lm)</th>
-            <th>배치 수량</th>
-            <th>가격</th>
-            <th>동작</th>
-          </tr>
-        </thead>
-        <tbody id="bomTableBody">
-          <!-- Filled dynamically via JS -->
-          <tr>
-            <td colspan="7" style="text-align:center; color:var(--text-dim); padding:24px;">배치된 조명이 없습니다.</td>
-          </tr>
-        </tbody>
-      </table>
     </div>
   </div>
 
@@ -1192,6 +1193,6 @@
 
 </div>
 
-<script src="app.js?v=80"></script>
+<script src="app.js?v=87"></script>
 </body>
 </html>

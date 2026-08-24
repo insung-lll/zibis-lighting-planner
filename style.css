@@ -233,15 +233,94 @@ body {
   height: 100%;
 }
 
+/* BOM 패널 헤더 — 헤더 전체가 펼치기/접기 클릭 영역 (Figma node 1:364 / 3:37) */
 .panel-header {
   height: 54px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
-  padding: 0 20px;
+  justify-content: space-between;
+  padding: 0 13px 0 20px;
+  border-bottom: 1px solid #2a2a2a;
+  cursor: pointer;
+  user-select: none;
+}
+
+.panel-header:hover .bom-toggle-btn {
+  background-color: #232323;
+}
+
+.bom-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.bom-header-title {
   font-size: 14px;
-  font-weight: 700;
-  border-bottom: 1px solid var(--border);
+  font-weight: 500;
+  color: rgba(237, 237, 237, 0.8);
   letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.bom-header-summary {
+  font-size: 12px;
+  font-weight: 400;
+  color: #676767;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.bom-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+/* 총 예상 비용 (Figma node 1:437 / 2:14) — 비회원은 '회원가입하고 확인'이 링크로 노출 */
+.bom-header-total {
+  font-size: 14px;
+  color: rgba(237, 237, 237, 0.8);
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.bom-header-total .bom-signup-link {
+  color: #0070f3;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.bom-header-total .bom-signup-link:hover {
+  color: var(--accent-hover);
+}
+
+.bom-toggle-btn {
+  width: 34px;
+  height: 34px;
+  background-color: #1a1a1a;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease;
+}
+
+/* 셰브론 SVG는 preserveAspectRatio="none"이라 원본 비율(14.5:8.5)대로 크기 지정 */
+.bom-toggle-btn img {
+  display: block;
+  width: 14.5px;
+  height: 8.5px;
+  transition: transform 0.25s ease;
+}
+
+/* 펼쳐진 상태에서는 셰브론을 뒤집어 '접기'를 표시 */
+.app-wrapper.bom-expanded .bom-toggle-btn img {
+  transform: rotate(180deg);
 }
 
 .library-tabs {
@@ -316,10 +395,9 @@ body {
 .pill {
   padding: 5px 6px;
   background-color: var(--bg-card);
-  border: 1px solid var(--border);
   border-radius: 20px;
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--text-dim);
   cursor: pointer;
   white-space: nowrap;
@@ -327,9 +405,9 @@ body {
 }
 
 .pill.active {
-  background-color: var(--accent-light);
-  border-color: var(--accent);
-  color: var(--accent);
+  background-color: rgba(255, 255, 255, 0.7);
+  color: #000000;
+  font-weight: 600;
 }
 
 .fixture-list {
@@ -356,7 +434,6 @@ body {
   align-items: center;
   gap: 12px;
   background-color: var(--bg-card);
-  border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 12px;
   cursor: grab;
@@ -612,13 +689,11 @@ body {
   bottom: 20px !important;
   top: auto !important;
   background-color: #111;
-  border: 1px solid #2e2e2e;
-  border-radius: 8px;
+  border-radius: 100px;
   padding: 10px 17px 9px 16px;
   display: flex;
   align-items: center;
   gap: 14px;
-  box-shadow: var(--shadow);
   z-index: 10;
   user-select: none;
 }
@@ -744,59 +819,205 @@ body {
   border-radius: 2px;
 }
 
+/* 구획된 공간 목록 카드 (Figma node 1:362) */
 .zone-item {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  background-color: #1a1a1a;
+  border-radius: 8px;
+  padding: 10px 12px 9px;
+  font-size: 10px;
+}
+
+.zone-card-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background-color: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 10px 12px;
-  font-size: 12px;
+  gap: 8px;
 }
 
+/* Row 1: 색상 바 + 공간명 + 표시/숨김 토글 */
 .zone-item-left {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .zone-color-indicator {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
+  width: 2px;
+  height: 14px;
+  border-radius: 1px;
+  flex-shrink: 0;
 }
 
 .zone-name {
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 400;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.zone-meta {
+.zone-visible-toggleBtn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  /* 두 아이콘 높이가 달라도 행이 흔들리지 않도록 버튼 크기 고정 */
+  width: 17px;
+  height: 15px;
+  transition: opacity 0.15s ease;
+}
+
+/* 아이콘 SVG는 preserveAspectRatio="none"이라 원본 비율대로 크기 지정
+   (눈 17.2:12.2 / 안보임 17.2:15.2 — 사선 때문에 안보임 아이콘이 더 높음) */
+.zone-visible-toggleBtn img {
+  display: block;
+  width: 17px;
+  height: 12px;
+}
+
+.zone-visible-toggleBtn.hidden-state img {
+  height: 15px;
+}
+
+.zone-visible-toggleBtn:hover {
+  opacity: 0.7;
+}
+
+/* Row 1 우측: 스위치 개수 선택 */
+.zone-switch-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.zone-switch-label {
   font-size: 10px;
-  color: var(--text-dim);
-  margin-top: 2px;
+  color: #676767;
 }
 
-.zone-lux-badge {
-  padding: 4px 8px;
+.zone-switch-select {
+  width: 57px;
+  height: 23px;
+  background-color: #1a1a1a;
+  border: 0.5px solid #404040;
   border-radius: 4px;
+  color: #ffffff;
   font-size: 10px;
-  font-weight: 700;
+  font-family: inherit;
+  padding: 0 8px;
+  cursor: pointer;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url('img/zone_chevron.svg');
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 7px 4px;
 }
 
-.zone-lux-badge.low {
-  background-color: rgba(255, 59, 48, 0.15);
+/* Row 2: 조도 정보 + 충족 상태 */
+.zone-lux-info {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.zone-lux-label {
+  font-size: 10px;
+  color: #676767;
+  flex-shrink: 0;
+}
+
+.zone-lux-values {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: #676767;
+  white-space: nowrap;
+}
+
+.zone-lux-divider {
+  width: 1px;
+  height: 8px;
+  background-color: #676767;
+  flex-shrink: 0;
+}
+
+.zone-status {
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.zone-status.low {
   color: #ff3b30;
 }
 
-.zone-lux-badge.adequate {
-  background-color: rgba(242, 162, 0, 0.15);
+.zone-status.adequate {
   color: #f2a200;
 }
 
-.zone-lux-badge.bright {
-  background-color: rgba(52, 199, 89, 0.15);
-  color: #34c759;
+.zone-status.bright {
+  color: #14ae2e;
+}
+
+/* Row 3: 면적 + 편집/삭제 */
+.zone-area {
+  font-size: 10px;
+  color: #676767;
+}
+
+.zone-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px; /* 편집 아이콘을 삭제 아이콘에서 6px 더 왼쪽으로 (기본 1px + 6px) */
+  height: 23px;
+  padding: 0 2px;
+  flex-shrink: 0;
+}
+
+.zone-actions button {
+  width: 19px;
+  height: 19px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.15s ease;
+}
+
+/* 아이콘 SVG는 여백 없이 글리프만 잘려있고 preserveAspectRatio="none"이라,
+   각 글리프의 실제 비율(연필 12.8:13.8, 휴지통 12.8:14.8)대로 크기를 지정해야 찌그러지지 않음 */
+.zone-actions button img {
+  display: block;
+}
+
+.zone-edit-btn img {
+  width: 13px;
+  height: 14px;
+}
+
+.zone-delete-btn img {
+  width: 13px;
+  height: 15px;
+}
+
+.zone-actions button:hover {
+  opacity: 0.7;
 }
 
 /* Floating height popups */
@@ -1310,14 +1531,28 @@ body {
 }
 
 /* Bottom Area: BOM List */
+/* 기본은 헤더만 노출해 캔버스를 최대한 넓게 쓰고, 헤더 클릭 시 크게 펼침 */
 .bottom-panel {
-  height: 180px;
+  height: 54px;
   flex-shrink: 0;
   background-color: var(--bg-panel);
   border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   z-index: 5;
+  transition: height 0.25s ease;
+}
+
+.bom-body {
+  display: none;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  padding-top: 12px;
+}
+
+.app-wrapper.bom-expanded .bom-body {
+  display: flex;
 }
 
 .bom-table-wrap {
@@ -1355,20 +1590,22 @@ body {
 }
 
 /* BOM Filter Tags */
+/* 공간 필터 태그 — 헤더가 클릭 영역이 되면서 본문 상단으로 이동 (Figma node 3:68) */
 .bom-filter-tags {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-shrink: 0;
+  padding: 0 20px 12px;
 }
 
 .bom-filter-tag {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 400;
   padding: 4px 10px;
   border-radius: 12px;
   cursor: pointer;
   background-color: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--border);
   color: var(--text-dim);
   transition: all 0.15s ease;
   user-select: none;
@@ -1377,13 +1614,12 @@ body {
 .bom-filter-tag:hover {
   background-color: rgba(255, 255, 255, 0.08);
   color: var(--text);
-  border-color: var(--text-dim);
 }
 
 .bom-filter-tag.active {
-  background-color: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  background-color: rgba(255, 255, 255, 0.7);
+  color: #000000;
+  font-weight: 600;
 }
 
 /* Alignment grid snapping lines indicators */
@@ -1411,34 +1647,32 @@ body {
 
 .sub-pill {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 400;
   padding: 4px 12px;
   border-radius: 12px;
   cursor: pointer;
   background-color: var(--bg-card);
-  border: 1px solid var(--border);
   color: var(--text-dim);
   transition: all 0.15s ease;
 }
 
 .sub-pill:hover {
   color: var(--text);
-  border-color: var(--text-dim);
 }
 
 .sub-pill.active {
-  background-color: var(--accent-light);
-  border-color: var(--accent);
-  color: var(--accent);
+  background-color: rgba(255, 255, 255, 0.7);
+  color: #000000;
+  font-weight: 600;
 }
 
-/* BOM Maximization */
+/* BOM Maximization — 펼쳤을 때 추가한 제품을 한눈에 볼 수 있도록 크게 노출 */
 .app-wrapper.bom-expanded .main-layout {
-  height: calc(100vh - 80px - 50vh) !important;
+  height: calc(100vh - 80px - 70vh) !important;
 }
 
 .app-wrapper.bom-expanded .bottom-panel {
-  height: 50vh !important;
+  height: 70vh !important;
 }
 
 /* Light Tooltip */
@@ -1480,12 +1714,10 @@ body {
   flex-direction: row;
   align-items: center;
   background-color: rgba(17, 17, 17, 0.85);
-  border: 1px solid var(--border);
-  border-radius: 30px;
+  border-radius: 100px;
   padding: 6px 16px;
   z-index: 10;
   box-sizing: border-box;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6) !important;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   gap: 8px !important;
@@ -1828,13 +2060,11 @@ body {
   left: 20px;
   bottom: 20px;
   background-color: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 100px;
   padding: 6px 8px;
   display: flex;
   align-items: center;
   gap: 6px;
-  box-shadow: var(--shadow);
   z-index: 10;
   user-select: none;
 }
